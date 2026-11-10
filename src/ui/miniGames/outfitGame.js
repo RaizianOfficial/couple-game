@@ -161,22 +161,7 @@ export class OutfitGame {
     if (!uid) return;
 
     soundEngine.playPop();
-    const currState = this.syncService.outfitState || { picks: {}, revealed: false };
-    const newPicks = {
-      ...(currState.picks || {}),
-      [uid]: { ...this.myPicks }
-    };
-
-    // Check if both submitted
-    const partnerUid = this.roomService.partnerUid;
-    const bothSubmitted = partnerUid && newPicks[uid] && newPicks[partnerUid];
-
-    const updatedState = {
-      picks: newPicks,
-      revealed: Boolean(bothSubmitted)
-    };
-
-    await this.syncService.updateOutfit(updatedState);
+    await this.syncService.submitOutfitPick(this.myPicks);
   }
 
   async restart() {

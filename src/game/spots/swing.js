@@ -148,14 +148,19 @@ export class SwingSpot {
 
     this.scene.add(this.group);
 
-    // Colliders for the frame posts
+    // Colliders ONLY for the two side A-frame posts (leaves the middle completely open for walking & swinging)
     if (this.town && this.town.colliders) {
       this.town.colliders.push({
-        type: 'box',
-        minX: this.position.x - 1.6,
-        maxX: this.position.x + 1.6,
-        minZ: this.position.z - 0.75,
-        maxZ: this.position.z + 0.75
+        type: 'circle',
+        x: this.position.x - 1.45,
+        z: this.position.z,
+        r: 0.35
+      });
+      this.town.colliders.push({
+        type: 'circle',
+        x: this.position.x + 1.45,
+        z: this.position.z,
+        r: 0.35
       });
     }
   }

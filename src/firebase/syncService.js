@@ -266,6 +266,22 @@ export class SyncService {
     await dbSet(tttRef, gameState);
   }
 
+  async submitOutfitPick(pick) {
+    if (!this.roomId || !this.uid) return;
+    const partnerUid = this.partnerUid;
+    const outfitRef = dbRef(`rooms/${this.roomId}/games/outfit`);
+    await dbRunTransaction(outfitRef, (current) => {
+      const state = current || { picks: {}, revealed: false };
+      const picks = { ...(state.picks || {}) };
+      picks[this.uid] = { ...pick };
+      const both = Boolean(partnerUid && picks[this.uid] && picks[partnerUid]);
+      return {
+        picks,
+        revealed: both
+      };
+    });
+  }
+
   async updateOutfit(outfitState) {
     if (!this.roomId) return;
     const outfitRef = dbRef(`rooms/${this.roomId}/games/outfit`);

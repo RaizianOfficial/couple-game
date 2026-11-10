@@ -724,15 +724,17 @@ class App {
     if (!this.currentSpot) return;
     soundEngine.playPop();
 
-    if (this.currentSpot === 'bike_driver') {
+    const previousSpot = this.currentSpot;
+
+    if (previousSpot === 'bike_driver') {
       await syncService.releaseSeat('bike', 'driver');
-    } else if (this.currentSpot === 'bike_passenger') {
+    } else if (previousSpot === 'bike_passenger') {
       await syncService.releaseSeat('bike', 'passenger');
-    } else if (this.currentSpot === 'swing_seat1') {
+    } else if (previousSpot === 'swing_seat1') {
       await syncService.releaseSeat('swing', 'seat1');
-    } else if (this.currentSpot === 'swing_seat2') {
+    } else if (previousSpot === 'swing_seat2') {
       await syncService.releaseSeat('swing', 'seat2');
-    } else if (this.currentSpot.startsWith('tea')) {
+    } else if (previousSpot.startsWith('tea')) {
       await syncService.releaseSeat('teaStall', 'seat');
       await syncService.updateSpotExtra('teaStall', { cupHolder: null, teaState: 'idle' });
       this.teaStall.returnCupToCounter();
@@ -743,6 +745,19 @@ class App {
       this.myChar.anim = 'idle';
       this.myChar.modelRoot.position.y = 0;
       this.myChar.group.position.y = 0;
+
+      // Natural dismount placement: step safely clear in front of the spot
+      if (previousSpot.startsWith('swing')) {
+        this.myChar.setPosition(this.myChar.group.position.x, this.swing.position.z + 1.2, this.swing.rotationY, 0);
+      } else if (previousSpot === 'bike_driver') {
+        const sideOffset = new THREE.Vector3(-0.85, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.bike.group.rotation.y);
+        this.myChar.setPosition(this.bike.group.position.x + sideOffset.x, this.bike.group.position.z + sideOffset.z, this.bike.group.rotation.y, 0);
+      } else if (previousSpot === 'bike_passenger') {
+        const sideOffset = new THREE.Vector3(0.85, 0, -0.4).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.bike.group.rotation.y);
+        this.myChar.setPosition(this.bike.group.position.x + sideOffset.x, this.bike.group.position.z + sideOffset.z, this.bike.group.rotation.y, 0);
+      } else if (previousSpot.startsWith('tea')) {
+        this.myChar.setPosition(this.myChar.group.position.x, this.teaStall.position.z + 1.8, 0, 0);
+      }
     }
   }
 }

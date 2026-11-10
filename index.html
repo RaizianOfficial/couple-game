@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Our Little Town - A Two-Player Couple Game</title>
+  
+  <meta name="description" content="A sweet, dreamy, real-time two-player isometric couple game." />
+  <meta name="theme-color" content="#fbcfe8" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+
+  <style>
+    /* Reset & Mobile PWA Locks */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #fed7aa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      touch-action: none;
+      overscroll-behavior: none;
+      position: fixed;
+    }
+
+    /* Screen Container */
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #fed7aa 0%, #fbcfe8 50%, #ddd6fe 100%);
+    }
+
+    /* 3D Canvas Container */
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* UI Overlay Layer */
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .interactive, button, input, a {
+      pointer-events: auto;
+    }
+
+    /* Portrait Rotation Warning Overlay */
+    #rotate-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(30, 27, 46, 0.94);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      text-align: center;
+      padding: 24px;
+    }
+
+    #rotate-overlay .rotate-icon {
+      font-size: 56px;
+      animation: rotatePhone 2.2s infinite ease-in-out;
+      margin-bottom: 16px;
+    }
+
+    @keyframes rotatePhone {
+      0%, 20% { transform: rotate(0deg); }
+      50%, 70% { transform: rotate(-90deg); }
+      90%, 100% { transform: rotate(0deg); }
+    }
+
+    #rotate-overlay h2 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      color: #fbcfe8;
+    }
+
+    #rotate-overlay p {
+      font-size: 15px;
+      color: #fed7aa;
+      max-width: 280px;
+      line-height: 1.4;
+    }
+
+    /* Show portrait overlay when height > width on mobile/tablet */
+    @media (orientation: portrait) {
+      #rotate-overlay {
+        display: flex !important;
+      }
+    }
+
+    /* Screens: Landing, Waiting, Modal */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      background: linear-gradient(135deg, rgba(254, 215, 170, 0.94) 0%, rgba(251, 207, 232, 0.94) 50%, rgba(221, 214, 254, 0.94) 100%);
+      backdrop-filter: blur(12px);
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      padding: 16px;
+    }
+
+    .screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.82);
+      border-radius: 24px;
+      padding: 24px 32px;
+      box-shadow: 0 12px 36px rgba(131, 24, 67, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1.5px solid rgba(255, 255, 255, 0.8);
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .game-logo {
+      font-size: 32px;
+      font-weight: 800;
+      color: #db2777;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .game-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: -6px;
+      margin-bottom: 6px;
+    }
+
+    .input-field {
+      width: 100%;
+      height: 48px;
+      border-radius: 14px;
+      border: 1.5px solid #fbcfe8;
+      background: #fff;
+      padding: 0 16px;
+      font-size: 15px;
+      color: #1e293b;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .input-field:focus {
+      border-color: #ec4899;
+      box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
+    }
+
+    .button-stack {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .btn-primary {
+      flex: 1;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(219, 39, 119, 0.35);
+      transition: transform 0.1s ease, filter 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      height: 48px;
+      border-radius: 14px;
+      background: #ffffff;
+      color: #db2777;
+      font-size: 15px;
+      font-weight: 600;
+      border: 1.5px solid #fbcfe8;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      transition: transform 0.1s ease, background 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-primary:active, .btn-secondary:active {
+      transform: scale(0.97);
+    }
+
+    .join-box {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+    }
+
+    .join-box input {
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .error-msg {
+      color: #e11d48;
+      font-size: 13px;
+      font-weight: 500;
+      min-height: 18px;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .footer-links a, .footer-links button {
+      color: #db2777;
+      text-decoration: underline;
+      background: none;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* Waiting Screen */
+    .room-code-display {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: #ec4899;
+      background: #fdf2f8;
+      padding: 8px 24px;
+      border-radius: 16px;
+      border: 2px dashed #f472b6;
+    }
+
+    .pulse-heart {
+      font-size: 42px;
+      animation: pulse 1.4s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.22); }
+    }
+
+    /* Virtual Joystick */
+    .joystick-container {
+      position: absolute;
+      bottom: 24px;
+      left: 28px;
+      width: 110px;
+      height: 110px;
+      z-index: 20;
+      touch-action: none;
+    }
+
+    .joystick-base {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.45);
+      border: 2px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 4px 16px rgba(131, 24, 67, 0.15);
+      backdrop-filter: blur(6px);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+    }
+
+    .joystick-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+      box-shadow: 0 2px 10px rgba(219, 39, 119, 0.4);
+      position: absolute;
+      pointer-events: none;
+      transition: transform 0.05s ease-out;
+    }
+
+    /* HUD Top Bar */
+    .hud-top-bar {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 20;
+    }
+
+    .room-chip {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      pointer-events: auto;
+    }
+
+    .chip-code {
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #db2777;
+    }
+
+    .chip-copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+    }
+
+    .presence-badge {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .presence-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fbbf24;
+    }
+
+    .presence-badge.online .presence-dot { background: #10b981; }
+    .presence-badge.offline .presence-dot { background: #ef4444; }
+
+    .hud-top-actions {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-radius: 18px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* HUD Right Action Controls */
+    .hud-right-actions {
+      position: absolute;
+      bottom: 24px;
+      right: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .action-btn {
+      min-width: 140px;
+      height: 52px;
+      border-radius: 26px;
+      border: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(131, 24, 67, 0.22);
+      transition: transform 0.1s ease, filter 0.2s ease;
+      pointer-events: auto;
+    }
+
+    .hold-hands-btn {
+      background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
+    }
+
+    .hold-hands-btn.pressed {
+      transform: scale(0.94);
+      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+      box-shadow: 0 0 0 4px rgba(244, 114, 182, 0.4);
+    }
+
+    .hold-hands-btn.active-holding {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4);
+    }
+
+    .interact-btn {
+      background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    }
+
+    .hud-util-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .round-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #fff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: transform 0.1s ease;
+    }
+
+    .round-btn:active { transform: scale(0.92); }
+
+    /* Emoji Tray */
+    .emoji-tray {
+      position: absolute;
+      bottom: 84px;
+      right: 28px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 8px 12px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 8px 28px rgba(131, 24, 67, 0.18);
+      border: 1.5px solid #fbcfe8;
+      z-index: 30;
+      pointer-events: auto;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .emoji-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: #fdf2f8;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .emoji-btn:active { transform: scale(1.2); background: #fbcfe8; }
+
+    /* Floating Reactions World/Screen Layer */
+    .floating-reactions-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 40;
+    }
+
+    .floating-emoji {
+      position: absolute;
+      font-size: 38px;
+      transform: translate(-50%, -50%);
+      animation: floatUp 2s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
+      pointer-events: none;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.5); }
+      20% { opacity: 1; transform: translate(-50%, -30px) scale(1.2); }
+      80% { opacity: 1; transform: translate(-50%, -80px) scale(1.0); }
+      100% { opacity: 0; transform: translate(-50%, -110px) scale(0.8); }
+    }
+
+    /* Offline Banner */
+    .partner-offline-banner {
+      position: absolute;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(225, 29, 72, 0.9);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 16px rgba(225, 29, 72, 0.3);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+      z-index: 25;
+    }
+
+    /* Modals (Tic-Tac-Toe, Outfit, Privacy, Games Menu) */
+    .game-modal, .games-menu-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 20px 24px;
+      width: 90%;
+      max-width: 360px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-large { max-width: 480px; }
+
+    .modal-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .modal-close-btn {
+      background: #f1f5f9;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 14px;
+      color: #64748b;
+      cursor: pointer;
+    }
+
+    .modal-desc {
+      font-size: 13px;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* Tic-Tac-Toe Styles */
+    .ttt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 64px);
+      grid-template-rows: repeat(3, 64px);
+      gap: 8px;
+      margin: 8px 0;
+    }
+
+    .ttt-cell {
+      width: 64px;
+      height: 64px;
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 14px;
+      font-size: 28px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #0f172a;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .ttt-cell:active { transform: scale(0.94); }
+    .ttt-cell.x-cell { color: #ec4899; }
+    .ttt-cell.o-cell { color: #3b82f6; }
+
+    .ttt-status {
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 22px;
+      text-align: center;
+    }
+
+    .ttt-status.my-turn { color: #ec4899; }
+    .ttt-status.partner-turn { color: #64748b; }
+    .ttt-status.winner { color: #10b981; }
+
+    /* Outfit Game Styles */
+    .outfit-sections {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .outfit-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .row-label {
+      width: 68px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .pill-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .pill-btn {
+      padding: 6px 12px;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+    }
+
+    .pill-btn.active {
+      background: #fbcfe8;
+      border-color: #ec4899;
+      color: #9d174d;
+    }
+
+    .color-swatches {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .swatch-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+    }
+
+    .swatch-btn.active {
+      outline: 3px solid #ec4899;
+    }
+
+    .outfit-status {
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      text-align: center;
+    }
+
+    .outfit-status.waiting { color: #d97706; }
+    .outfit-status.revealed { color: #10b981; }
+
+    /* Games Choice Modal */
+    .games-menu-card {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 20px;
+      width: 90%;
+      max-width: 320px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .games-menu-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .games-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .game-choice-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: #fdf2f8;
+      border: 1.5px solid #fbcfe8;
+      border-radius: 16px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .game-choice-btn:active { background: #fce7f3; }
+    .game-choice-btn .game-icon { font-size: 24px; }
+    .game-choice-btn strong { display: block; font-size: 14px; color: #db2777; }
+    .game-choice-btn small { font-size: 11px; color: #64748b; }
+
+    /* iOS Safari & PWA Install Cards */
+    .pwa-banner {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border-radius: 18px;
+      padding: 8px 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+      border: 1px solid #fbcfe8;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 1000;
+      pointer-events: auto;
+    }
+
+    .pwa-banner-btn {
+      padding: 6px 14px;
+      border-radius: 12px;
+      background: #ec4899;
+      color: #fff;
+      font-weight: 600;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer">
+      <!-- Joystick Container (Left) -->
+      <div class="joystick-container interactive" id="joystick-mount"></div>
+    </div>
+
+    <!-- Portrait Rotation Overlay -->
+    <div id="rotate-overlay">
+      <div class="rotate-icon">📲</div>
+      <h2>Please Rotate Your Phone</h2>
+      <p>Our Little Town is designed for landscape mode. Rotate your device to walk around!</p>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div class="pwa-banner hidden" id="pwa-install-banner">
+      <span style="font-size:13px; font-weight:600; color:#1e293b;">Install Our Little Town app?</span>
+      <button class="pwa-banner-btn" id="pwa-install-btn">Install</button>
+      <button style="background:none; border:none; color:#94a3b8; font-size:16px; cursor:pointer;" id="pwa-dismiss-btn">✕</button>
+    </div>
+
+    <!-- iOS Add to Home Screen Instructions Card -->
+    <div class="pwa-banner hidden" id="ios-install-banner">
+      <span style="font-size:12px; color:#475569;">Tap <strong>Share ⎋</strong> then <strong>Add to Home Screen ⊞</strong> for full screen!</span>
+      <button style="background:none; border:none; color:#94a3b8; font-size:16px; cursor:pointer;" id="ios-dismiss-btn">✕</button>
+    </div>
+
+    <!-- Landing Screen -->
+    <div class="screen" id="screen-landing">
+      <div class="glass-card">
+        <div class="game-logo">🌸 Our Little Town 🌸</div>
+        <p class="game-subtitle">A sweet, dreamy, real-time two-player couple game</p>
+
+        <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname (optional)" maxlength="12" />
+
+        <div class="button-stack">
+          <button class="btn-primary" id="btn-create-room">Create Room</button>
+        </div>
+
+        <div class="join-box">
+          <input type="text" class="input-field" id="landing-room-code" placeholder="ROOM CODE" maxlength="5" />
+          <button class="btn-secondary" id="btn-join-room" style="flex:0.8;">Join</button>
+        </div>
+
+        <div class="error-msg" id="landing-error"></div>
+
+        <div class="footer-links">
+          <button id="btn-open-privacy">Privacy & Safety</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Waiting Screen -->
+    <div class="screen hidden" id="screen-waiting">
+      <div class="glass-card">
+        <div class="pulse-heart">💖</div>
+        <div class="game-logo" style="font-size:24px;">Waiting for your partner...</div>
+        <p class="game-subtitle">Share this room code with your partner to join!</p>
+
+        <div class="room-code-display" id="waiting-room-code">ABCDE</div>
+
+        <div class="button-stack">
+          <button class="btn-primary" id="waiting-copy-btn">Copy Code</button>
+          <button class="btn-secondary" id="waiting-share-btn">Share Link</button>
+        </div>
+
+        <button class="btn-secondary" id="waiting-cancel-btn" style="width:100%; border-color:transparent; color:#64748b;">Cancel & Leave</button>
+      </div>
+    </div>
+
+    <!-- Privacy Modal -->
+    <div class="game-modal hidden" id="modal-privacy">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span class="modal-title">Privacy & Safety</span>
+          <button class="modal-close-btn" id="privacy-close-btn">✕</button>
+        </div>
+        <div class="modal-desc" style="text-align:left; font-size:13px; line-height:1.6; color:#334155;">
+          • <strong>What is stored:</strong> Only temporary room code, optional nickname, and real-time character positions.<br/>
+          • <strong>Session cleanup:</strong> All room data is transient and deleted when sessions end.<br/>
+          • <strong>Zero tracking:</strong> No Google Analytics, no third-party trackers, no cookies, no advertising.
+        </div>
+        <button class="btn-primary" id="privacy-ok-btn" style="width:100%;">Got it!</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

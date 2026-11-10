@@ -1,0 +1,19 @@
+{
+  "name": "Our Little Town",
+  "short_name": "Little Town",
+  "description": "A sweet, dreamy, real-time two-player isometric couple game.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "theme_color": "#fbcfe8",
+  "background_color": "#fed7aa",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

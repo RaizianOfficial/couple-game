@@ -52,9 +52,16 @@ export class RoomService {
   }
 
   async initAuth() {
-    const cred = await signIn();
-    this.user = cred.user || getCurrentUser();
-    return this.user;
+    try {
+      const cred = await signIn();
+      this.user = cred.user || getCurrentUser();
+      return this.user;
+    } catch (err) {
+      if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
+        throw new Error('Anonymous Auth is not enabled in Firebase. Please enable it in Firebase Console: Authentication -> Sign-in method -> Anonymous.');
+      }
+      throw err;
+    }
   }
 
   async createRoom(nickname = '') {

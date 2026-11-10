@@ -79,17 +79,6 @@ export class GameEngine {
     const skyMat = new THREE.MeshBasicMaterial({ map: skyTex });
     this.skyDome = new THREE.Mesh(skyGeo, skyMat);
     this.scene.add(this.skyDome);
-
-    // Low-poly cute distant decorative hills/clouds on horizon
-    const hillMat = new THREE.MeshLambertMaterial({ color: 0xfbcfe8, flatShading: true });
-    for (let i = 0; i < 16; i++) {
-      const angle = (i / 16) * Math.PI * 2;
-      const r = 42 + (Math.sin(i * 3) * 6);
-      const hillGeo = new THREE.DodecahedronGeometry(8 + (i % 3) * 3, 1);
-      const hill = new THREE.Mesh(hillGeo, hillMat);
-      hill.position.set(Math.cos(angle) * r, -2 + (i % 2) * 2, Math.sin(angle) * r);
-      this.scene.add(hill);
-    }
   }
 
   initLights() {

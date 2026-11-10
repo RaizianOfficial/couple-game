@@ -7,7 +7,8 @@ export class HandHoldingSystem {
     this.scene = scene;
     this.isHoldingLocal = false; // Whether this local player is holding the button
     this.isConnected = false;    // Whether both players are holding hands
-    this.maxHoldDist = 2.8;
+    this.maxHoldDist = 3.8;      // Generous sweet tether distance
+    this.proximityDist = 3.0;
 
     this.initVisuals();
   }
@@ -53,12 +54,13 @@ export class HandHoldingSystem {
   checkProximity(char1Pos, char2Pos) {
     if (!char1Pos || !char2Pos) return false;
     const dist = Math.hypot(char1Pos.x - char2Pos.x, char1Pos.z - char2Pos.z);
-    return dist <= 2.5;
+    // If already connected, use max tether distance so button doesn't vanish while walking together
+    return dist <= (this.isConnected ? this.maxHoldDist : this.proximityDist);
   }
 
   update(char1, char2, bothHolding, delta) {
     if (!char1 || !char2) {
-      this.disconnect();
+      this.disconnect(char1, char2);
       return false;
     }
 
@@ -73,9 +75,16 @@ export class HandHoldingSystem {
         soundEngine.playHandHold();
       }
 
+      // Dynamically face appropriate hand towards partner
+      const p1ToRight = (pos2.x >= pos1.x);
+      char1.isHoldingHands = true;
+      char1.holdingSide = p1ToRight ? 'right' : 'left';
+      char2.isHoldingHands = true;
+      char2.holdingSide = p1ToRight ? 'left' : 'right';
+
       this.handLine.visible = true;
-      const h1Pos = char1.getHandWorldPosition(true); // Right hand of char1
-      const h2Pos = char2.getHandWorldPosition(false); // Left hand of char2
+      const h1Pos = char1.getHandWorldPosition(char1.holdingSide === 'right');
+      const h2Pos = char2.getHandWorldPosition(char2.holdingSide === 'right');
 
       // Update line points
       const positions = this.handLine.geometry.attributes.position.array;
@@ -94,7 +103,7 @@ export class HandHoldingSystem {
       return true;
     } else {
       if (this.isConnected) {
-        this.disconnect();
+        this.disconnect(char1, char2);
       }
       return false;
     }
@@ -122,9 +131,11 @@ export class HandHoldingSystem {
     }
   }
 
-  disconnect() {
+  disconnect(char1, char2) {
     this.isConnected = false;
     this.handLine.visible = false;
+    if (char1) char1.isHoldingHands = false;
+    if (char2) char2.isHoldingHands = false;
     for (const hp of this.heartParticles) {
       hp.mesh.visible = false;
       hp.life = hp.maxLife;

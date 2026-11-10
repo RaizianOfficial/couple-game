@@ -464,6 +464,53 @@
       box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4);
     }
 
+    .jump-btn {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+      min-width: 120px;
+    }
+    .jump-btn:active {
+      transform: scale(0.92);
+    }
+
+    .hug-btn {
+      background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+      box-shadow: 0 0 15px rgba(244, 63, 94, 0.5);
+      animation: pulseHug 2s infinite ease-in-out;
+    }
+    @keyframes pulseHug {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .hud-flight-row {
+      display: flex;
+      gap: 8px;
+    }
+    .flight-btn {
+      min-width: 90px;
+      height: 48px;
+      font-size: 13px;
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    }
+
+    .hud-inventory {
+      display: flex;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #334155;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+    .inv-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     .interact-btn {
       background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
     }

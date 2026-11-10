@@ -6,6 +6,12 @@ import { Character } from './game/character.js';
 import { BikeSpot } from './game/spots/bike.js';
 import { SwingSpot } from './game/spots/swing.js';
 import { TeaStallSpot } from './game/spots/teaStall.js';
+import { HelicopterSpot } from './game/spots/helicopter.js';
+import { CoupleHouseSpot } from './game/spots/house.js';
+import { PlaygroundSpot } from './game/spots/playground.js';
+import { TreeChoppingSystem } from './game/spots/treeChopping.js';
+import { FarmingSpot } from './game/spots/farming.js';
+import { ChairSpotSystem } from './game/spots/chair.js';
 import { HandHoldingSystem } from './game/hands.js';
 import { VirtualJoystick } from './ui/joystick.js';
 import { TouchLookController } from './ui/touchLook.js';
@@ -26,84 +32,39 @@ class App {
     this.initFlow();
   }
 
-  // 1. PWA & Mobile Setup
   initPWA() {
-    // Register Service Worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => {
-          console.warn('[SW] Registration failed:', err);
-        });
-      });
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(e => { }));
     }
-
-    // Android/Desktop Chrome beforeinstallprompt
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       this.deferredInstallPrompt = e;
-      const banner = document.getElementById('pwa-install-banner');
-      if (banner) banner.classList.remove('hidden');
+      document.getElementById('pwa-install-banner')?.classList.remove('hidden');
     });
-
-    const installBtn = document.getElementById('pwa-install-btn');
-    if (installBtn) {
-      installBtn.addEventListener('click', async () => {
-        if (this.deferredInstallPrompt) {
-          this.deferredInstallPrompt.prompt();
-          await this.deferredInstallPrompt.userChoice;
-          this.deferredInstallPrompt = null;
-          document.getElementById('pwa-install-banner')?.classList.add('hidden');
-        }
-      });
-    }
-
-    document.getElementById('pwa-dismiss-btn')?.addEventListener('click', () => {
-      document.getElementById('pwa-install-banner')?.classList.add('hidden');
+    document.getElementById('pwa-install-btn')?.addEventListener('click', async () => {
+      if (this.deferredInstallPrompt) {
+        this.deferredInstallPrompt.prompt();
+        await this.deferredInstallPrompt.userChoice;
+        this.deferredInstallPrompt = null;
+        document.getElementById('pwa-install-banner')?.classList.add('hidden');
+      }
     });
+    document.getElementById('pwa-dismiss-btn')?.addEventListener('click', () => document.getElementById('pwa-install-banner')?.classList.add('hidden'));
 
-    // iOS Safari Add to Home Screen detection
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    const isStandalone = window.navigator.standalone === true;
-    if (isIOS && !isStandalone) {
-      const iosBanner = document.getElementById('ios-install-banner');
-      if (iosBanner) iosBanner.classList.remove('hidden');
-    }
-
-    document.getElementById('ios-dismiss-btn')?.addEventListener('click', () => {
-      document.getElementById('ios-install-banner')?.classList.add('hidden');
-    });
-
-    // Request Screen Wake Lock & Reconnect presence when tab awakens
     this.requestWakeLock();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         this.requestWakeLock();
-        if (roomService.roomId && roomService.user) {
-          roomService.reconnect();
-        }
+        if (roomService.roomId && roomService.user) roomService.reconnect();
       }
     });
-
     window.addEventListener('online', () => {
-      if (roomService.roomId && roomService.user) {
-        roomService.reconnect();
-      }
+      if (roomService.roomId && roomService.user) roomService.reconnect();
     });
-
-    // Attempt landscape lock
-    try {
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(() => {});
-      }
-    } catch (e) {}
   }
 
   async requestWakeLock() {
-    if ('wakeLock' in navigator) {
-      try {
-        this.wakeLock = await navigator.wakeLock.request('screen');
-      } catch (err) {}
-    }
+    if ('wakeLock' in navigator) try { this.wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { }
   }
 
   initDOM() {
@@ -111,10 +72,7 @@ class App {
     this.screenWaiting = document.getElementById('screen-waiting');
     this.landingError = document.getElementById('landing-error');
     this.waitingRoomCode = document.getElementById('waiting-room-code');
-
-    // Check URL parameters for ?room=ABCDE
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomParam = urlParams.get('room');
+    const roomParam = new URLSearchParams(window.location.search).get('room');
     if (roomParam) {
       const roomInput = document.getElementById('landing-room-code');
       if (roomInput) roomInput.value = roomParam.toUpperCase().slice(0, 5);
@@ -122,43 +80,46 @@ class App {
   }
 
   init3D() {
-    const container = document.getElementById('canvas-container');
-    this.engine = new GameEngine(container);
+    this.engine = new GameEngine(document.getElementById('canvas-container'));
     this.town = new Town(this.engine.scene);
-
-    // Interactive spots
     this.bike = new BikeSpot(this.engine.scene, this.town);
     this.swing = new SwingSpot(this.engine.scene, this.town);
     this.teaStall = new TeaStallSpot(this.engine.scene, this.town);
+    this.helicopter = new HelicopterSpot(this.engine.scene, this.town);
+    this.coupleHouse = new CoupleHouseSpot(this.engine.scene, this.town);
+    this.playground = new PlaygroundSpot(this.engine.scene, this.town);
+    this.treeChopping = new TreeChoppingSystem(this.engine.scene, this.town);
+    this.farming = new FarmingSpot(this.engine.scene, this.town);
+    this.chairSystem = new ChairSpotSystem(this.engine.scene, this.town);
 
-    // Hands system
+    this.isJumping = false;
+    this.jumpVelY = 0;
+    this.playerY = 0;
+    this.heliAscending = false;
+    this.heliDescending = false;
+    this.hugTimer = 0;
+    this.slideProgress = null;
+    this.elevatorRide = null;
     this.handsSystem = new HandHoldingSystem(this.engine.scene);
-
-    // Characters
     this.myChar = null;
     this.partnerChar = null;
-
-    // Local interaction state
-    this.currentSpot = null; // null | 'bike_driver' | 'bike_passenger' | 'swing_seat1' | 'swing_seat2' | 'tea_holding' | 'tea_sipping'
+    this.currentSpot = null;
   }
 
   initUI() {
-    // Joystick
-    const joystickMount = document.getElementById('joystick-mount');
-    this.joystick = new VirtualJoystick(joystickMount);
-
-    // 360° Touch & Mouse Look
+    this.joystick = new VirtualJoystick(document.getElementById('joystick-mount'));
     const uiLayer = document.getElementById('ui-layer');
     this.touchLook = new TouchLookController(uiLayer, this.engine);
 
-    // HUD
     this.hud = new GameHUD(uiLayer, {
-      onHoldHandsStart: () => {
-        syncService.setHandHolding(true);
-      },
-      onHoldHandsEnd: () => {
-        syncService.setHandHolding(false);
-      },
+      onHoldHandsStart: () => syncService.setHandHolding(true),
+      onHoldHandsEnd: () => syncService.setHandHolding(false),
+      onJump: () => this.handleJump(),
+      onHug: () => this.handleHug(),
+      onAscendStart: () => { this.heliAscending = true; },
+      onAscendEnd: () => { this.heliAscending = false; },
+      onDescendStart: () => { this.heliDescending = true; },
+      onDescendEnd: () => { this.heliDescending = false; },
       onInteract: (action) => this.handleInteraction(action),
       onToggleEmoji: () => this.emojiSystem.toggle(),
       onOpenGames: (gameType) => {
@@ -171,266 +132,151 @@ class App {
         return next;
       },
       onToggleFullscreen: () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-          document.exitFullscreen().catch(() => {});
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
+        else document.exitFullscreen().catch(() => { });
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        if (this.currentSpot === 'heli_pilot') this.heliAscending = true;
+        else if (!this.currentSpot) this.handleJump();
+      } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
+        if (this.currentSpot === 'heli_pilot') this.heliDescending = true;
+      } else if (e.code === 'KeyE') {
+        if (this.hud && this.hud.interactAction) this.handleInteraction(this.hud.interactAction);
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') this.heliAscending = false;
+      else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') this.heliDescending = false;
+    });
+
+    this.emojiSystem = new EmojiSystem(uiLayer, (emoji) => syncService.sendReaction(emoji));
+    syncService.onReaction((r) => {
+      const targetChar = (r.uid !== roomService.user?.uid) ? this.partnerChar : this.myChar;
+      if (targetChar) {
+        const screenPos = this.toScreenPosition(targetChar.group.position);
+        this.emojiSystem.spawnFloatingEmoji(r.emoji, screenPos.x, screenPos.y - 60);
+        if (r.emoji === '😡' || r.emoji === '😤') {
+          soundEngine.playAngry();
+          targetChar.anim = 'angry';
+          setTimeout(() => { if (targetChar && targetChar.anim === 'angry') targetChar.anim = 'idle'; }, 1800);
+        } else if (r.emoji === '🫂') {
+          this.triggerHugAnimation();
         }
       }
     });
 
-    // Emoji System
-    this.emojiSystem = new EmojiSystem(uiLayer, (emoji) => {
-      return syncService.sendReaction(emoji);
-    });
-
-    // Listen to reactions from partner
-    syncService.onReaction((r) => {
-      const isFromPartner = r.uid !== roomService.user?.uid;
-      const targetChar = isFromPartner ? this.partnerChar : this.myChar;
-      if (targetChar) {
-        const screenPos = this.toScreenPosition(targetChar.group.position);
-        this.emojiSystem.spawnFloatingEmoji(r.emoji, screenPos.x, screenPos.y - 60);
-      }
-    });
-
-    // Mini-Games
     this.tictactoeGame = new TicTacToeGame(uiLayer, syncService, roomService);
     this.outfitGame = new OutfitGame(uiLayer, syncService, roomService, (uid, outfit) => {
-      if (uid === roomService.user?.uid && this.myChar) {
-        this.myChar.applyOutfit(outfit);
-        this.myChar.anim = 'cheer';
-        setTimeout(() => { if (this.myChar) this.myChar.anim = 'idle'; }, 2500);
-      } else if (this.partnerChar) {
-        this.partnerChar.applyOutfit(outfit);
-        this.partnerChar.anim = 'cheer';
-        setTimeout(() => { if (this.partnerChar) this.partnerChar.anim = 'idle'; }, 2500);
+      const char = (uid === roomService.user?.uid) ? this.myChar : this.partnerChar;
+      if (char) {
+        char.applyOutfit(outfit);
+        char.anim = 'cheer';
+        setTimeout(() => { if (char) char.anim = 'idle'; }, 2500);
       }
     });
 
-    // Listen for partner look shares to display the on-screen "Accept Look" button/banner
     let lastPromptedLookHash = null;
     const originalOutfitHandler = syncService.onOutfitUpdated;
     syncService.onOutfitUpdated = (outfitState) => {
       if (originalOutfitHandler) originalOutfitHandler(outfitState);
       if (this.outfitGame) this.outfitGame.renderState(outfitState);
-
       const partnerUid = roomService.partnerUid;
-      const myUid = roomService.user?.uid;
       if (outfitState?.picks && partnerUid && outfitState.picks[partnerUid]) {
         const lookForMe = outfitState.picks[partnerUid];
         const hash = JSON.stringify(lookForMe);
         if (hash !== lastPromptedLookHash) {
           lastPromptedLookHash = hash;
-          // Show on-screen Accept Look banner!
-          this.hud.showLookInvite(
-            roomService.partnerNick || 'Partner',
-            lookForMe,
-            async (acceptedLook) => {
-              if (this.myChar) {
-                this.myChar.applyOutfit(acceptedLook);
-                this.myChar.anim = 'cheer';
-                setTimeout(() => { if (this.myChar) this.myChar.anim = 'idle'; }, 2500);
-              }
-              if (roomService.roomId && myUid) {
-                syncService.setPartnerOutfit(myUid, acceptedLook);
-              }
-              const pos = this.toScreenPosition(this.myChar.group.position);
-              this.emojiSystem.spawnFloatingEmoji('✨', pos.x, pos.y - 60);
-            },
-            () => {
-              this.outfitGame.open();
+          this.hud.showLookInvite(roomService.partnerNick || 'Partner', lookForMe, async (acceptedLook) => {
+            if (this.myChar) {
+              this.myChar.applyOutfit(acceptedLook);
+              this.myChar.anim = 'cheer';
+              setTimeout(() => { if (this.myChar) this.myChar.anim = 'idle'; }, 2500);
             }
-          );
+            if (roomService.roomId && roomService.user?.uid) syncService.setPartnerOutfit(roomService.user.uid, acceptedLook);
+            const pos = this.toScreenPosition(this.myChar.group.position);
+            this.emojiSystem.spawnFloatingEmoji('✨', pos.x, pos.y - 60);
+          }, () => this.outfitGame.open());
         }
       }
     };
-
-    // Privacy Modal
-    const privacyModal = document.getElementById('modal-privacy');
-    document.getElementById('btn-open-privacy')?.addEventListener('click', () => {
-      privacyModal?.classList.remove('hidden');
-    });
-    document.getElementById('privacy-close-btn')?.addEventListener('click', () => {
-      privacyModal?.classList.add('hidden');
-    });
-    document.getElementById('privacy-ok-btn')?.addEventListener('click', () => {
-      privacyModal?.classList.add('hidden');
-    });
   }
 
-  // Convert 3D world coordinate to 2D screen coordinate for UI emojis
   toScreenPosition(worldPos) {
     const v = worldPos.clone();
-    v.y += 1.4; // head height
+    v.y += 1.4;
     v.project(this.engine.camera);
-
     const widthHalf = window.innerWidth / 2;
     const heightHalf = window.innerHeight / 2;
-
-    return {
-      x: (v.x * widthHalf) + widthHalf,
-      y: -(v.y * heightHalf) + heightHalf
-    };
+    return { x: (v.x * widthHalf) + widthHalf, y: -(v.y * heightHalf) + heightHalf };
   }
 
-  // 2. Room Flow
   initFlow() {
-    const btnCreate = document.getElementById('btn-create-room');
-    const btnJoin = document.getElementById('btn-join-room');
-    const inputNick = document.getElementById('landing-nickname');
-    const inputCode = document.getElementById('landing-room-code');
-
-    btnCreate?.addEventListener('click', async () => {
+    document.getElementById('btn-create-room')?.addEventListener('click', async () => {
       try {
-        btnCreate.disabled = true;
+        const btn = document.getElementById('btn-create-room');
+        btn.disabled = true;
         this.landingError.textContent = 'Creating room...';
         soundEngine.playPop();
-
-        const nick = inputNick?.value?.trim() || '';
-        const res = await roomService.createRoom(nick);
+        const res = await roomService.createRoom(document.getElementById('landing-nickname')?.value?.trim() || '');
         this.onRoomReady(res.roomId, 1);
-      } catch (err) {
-        this.landingError.textContent = err.message;
-        btnCreate.disabled = false;
-      }
+      } catch (err) { this.landingError.textContent = err.message; document.getElementById('btn-create-room').disabled = false; }
     });
-
-    btnJoin?.addEventListener('click', async () => {
+    document.getElementById('btn-join-room')?.addEventListener('click', async () => {
       try {
-        const code = inputCode?.value?.trim().toUpperCase();
-        if (!code || code.length !== 5) {
-          this.landingError.textContent = 'Please enter a 5-letter room code.';
-          return;
-        }
-        btnJoin.disabled = true;
-        this.landingError.textContent = 'Joining room...';
+        const code = document.getElementById('landing-room-code')?.value?.trim().toUpperCase();
+        if (!code || code.length !== 5) return this.landingError.textContent = 'Enter a 5-letter code.';
+        const btn = document.getElementById('btn-join-room');
+        btn.disabled = true;
+        this.landingError.textContent = 'Joining...';
         soundEngine.playPop();
-
-        const nick = inputNick?.value?.trim() || '';
-        const res = await roomService.joinRoom(code, nick);
+        const res = await roomService.joinRoom(code, document.getElementById('landing-nickname')?.value?.trim() || '');
         this.onRoomReady(res.roomId, res.slot);
-      } catch (err) {
-        this.landingError.textContent = err.message;
-        btnJoin.disabled = false;
-      }
-    });
-
-    // Waiting Screen Actions
-    document.getElementById('waiting-copy-btn')?.addEventListener('click', () => {
-      const code = this.waitingRoomCode.textContent;
-      navigator.clipboard?.writeText(code).then(() => {
-        soundEngine.playPop();
-        const btn = document.getElementById('waiting-copy-btn');
-        if (btn) btn.textContent = 'Copied!';
-        setTimeout(() => { if (btn) btn.textContent = 'Copy Code'; }, 1500);
-      });
-    });
-
-    document.getElementById('waiting-share-btn')?.addEventListener('click', () => {
-      const code = this.waitingRoomCode.textContent;
-      const url = `${window.location.origin}${window.location.pathname}?room=${code}`;
-      if (navigator.share) {
-        navigator.share({ title: 'Our Little Town', text: `Join me in Our Little Town! Room code: ${code}`, url }).catch(() => {});
-      } else {
-        navigator.clipboard?.writeText(url).then(() => {
-          soundEngine.playPop();
-          const btn = document.getElementById('waiting-share-btn');
-          if (btn) btn.textContent = 'Link Copied!';
-          setTimeout(() => { if (btn) btn.textContent = 'Share Link'; }, 1500);
-        });
-      }
-    });
-
-    document.getElementById('waiting-cancel-btn')?.addEventListener('click', async () => {
-      soundEngine.playPop();
-      await roomService.leaveRoom();
-      window.location.href = window.location.pathname;
+      } catch (err) { this.landingError.textContent = err.message; document.getElementById('btn-join-room').disabled = false; }
     });
   }
 
   onRoomReady(roomId, slot) {
     this.screenLanding.classList.add('hidden');
     this.hud.setRoomCode(roomId);
-
-    // Instantiate local character
     this.myChar = new Character(slot, roomService.nickname, this.engine.scene);
     this.myChar.isLocal = true;
-
     if (slot === 1) {
       this.myChar.setPosition(-0.8, 4.5, Math.PI / 2);
-      this.engine.targetYaw = 0;
-      this.engine.cameraYaw = 0;
       this.waitingRoomCode.textContent = roomId;
       this.screenWaiting.classList.remove('hidden');
       this.hud.setPresence('waiting');
     } else {
       this.myChar.setPosition(0.8, 4.5, -Math.PI / 2);
-      this.engine.targetYaw = 0;
-      this.engine.cameraYaw = 0;
       this.screenWaiting.classList.add('hidden');
       this.hud.setPresence('online');
     }
-
-    // Room update listener
-    roomService.onRoomUpdated = (roomData, partnerData) => {
-      this.handleRoomUpdate(roomData, partnerData);
-    };
-
-    // Start render loop
-    this.startLoop();
+    roomService.onRoomUpdated = (r, p) => this.handleRoomUpdate(r, p);
+    this.engine.render((delta) => this.onTick(delta));
   }
 
   handleRoomUpdate(roomData, partnerData) {
     if (!partnerData) {
       this.hud.setPresence('waiting');
-      if (this.partnerChar) {
-        this.partnerChar.group.visible = false;
-      }
+      if (this.partnerChar) this.partnerChar.group.visible = false;
       return;
     }
-
-    // Partner is in room
-    const isPartnerOnline = partnerData.online !== false;
-    this.hud.setPresence(isPartnerOnline ? 'online' : 'offline');
-    if (this.partnerChar) {
-      this.partnerChar.group.visible = isPartnerOnline;
-    }
-
-    // Dismiss waiting screen once partner arrives
+    const isOnline = partnerData.online !== false;
+    this.hud.setPresence(isOnline ? 'online' : 'offline');
+    if (this.partnerChar) this.partnerChar.group.visible = isOnline;
     if (!this.screenWaiting.classList.contains('hidden')) {
       this.screenWaiting.classList.add('hidden');
       soundEngine.playCheer();
     }
-
-    // Initialize partner character if needed
     if (!this.partnerChar) {
       this.partnerChar = new Character(partnerData.slot, partnerData.nick, this.engine.scene);
-      this.partnerChar.applyOutfit(partnerData.outfit);
-      // Initialize sync service
+      this.partnerChar.setPosition(partnerData.slot === 1 ? -0.8 : 0.8, 4.5, partnerData.slot === 1 ? Math.PI / 2 : -Math.PI / 2, 0);
       syncService.init(roomService.roomId, roomService.user.uid, roomService.partnerUid);
     }
-
-    if (partnerData.outfit) {
-      this.partnerChar.applyOutfit(partnerData.outfit);
-    }
-
-    // If partner went offline, release any joined hands or shared bike
-    if (!isPartnerOnline) {
-      if (this.handsSystem.isConnected) {
-        syncService.setHandHolding(false);
-      }
-      if (this.currentSpot === 'bike_passenger' && !roomData.spots?.bike?.occupants?.driver) {
-        this.exitSpot();
-      }
-    }
-  }
-
-  // 3. Main Tick & Input Loop
-  startLoop() {
-    this.engine.render((delta) => {
-      this.onTick(delta);
-    });
+    if (partnerData.outfit) this.partnerChar.applyOutfit(partnerData.outfit);
+    if (!isOnline && this.handsSystem.isConnected) syncService.setHandHolding(false);
   }
 
   onTick(delta) {
@@ -438,331 +284,504 @@ class App {
     const myPos = this.myChar ? this.myChar.getPosition() : null;
     const partnerPos = this.partnerChar && this.partnerChar.group.visible ? this.partnerChar.getPosition() : null;
 
-    // Synchronize tea cup holding across both devices
-    const cupHolderUid = syncService.spotsData?.teaStall?.extra?.cupHolder;
-    if (cupHolderUid === roomService.user?.uid && this.myChar) {
-      this.teaStall.attachCupToHand(this.myChar.rightHand);
-      this.myChar.isHoldingCup = true;
-      if (this.partnerChar) this.partnerChar.isHoldingCup = false;
-    } else if (cupHolderUid === roomService.partnerUid && this.partnerChar) {
-      this.teaStall.attachCupToHand(this.partnerChar.rightHand);
-      this.partnerChar.isHoldingCup = true;
-      if (this.myChar) this.myChar.isHoldingCup = false;
-    } else if (!cupHolderUid) {
-      this.teaStall.returnCupToCounter();
-      if (this.myChar) this.myChar.isHoldingCup = false;
-      if (this.partnerChar) this.partnerChar.isHoldingCup = false;
-    }
-
-    const bikeOccupants = syncService.spotsData?.bike?.occupants || {};
-    const partnerIsPassenger = bikeOccupants.passenger === roomService.partnerUid;
-    const partnerIsDriver = bikeOccupants.driver === roomService.partnerUid;
-    const isPartnerOnMyBike = (this.currentSpot === 'bike_driver' && partnerIsPassenger) || (this.currentSpot === 'bike_passenger' && partnerIsDriver);
-
-    // 1. Update Partner Interpolation (only when partner is not locked to bike)
-    if (this.partnerChar && this.partnerChar.group.visible && !isPartnerOnMyBike) {
+    if (this.partnerChar && this.partnerChar.group.visible) {
       const interp = syncService.updatePartnerInterpolation(delta);
       this.partnerChar.setPosition(interp.x, interp.z, interp.rotY, interp.y || 0);
       this.partnerChar.anim = interp.anim || 'idle';
       this.partnerChar.update(delta);
     }
 
-    // 2. Hand Holding Evaluation
     const withinHoldRange = myPos && partnerPos && this.handsSystem.checkProximity(myPos, partnerPos);
     this.hud.showHoldHandsButton(Boolean(withinHoldRange && !this.currentSpot));
-
-    const bothHolding = syncService.isBothHolding();
-    const isHandsConnected = this.handsSystem.update(this.myChar, this.partnerChar, bothHolding, delta);
+    const isHandsConnected = this.handsSystem.update(this.myChar, this.partnerChar, syncService.isBothHolding(), delta);
     this.hud.setHandsConnected(isHandsConnected);
 
-    // 3. Movement Execution
-    if (this.myChar && !this.currentSpot) {
-      let speed = isHandsConnected ? 2.6 : 3.8;
+    if (this.isJumping) {
+      this.jumpVelY -= 15.0 * delta;
+      this.playerY += this.jumpVelY * delta;
 
+      const houseX = this.coupleHouse.position.x;
+      const houseZ = this.coupleHouse.position.z;
+      // Floor height constraint based on where they jumped from (House 2nd floor area)
+      const isOverHouse = (myPos && myPos.x > houseX - 5 && myPos.x < houseX + 5 && myPos.z > houseZ - 5 && myPos.z < houseZ + 5);
+      const floorLevel = (isOverHouse && this.playerY >= 2.8) ? 2.8 : 0;
+
+      if (this.playerY <= floorLevel) {
+        this.playerY = floorLevel;
+        this.jumpVelY = 0;
+        this.isJumping = false;
+      }
+    }
+
+    if (this.hugTimer > 0) {
+      this.hugTimer -= delta;
+      if (this.myChar) this.myChar.anim = 'hug';
+      if (this.partnerChar) this.partnerChar.anim = 'hug';
+    }
+
+    if (this.elevatorRide) {
+      this.elevatorRide.elapsed += delta;
+      const t = Math.min(1, this.elevatorRide.elapsed / this.elevatorRide.duration);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      this.playerY = THREE.MathUtils.lerp(this.elevatorRide.startY, this.elevatorRide.targetY, ease);
+      this.coupleHouse.setElevatorY(this.playerY + 0.25);
+      this.myChar.setPosition(this.elevatorRide.x, this.elevatorRide.z, undefined, this.playerY);
+      this.myChar.anim = 'idle';
+      this.myChar.update(delta);
+      syncService.sendState(this.elevatorRide.x, this.elevatorRide.z, this.myChar.group.rotation.y, 'idle', false, this.playerY);
+      syncService.updateSpotExtra('coupleHouse', {
+        isLightOn: this.coupleHouse.isLightOn,
+        elevatorY: this.playerY + 0.25,
+        elevatorMoving: t < 1
+      });
+
+      if (t >= 1) {
+        this.playerY = this.elevatorRide.targetY;
+        this.elevatorRide = null;
+        soundEngine.playBell();
+      }
+    } else if (this.myChar && !this.currentSpot) {
+      let speed = isHandsConnected ? 2.6 : 3.8;
       if (isHandsConnected && partnerPos) {
-        // Tether distance clamp: keep partners side-by-side gracefully
-        const dx = myPos.x - partnerPos.x;
-        const dz = myPos.z - partnerPos.z;
-        const dist = Math.hypot(dx, dz);
-        if (dist > 2.0) {
-          const pullAngle = Math.atan2(dz, dx);
-          move.x -= Math.cos(pullAngle) * 0.4;
-          move.z -= Math.sin(pullAngle) * 0.4;
+        const dx = myPos.x - partnerPos.x, dz = myPos.z - partnerPos.z;
+        if (Math.hypot(dx, dz) > 1.8) {
+          const pAngle = Math.atan2(dz, dx);
+          move.x -= Math.cos(pAngle) * 0.35;
+          move.z -= Math.sin(pAngle) * 0.35;
         }
       }
-
       if (move.isMoving) {
         const nextX = myPos.x + move.x * speed * delta;
         const nextZ = myPos.z + move.z * speed * delta;
+        if (!this.town.checkCollision(nextX, nextZ, 0.35)) this.myChar.setPosition(nextX, nextZ, undefined, this.playerY);
+        else this.myChar.group.position.y = this.playerY;
 
-        // Town collision check
-        if (!this.town.checkCollision(nextX, nextZ, 0.35)) {
-          this.myChar.setPosition(nextX, nextZ, undefined, 0);
-        }
-
-        // Smoothly face movement direction
-        const targetRotY = Math.atan2(move.x, move.z);
-        let diff = targetRotY - this.myChar.group.rotation.y;
+        let diff = Math.atan2(move.x, move.z) - this.myChar.group.rotation.y;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
         this.myChar.group.rotation.y += diff * Math.min(1, delta * 14);
-        this.myChar.anim = 'walk';
+
+        if (this.isJumping) this.myChar.anim = 'jump';
+        else if (this.hugTimer <= 0) this.myChar.anim = 'walk';
       } else {
-        this.myChar.anim = 'idle';
+        this.myChar.group.position.y = this.playerY;
+        if (this.hugTimer > 0) this.myChar.anim = 'hug';
+        else if (this.isJumping) this.myChar.anim = 'jump';
+        else this.myChar.anim = 'idle';
       }
-
       this.myChar.update(delta);
-
-      // Throttled sync to Firebase (10-15 Hz)
       const cur = this.myChar.getPosition();
-      syncService.sendState(cur.x, cur.z, cur.rotY, this.myChar.anim, false, 0);
+      syncService.sendState(cur.x, cur.z, cur.rotY, this.myChar.anim, false, this.playerY);
     }
 
-    // 4. Update Spots & Riding Physics
     this.swing.update(delta);
     this.teaStall.update(delta);
+    this.helicopter.update(delta, this.currentSpot === 'heli_pilot');
+    this.coupleHouse.update(delta, this.currentSpot === 'bed_left' || this.currentSpot === 'bed_right');
+    this.playground.update(delta);
+    this.treeChopping.update(delta);
+    this.farming.update(delta);
+    this.hud.setWoodCount(this.treeChopping.woodInventory);
+    this.hud.setCropCount(this.farming.cropInventory);
 
-    // If currently driving bike
-    if (this.currentSpot === 'bike_driver') {
-      const moved = this.bike.updateMovement(move.x, move.z, delta);
-      const seatPos = this.bike.getDriverSeatWorldPos();
-      const seatY = seatPos.y - 0.28;
-      this.myChar.setPosition(seatPos.x, seatPos.z, this.bike.group.rotation.y, seatY);
-      this.myChar.anim = moved ? 'ride' : 'sit';
+    if (this.currentSpot === 'heli_pilot') {
+      this.helicopter.isFlying = true;
+      if (this.heliAscending) this.helicopter.altitude = Math.min(26.0, this.helicopter.altitude + 7.5 * delta);
+      else if (this.heliDescending) this.helicopter.altitude = Math.max(0, this.helicopter.altitude - 7.5 * delta);
+      if (move.isMoving) {
+        this.helicopter.group.position.x += move.x * 11.0 * delta;
+        this.helicopter.group.position.z += move.z * 11.0 * delta;
+        let diff = Math.atan2(move.x, move.z) - this.helicopter.group.rotation.y;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        this.helicopter.group.rotation.y += diff * Math.min(1, delta * 8);
+        this.helicopter.pitch = -0.16;
+        this.helicopter.roll = Math.sin(diff) * 0.2;
+      } else { this.helicopter.pitch = 0; this.helicopter.roll = 0; }
+      this.helicopter.group.position.y = this.helicopter.altitude;
+      const seat = this.helicopter.getPilotSeatWorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.helicopter.group.rotation.y, seat.y - 0.28);
+      this.myChar.anim = 'ride';
       this.myChar.update(delta);
-
-      // ZERO LATENCY LOCK: If partner is passenger, lock them to the passenger seat in real-time on every frame!
-      if (this.partnerChar && partnerIsPassenger) {
-        const pSeat = this.bike.getPassengerSeatWorldPos();
-        this.partnerChar.setPosition(pSeat.x, pSeat.z, this.bike.group.rotation.y, pSeat.y - 0.28);
-        this.partnerChar.anim = 'passenger';
-        this.partnerChar.update(delta);
-      }
-
-      // Sync bike transform
-      syncService.updateSpotExtra('bike', {
-        x: this.bike.group.position.x,
-        z: this.bike.group.position.z,
-        rotY: this.bike.group.rotation.y
-      });
-      syncService.sendState(seatPos.x, seatPos.z, this.bike.group.rotation.y, this.myChar.anim, false, seatY);
-    } else if (this.currentSpot === 'bike_passenger') {
-      // Sync bike smoothly from driver's transform
-      if (syncService.spotsData?.bike?.extra) {
-        const bex = syncService.spotsData.bike.extra;
-        if (bex.x !== undefined && bex.z !== undefined) {
-          this.bike.group.position.x += (bex.x - this.bike.group.position.x) * 0.45;
-          this.bike.group.position.z += (bex.z - this.bike.group.position.z) * 0.45;
-          this.bike.group.rotation.y = bex.rotY || 0;
-        }
-      }
-
-      const pSeat = this.bike.getPassengerSeatWorldPos();
-      const seatY = pSeat.y - 0.28;
-      this.myChar.setPosition(pSeat.x, pSeat.z, this.bike.group.rotation.y, seatY);
+      syncService.updateSpotExtra('helicopter', { x: this.helicopter.group.position.x, y: this.helicopter.altitude, z: this.helicopter.group.position.z, rotY: this.helicopter.group.rotation.y, pitch: this.helicopter.pitch, roll: this.helicopter.roll });
+      syncService.sendState(seat.x, seat.z, this.helicopter.group.rotation.y, 'ride', false, seat.y - 0.28);
+    } else if (this.currentSpot === 'heli_passenger') {
+      const seat = this.helicopter.getPassengerSeatWorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.helicopter.group.rotation.y, seat.y - 0.28);
       this.myChar.anim = 'passenger';
       this.myChar.update(delta);
-
-      // Lock partner (driver) to driver seat
-      if (this.partnerChar && partnerIsDriver) {
-        const dSeat = this.bike.getDriverSeatWorldPos();
-        this.partnerChar.setPosition(dSeat.x, dSeat.z, this.bike.group.rotation.y, dSeat.y - 0.28);
-        this.partnerChar.anim = 'ride';
-        this.partnerChar.update(delta);
+      syncService.sendState(seat.x, seat.z, this.helicopter.group.rotation.y, 'passenger', false, seat.y - 0.28);
+    } else if (this.currentSpot === 'bike_driver') {
+      this.bike.updateMovement(move.x, move.z, delta);
+      const seat = this.bike.getDriverSeatWorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.bike.group.rotation.y, seat.y - 0.28);
+      this.myChar.anim = 'ride';
+      this.myChar.update(delta);
+      syncService.updateSpotExtra('bike', { x: this.bike.group.position.x, z: this.bike.group.position.z, rotY: this.bike.group.rotation.y });
+      syncService.sendState(seat.x, seat.z, this.bike.group.rotation.y, 'ride', false, seat.y - 0.28);
+    } else if (this.currentSpot === 'bike_passenger') {
+      const seat = this.bike.getPassengerSeatWorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.bike.group.rotation.y, seat.y - 0.28);
+      this.myChar.anim = 'passenger';
+      this.myChar.update(delta);
+      syncService.sendState(seat.x, seat.z, this.bike.group.rotation.y, 'passenger', false, seat.y - 0.28);
+    } else if (this.currentSpot === 'swing_1' || this.currentSpot === 'swing_2') {
+      const seat = this.currentSpot === 'swing_1' ? this.swing.getSeat1WorldPos() : this.swing.getSeat2WorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.swing.rotationY, seat.y + 0.08);
+      this.myChar.anim = 'swing';
+      this.myChar.update(delta);
+      syncService.sendState(seat.x, seat.z, this.swing.rotationY, 'swing', false, seat.y + 0.08);
+    } else if (this.currentSpot?.startsWith('bench_')) {
+      const benchId = this.currentSpot.replace('bench_', '');
+      const bench = this.chairSystem.getBenchById(benchId);
+      if (bench) {
+        const seat = this.chairSystem.getSeatWorldPos(bench, true);
+        this.myChar.setPosition(seat.x, seat.z, bench.rotationY, seat.y - 0.05);
+        this.myChar.anim = 'sit';
+        this.myChar.update(delta);
+        syncService.sendState(seat.x, seat.z, bench.rotationY, 'sit', false, seat.y - 0.05);
       }
-      syncService.sendState(pSeat.x, pSeat.z, this.bike.group.rotation.y, 'passenger', false, seatY);
-    } else if (this.currentSpot === 'swing_seat1') {
-      const seatPos = this.swing.getSeat1WorldPos();
-      const seatY = seatPos.y - 0.22;
-      const swingFaceAngle = this.swing.rotationY;
-      this.myChar.setPosition(seatPos.x, seatPos.z, swingFaceAngle, seatY);
-      this.myChar.anim = 'swing';
+    } else if (this.currentSpot === 'playground_slide') {
+      this.slideProgress = (this.slideProgress || 0) + delta * 0.7;
+      const slidePos = this.playground.getSlideWorldPos(this.slideProgress);
+      this.myChar.setPosition(slidePos.x, slidePos.z, this.playground.rotationY, slidePos.y);
+      this.myChar.anim = 'slide';
       this.myChar.update(delta);
-      syncService.sendState(seatPos.x, seatPos.z, swingFaceAngle, 'swing', false, seatY);
-    } else if (this.currentSpot === 'swing_seat2') {
-      const seatPos = this.swing.getSeat2WorldPos();
-      const seatY = seatPos.y - 0.22;
-      const swingFaceAngle = this.swing.rotationY;
-      this.myChar.setPosition(seatPos.x, seatPos.z, swingFaceAngle, seatY);
-      this.myChar.anim = 'swing';
+      if (this.slideProgress >= 1.0) {
+        soundEngine.playCheer();
+        const bot = this.playground.getSlideBottomPos();
+        this.myChar.setPosition(bot.x, bot.z, this.playground.rotationY, 0);
+        this.myChar.anim = 'idle';
+        this.currentSpot = null;
+        this.slideProgress = null;
+      }
+    } else if (this.currentSpot === 'bed_left' || this.currentSpot === 'bed_right') {
+      const pos = this.coupleHouse.getBedWorldPosition(this.currentSpot === 'bed_left' ? 'left' : 'right');
+      this.myChar.setPosition(pos.x, pos.z, this.coupleHouse.rotationY, pos.y);
+      this.myChar.anim = 'sleep';
       this.myChar.update(delta);
-      syncService.sendState(seatPos.x, seatPos.z, swingFaceAngle, 'swing', false, seatY);
+      syncService.sendState(pos.x, pos.z, this.coupleHouse.rotationY, 'sleep', false, pos.y);
     }
 
-    // If partner is driving bike and I am not, sync bike transform from partner
+    if (this.currentSpot !== 'heli_pilot' && syncService.spotsData?.helicopter?.extra) {
+      const hex = syncService.spotsData.helicopter.extra;
+      if (hex.x !== undefined) this.helicopter.setTransform(hex.x, hex.y || 0, hex.z, hex.rotY || 0, hex.pitch || 0, hex.roll || 0);
+    }
+
     if (this.currentSpot !== 'bike_driver' && syncService.spotsData?.bike?.extra) {
-      const bex = syncService.spotsData.bike.extra;
-      if (bex.x !== undefined && bex.z !== undefined) {
-        this.bike.setTransform(bex.x, bex.z, bex.rotY || 0);
+      const bx = syncService.spotsData.bike.extra;
+      if (bx.x !== undefined && bx.z !== undefined) this.bike.setTransform(bx.x, bx.z, bx.rotY || 0);
+    }
+
+    if (syncService.spotsData?.coupleHouse?.extra) {
+      const houseExtra = syncService.spotsData.coupleHouse.extra;
+      if (houseExtra.isLightOn !== undefined && houseExtra.isLightOn !== this.coupleHouse.isLightOn) {
+        this.coupleHouse.setLightState(houseExtra.isLightOn);
+      }
+      if (!this.elevatorRide && houseExtra.elevatorY !== undefined) {
+        this.coupleHouse.setElevatorY(houseExtra.elevatorY);
       }
     }
 
-    // 5. Contextual Spot Interaction Assessment
     this.updateContextInteraction(myPos);
 
-    // 6. Camera Follow — always chase my character
     if (this.myChar) {
-      const targetPos = this.myChar.group.position.clone();
-      // Let engine know character's facing direction for double-tap reset
       this.engine.setCharacterFacing(this.myChar.group.rotation.y);
-      this.engine.setCameraTarget(targetPos);
+      this.engine.setCameraTarget(this.myChar.group.position.clone());
     }
   }
 
-  // Evaluate proximity to spots and show relevant context button on HUD
+  handleJump() {
+    if (this.currentSpot || this.isJumping) return;
+    this.isJumping = true;
+    this.jumpVelY = 5.2;
+    soundEngine.playPop();
+  }
+
+  handleHug() {
+    if (this.currentSpot) return;
+    this.triggerHugAnimation();
+    syncService.sendReaction('🫂');
+  }
+
+  triggerHugAnimation() {
+    this.hugTimer = 2.8;
+    if (this.myChar) this.myChar.anim = 'hug';
+    if (this.partnerChar) this.partnerChar.anim = 'hug';
+    soundEngine.playHugChime();
+    if (this.myChar) {
+      const pos = this.toScreenPosition(this.myChar.group.position);
+      for (let i = 0; i < 3; i++) setTimeout(() => this.emojiSystem.spawnFloatingEmoji('💖', pos.x + (Math.random() - 0.5) * 50, pos.y - 60 - i * 18), i * 200);
+    }
+  }
+
   updateContextInteraction(myPos) {
     if (!myPos) return;
+    const partnerPos = this.partnerChar && this.partnerChar.group.visible ? this.partnerChar.getPosition() : null;
+    this.hud.showHugButton(Boolean(partnerPos && Math.hypot(myPos.x - partnerPos.x, myPos.z - partnerPos.z) < 2.4 && !this.currentSpot));
+    this.hud.showFlightControls(this.currentSpot === 'heli_pilot');
 
-    // If currently occupying a spot, offer "Get off / Leave"
     if (this.currentSpot) {
-      this.hud.setInteractAction({
-        type: 'exit_spot',
-        icon: '🚪',
-        label: this.currentSpot.startsWith('bike') ? 'Get Off Bike' : (this.currentSpot.startsWith('swing') ? 'Stand Up' : 'Leave Stall')
-      });
+      let icon = '🚪', label = 'Leave Spot';
+      if (this.currentSpot === 'heli_pilot' || this.currentSpot === 'heli_passenger') { icon = '🚁'; label = 'Exit Helicopter'; }
+      else if (this.currentSpot === 'bike_driver' || this.currentSpot === 'bike_passenger') { icon = '🛵'; label = 'Dismount Scooter'; }
+      else if (this.currentSpot.startsWith('swing')) { icon = '🎠'; label = 'Get Off Swing'; }
+      else if (this.currentSpot.startsWith('bench')) { icon = '🧍'; label = 'Stand Up'; }
+      else if (this.currentSpot.startsWith('bed_')) { icon = '☀️'; label = 'Wake Up'; }
+      this.hud.setInteractAction({ type: 'exit_spot', icon, label });
       return;
     }
 
-    const spots = syncService.spotsData || {};
+    if (this.elevatorRide) {
+      this.hud.setInteractAction({ type: 'riding_elevator', icon: '🛗', label: 'Elevator Moving...' });
+      return;
+    }
+
+    // 1. HOUSE INTERACTIONS (Light Switch, Elevator & Bed)
+    const switchPos = this.coupleHouse.getLightSwitchWorldPos();
+    if (Math.hypot(myPos.x - switchPos.x, myPos.z - switchPos.z) < 2.2) {
+      this.hud.setInteractAction({ type: 'toggle_light', icon: '💡', label: 'Toggle Lights' }); return;
+    }
+    const elevatorBotPos = this.coupleHouse.getElevatorBottomWorldPos();
+    if (Math.hypot(myPos.x - elevatorBotPos.x, myPos.z - elevatorBotPos.z) < 2.0 && this.playerY < 1) {
+      this.hud.setInteractAction({ type: 'elevator_up', icon: '🛗', label: 'Take Elevator Up' }); return;
+    }
+    const elevatorTopPos = this.coupleHouse.getElevatorTopWorldPos();
+    if (Math.hypot(myPos.x - elevatorTopPos.x, myPos.z - elevatorTopPos.z) < 2.0 && this.playerY > 2) {
+      this.hud.setInteractAction({ type: 'elevator_down', icon: '🛗', label: 'Take Elevator Down' }); return;
+    }
+
+    const bedLPos = this.coupleHouse.getBedWorldPosition('left');
+    const bedRPos = this.coupleHouse.getBedWorldPosition('right');
+    if (Math.hypot(myPos.x - bedLPos.x, myPos.z - bedLPos.z) < 2.0) { this.hud.setInteractAction({ type: 'sleep_bed_left', icon: '💤', label: 'Sleep in Bed' }); return; }
+    else if (Math.hypot(myPos.x - bedRPos.x, myPos.z - bedRPos.z) < 2.0) { this.hud.setInteractAction({ type: 'sleep_bed_right', icon: '💤', label: 'Sleep in Bed' }); return; }
+
+    // 2. HELICOPTER (Dual seats: Pilot & Passenger)
+    const heliDist = Math.hypot(myPos.x - this.helicopter.group.position.x, myPos.z - this.helicopter.group.position.z);
+    if (heliDist < 3.8) {
+      const occ = syncService.spotsData?.helicopter?.occupants || {};
+      if (!occ.driver) {
+        this.hud.setInteractAction({ type: 'heli_pilot', icon: '🚁', label: 'Fly Helicopter' }); return;
+      } else if (!occ.passenger) {
+        this.hud.setInteractAction({ type: 'heli_passenger', icon: '🚁', label: 'Ride as Passenger' }); return;
+      }
+    }
+
+    // 3. RETRO MOTORBIKE / SCOOTER
     const bikeDist = Math.hypot(myPos.x - this.bike.group.position.x, myPos.z - this.bike.group.position.z);
+    if (bikeDist < 3.2) {
+      const occ = syncService.spotsData?.bike?.occupants || {};
+      if (!occ.driver) {
+        this.hud.setInteractAction({ type: 'bike_drive', icon: '🛵', label: 'Drive Scooter' }); return;
+      } else if (!occ.passenger) {
+        this.hud.setInteractAction({ type: 'bike_passenger', icon: '🛵', label: 'Ride Behind Partner' }); return;
+      }
+    }
+
+    // 4. ROMANTIC SWINGS
     const swingDist = Math.hypot(myPos.x - this.swing.position.x, myPos.z - this.swing.position.z);
-    const teaDist = Math.hypot(myPos.x - this.teaStall.position.x, myPos.z - (this.teaStall.position.z + 1.2));
-
-    if (bikeDist < 2.6) {
-      const driver = spots.bike?.occupants?.driver;
-      const passenger = spots.bike?.occupants?.passenger;
-
-      if (!driver) {
-        this.hud.setInteractAction({ type: 'bike_drive', icon: '🛵', label: 'Drive Scooter' });
-        return;
-      } else if (!passenger) {
-        this.hud.setInteractAction({ type: 'bike_passenger', icon: '🛵', label: 'Ride Behind' });
-        return;
+    if (swingDist < 2.8) {
+      const occ = syncService.spotsData?.swing?.occupants || {};
+      if (!occ.seat1) {
+        this.hud.setInteractAction({ type: 'swing_1', icon: '🎠', label: 'Ride Swing' }); return;
+      } else if (!occ.seat2) {
+        this.hud.setInteractAction({ type: 'swing_2', icon: '🎠', label: 'Ride Swing' }); return;
       }
     }
 
-    if (swingDist < 2.6) {
-      const s1 = spots.swing?.occupants?.seat1;
-      const s2 = spots.swing?.occupants?.seat2;
-      if (!s1 || !s2) {
-        this.hud.setInteractAction({ type: 'swing_sit', icon: '🪁', label: 'Sit on Swing' });
-        return;
-      }
+    // 5. PARK BENCHES / CHAIRS (Sit on ANY bench in town)
+    const nearBench = this.chairSystem.getNearestBench(myPos, 2.4);
+    if (nearBench) {
+      this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, icon: '🪑', label: 'Sit on Bench' }); return;
     }
 
-    if (teaDist < 2.6) {
-      const holder = spots.teaStall?.extra?.cupHolder;
-      if (!holder) {
-        this.hud.setInteractAction({ type: 'tea_pickup', icon: '🍵', label: 'Pick Up Cup' });
-        return;
-      } else if (holder === roomService.user?.uid) {
-        this.hud.setInteractAction({ type: 'tea_sip_pass', icon: '🍵', label: 'Sip & Pass Cup' });
-        return;
-      }
+    // 6. PLAYGROUND SLIDE
+    const slideDist = Math.hypot(myPos.x - (this.playground.position.x - 4.0), myPos.z - this.playground.position.z);
+    if (slideDist < 3.2) { this.hud.setInteractAction({ type: 'playground_slide', icon: '🛝', label: 'Slide Down!' }); return; }
+
+    // 7. FARM PLOTS (Till, Plant, Water, Harvest)
+    const farmPlot = this.farming.getNearestPlot(myPos, 2.5);
+    if (farmPlot) {
+      let icon = '🌱', label = 'Till Soil';
+      if (farmPlot.state === 'tilled') { icon = '🌾'; label = 'Plant Seed'; }
+      else if (farmPlot.state === 'seeded') { icon = '💧'; label = 'Water Crop'; }
+      else if (farmPlot.state === 'ready') { icon = '✨'; label = 'Harvest Crop!'; }
+      else if (farmPlot.state === 'growing') { icon = '⏳'; label = 'Growing...'; }
+      this.hud.setInteractAction({ type: 'farm_plot', plot: farmPlot, icon, label }); return;
     }
 
-    // No interactive spot nearby
+    // 8. CHOPPABLE TREES (Any tree across town)
+    const nTree = this.treeChopping.getNearestTree(myPos, 2.5);
+    if (nTree) { this.hud.setInteractAction({ type: 'chop_tree', tree: nTree, icon: '🪓', label: `Chop Tree (${nTree.health}/3)` }); return; }
+
+    // 9. TEA STALL
+    const stallDist = Math.hypot(myPos.x - this.teaStall.position.x, myPos.z - this.teaStall.position.z);
+    if (stallDist < 2.6) {
+      this.hud.setInteractAction({ type: 'tea_cup', icon: '🍵', label: this.myChar.isHoldingCup ? 'Finish Tea' : 'Drink Warm Chai' }); return;
+    }
+
     this.hud.setInteractAction(null);
   }
 
-  // Handle tap on HUD interact button
   async handleInteraction(action) {
     if (!action) return;
+    if (action.type === 'exit_spot') { await this.exitSpot(); return; }
 
-    if (action.type === 'exit_spot') {
-      await this.exitSpot();
-      return;
+    if (action.type === 'toggle_light') {
+      const newState = this.coupleHouse.toggleLight();
+      soundEngine.playPop();
+      syncService.updateSpotExtra('coupleHouse', {
+        isLightOn: newState,
+        elevatorY: this.coupleHouse.elevatorCabin ? this.coupleHouse.elevatorCabin.position.y : 0.25
+      });
     }
-
-    if (action.type === 'bike_drive') {
-      const success = await syncService.claimSeat('bike', 'driver');
-      if (success) {
+    else if (action.type === 'elevator_up') {
+      if (this.elevatorRide) return;
+      const botPos = this.coupleHouse.getElevatorBottomWorldPos();
+      this.elevatorRide = {
+        startY: 0,
+        targetY: 2.9,
+        duration: 1.2,
+        elapsed: 0,
+        x: botPos.x,
+        z: botPos.z
+      };
+      this.myChar.setPosition(botPos.x, botPos.z, undefined, this.playerY);
+      soundEngine.playElevator(true);
+      syncService.updateSpotExtra('coupleHouse', {
+        isLightOn: this.coupleHouse.isLightOn,
+        elevatorY: 0.25,
+        elevatorMoving: true
+      });
+    }
+    else if (action.type === 'elevator_down') {
+      if (this.elevatorRide) return;
+      const topPos = this.coupleHouse.getElevatorTopWorldPos();
+      this.elevatorRide = {
+        startY: 2.9,
+        targetY: 0,
+        duration: 1.2,
+        elapsed: 0,
+        x: topPos.x,
+        z: topPos.z
+      };
+      this.myChar.setPosition(topPos.x, topPos.z, undefined, this.playerY);
+      soundEngine.playElevator(false);
+      syncService.updateSpotExtra('coupleHouse', {
+        isLightOn: this.coupleHouse.isLightOn,
+        elevatorY: 3.2,
+        elevatorMoving: true
+      });
+    }
+    else if (action.type === 'heli_pilot') {
+      if (await syncService.claimSeat('helicopter', 'driver')) {
+        this.currentSpot = 'heli_pilot';
+        soundEngine.playHelicopter();
+      }
+    }
+    else if (action.type === 'heli_passenger') {
+      if (await syncService.claimSeat('helicopter', 'passenger')) {
+        this.currentSpot = 'heli_passenger';
+        soundEngine.playHelicopter();
+      }
+    }
+    else if (action.type === 'bike_drive') {
+      if (await syncService.claimSeat('bike', 'driver')) {
         this.currentSpot = 'bike_driver';
         soundEngine.playBell();
       }
-    } else if (action.type === 'bike_passenger') {
-      const success = await syncService.claimSeat('bike', 'passenger');
-      if (success) {
+    }
+    else if (action.type === 'bike_passenger') {
+      if (await syncService.claimSeat('bike', 'passenger')) {
         this.currentSpot = 'bike_passenger';
         soundEngine.playPop();
       }
-    } else if (action.type === 'swing_sit') {
-      const s1Success = await syncService.claimSeat('swing', 'seat1');
-      if (s1Success) {
-        this.currentSpot = 'swing_seat1';
-        soundEngine.playPop();
-      } else {
-        const s2Success = await syncService.claimSeat('swing', 'seat2');
-        if (s2Success) {
-          this.currentSpot = 'swing_seat2';
-          soundEngine.playPop();
-        }
-      }
-    } else if (action.type === 'tea_pickup') {
-      const success = await syncService.claimSeat('teaStall', 'seat');
-      if (success) {
-        await syncService.updateSpotExtra('teaStall', { cupHolder: roomService.user.uid, teaState: 'holding' });
-        this.teaStall.attachCupToHand(this.myChar.rightHand);
+    }
+    else if (action.type === 'swing_1') {
+      if (await syncService.claimSeat('swing', 'seat1')) {
+        this.currentSpot = 'swing_1';
         soundEngine.playPop();
       }
-    } else if (action.type === 'tea_sip_pass') {
-      soundEngine.playSip();
-      // Pass cup to partner
-      const partnerUid = roomService.partnerUid;
-      if (partnerUid) {
-        await syncService.updateSpotExtra('teaStall', { cupHolder: partnerUid, teaState: 'passed' });
-        this.teaStall.returnCupToCounter();
-        // Spawn cute heart
-        const pos = this.toScreenPosition(this.myChar.group.position);
-        this.emojiSystem.spawnFloatingEmoji('💖', pos.x, pos.y - 40);
-        soundEngine.playHandHold();
+    }
+    else if (action.type === 'swing_2') {
+      if (await syncService.claimSeat('swing', 'seat2')) {
+        this.currentSpot = 'swing_2';
+        soundEngine.playPop();
       }
+    }
+    else if (action.type === 'sit_bench') {
+      this.currentSpot = 'bench_' + action.bench.id;
+      soundEngine.playPop();
+    }
+    else if (action.type === 'sleep_bed_left') { this.currentSpot = 'bed_left'; soundEngine.playSleep(); }
+    else if (action.type === 'sleep_bed_right') { this.currentSpot = 'bed_right'; soundEngine.playSleep(); }
+    else if (action.type === 'playground_slide') { this.currentSpot = 'playground_slide'; this.slideProgress = 0; soundEngine.playPop(); }
+    else if (action.type === 'chop_tree') {
+      this.myChar.anim = 'chop'; this.treeChopping.chop(action.tree); this.hud.setWoodCount(this.treeChopping.woodInventory);
+      setTimeout(() => { if (this.myChar && this.myChar.anim === 'chop') this.myChar.anim = 'idle'; }, 750);
+    }
+    else if (action.type === 'farm_plot') {
+      this.myChar.anim = 'farm';
+      const result = this.farming.interact(action.plot);
+      if (result === 'plant') soundEngine.playPlantSeed();
+      else if (result === 'water') soundEngine.playWaterCrop();
+      else if (result === 'harvest') soundEngine.playHarvest();
+      else soundEngine.playPop();
+      this.hud.setCropCount(this.farming.cropInventory);
+      setTimeout(() => { if (this.myChar && this.myChar.anim === 'farm') this.myChar.anim = 'idle'; }, 850);
+    }
+    else if (action.type === 'tea_cup') {
+      this.myChar.isHoldingCup = !this.myChar.isHoldingCup;
+      if (this.myChar.isHoldingCup) soundEngine.playSip();
+      else soundEngine.playPop();
     }
   }
 
   async exitSpot() {
     if (!this.currentSpot) return;
     soundEngine.playPop();
+    const prev = this.currentSpot;
 
-    const previousSpot = this.currentSpot;
-
-    if (previousSpot === 'bike_driver') {
-      await syncService.releaseSeat('bike', 'driver');
-    } else if (previousSpot === 'bike_passenger') {
-      await syncService.releaseSeat('bike', 'passenger');
-    } else if (previousSpot === 'swing_seat1') {
-      await syncService.releaseSeat('swing', 'seat1');
-    } else if (previousSpot === 'swing_seat2') {
-      await syncService.releaseSeat('swing', 'seat2');
-    } else if (previousSpot.startsWith('tea')) {
-      await syncService.releaseSeat('teaStall', 'seat');
-      await syncService.updateSpotExtra('teaStall', { cupHolder: null, teaState: 'idle' });
-      this.teaStall.returnCupToCounter();
-    }
+    if (prev === 'heli_pilot') { await syncService.releaseSeat('helicopter', 'driver'); this.helicopter.isFlying = false; }
+    else if (prev === 'heli_passenger') { await syncService.releaseSeat('helicopter', 'passenger'); }
+    else if (prev === 'bike_driver') { await syncService.releaseSeat('bike', 'driver'); }
+    else if (prev === 'bike_passenger') { await syncService.releaseSeat('bike', 'passenger'); }
+    else if (prev === 'swing_1') { await syncService.releaseSeat('swing', 'seat1'); }
+    else if (prev === 'swing_2') { await syncService.releaseSeat('swing', 'seat2'); }
 
     this.currentSpot = null;
     if (this.myChar) {
       this.myChar.anim = 'idle';
       this.myChar.modelRoot.position.y = 0;
+      this.myChar.modelRoot.rotation.x = 0;
       this.myChar.group.position.y = 0;
 
-      // Natural dismount placement: step safely clear in front of the spot
-      if (previousSpot.startsWith('swing')) {
-        this.myChar.setPosition(this.myChar.group.position.x, this.swing.position.z + 1.2, this.swing.rotationY, 0);
-      } else if (previousSpot === 'bike_driver') {
-        const sideOffset = new THREE.Vector3(-0.85, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.bike.group.rotation.y);
-        this.myChar.setPosition(this.bike.group.position.x + sideOffset.x, this.bike.group.position.z + sideOffset.z, this.bike.group.rotation.y, 0);
-      } else if (previousSpot === 'bike_passenger') {
-        const sideOffset = new THREE.Vector3(0.85, 0, -0.4).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.bike.group.rotation.y);
-        this.myChar.setPosition(this.bike.group.position.x + sideOffset.x, this.bike.group.position.z + sideOffset.z, this.bike.group.rotation.y, 0);
-      } else if (previousSpot.startsWith('tea')) {
-        this.myChar.setPosition(this.myChar.group.position.x, this.teaStall.position.z + 1.8, 0, 0);
+      if (prev.startsWith('heli')) {
+        this.myChar.setPosition(this.helicopter.group.position.x + 1.8, this.helicopter.group.position.z + 1.2, 0, this.playerY);
+      } else if (prev === 'bike_driver') {
+        this.myChar.setPosition(this.bike.group.position.x - 1.0, this.bike.group.position.z, this.bike.group.rotation.y, 0);
+      } else if (prev === 'bike_passenger') {
+        this.myChar.setPosition(this.bike.group.position.x + 1.0, this.bike.group.position.z, this.bike.group.rotation.y, 0);
+      } else if (prev === 'swing_1') {
+        this.myChar.setPosition(this.swing.position.x - 1.2, this.swing.position.z + 1.2, this.swing.rotationY, 0);
+      } else if (prev === 'swing_2') {
+        this.myChar.setPosition(this.swing.position.x + 1.2, this.swing.position.z + 1.2, this.swing.rotationY, 0);
+      } else if (prev.startsWith('bench_')) {
+        const benchId = prev.replace('bench_', '');
+        const bench = this.chairSystem.getBenchById(benchId);
+        if (bench) {
+          const dismount = this.chairSystem.getDismountWorldPos(bench);
+          this.myChar.setPosition(dismount.x, dismount.z, bench.rotationY, 0);
+        }
+      } else if (prev.startsWith('bed_')) {
+        const wakePos = this.coupleHouse.getWakeUpWorldPosition(prev === 'bed_left' ? 'left' : 'right');
+        this.playerY = 2.9;
+        this.myChar.setPosition(wakePos.x, wakePos.z, this.coupleHouse.rotationY, this.playerY);
+        this.myChar.anim = 'cheer';
+        setTimeout(() => { if (this.myChar && this.myChar.anim === 'cheer') this.myChar.anim = 'idle'; }, 1200);
       }
     }
   }
 }
 
-// Bootstrap on window load
-window.addEventListener('DOMContentLoaded', () => {
-  new App();
-});
+window.addEventListener('DOMContentLoaded', () => window.app = new App());

@@ -174,8 +174,8 @@ test.describe('Our Little Town - Couple Game End-to-End Suite', () => {
     await pageA.screenshot({ path: 'tests/screenshots/9-partner-offline-A.png' });
 
     // Clean up
-    await contextA.close();
-    await contextB.close();
+    await contextA.close().catch(() => {});
+    await contextB.close().catch(() => {});
   });
 
 });

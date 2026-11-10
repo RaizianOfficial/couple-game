@@ -9,6 +9,9 @@ export class Character {
     this.anim = 'idle';
     this.animTime = 0;
     this.isLocal = false;
+    this.isHoldingCup = false;
+    this.isHoldingHands = false;
+    this.holdingSide = slot === 1 ? 'right' : 'left';
 
     // Default palette depending on player slot
     this.outfit = {
@@ -281,6 +284,11 @@ export class Character {
   update(delta) {
     this.animTime += delta;
 
+    // Reset base rotations by default
+    this.modelRoot.rotation.x = 0;
+    this.modelRoot.rotation.z = 0;
+    this.headGroup.rotation.y = 0;
+
     if (this.anim === 'walk') {
       const speed = 12;
       const legAngle = Math.sin(this.animTime * speed) * 0.65;
@@ -288,13 +296,28 @@ export class Character {
 
       this.leftLegPivot.rotation.x = legAngle;
       this.rightLegPivot.rotation.x = -legAngle;
-      this.leftArmPivot.rotation.x = -armAngle;
 
-      // If holding cup with right hand, keep right arm bent forward holding cup
-      if (this.isHoldingCup) {
+      // Arm positioning with cup or hand holding
+      if (this.isHoldingHands) {
+        if (this.holdingSide === 'right') {
+          this.rightArmPivot.rotation.x = -0.55;
+          this.rightArmPivot.rotation.z = -0.42;
+          this.leftArmPivot.rotation.x = -armAngle;
+          this.leftArmPivot.rotation.z = 0;
+        } else {
+          this.leftArmPivot.rotation.x = -0.55;
+          this.leftArmPivot.rotation.z = 0.42;
+          this.rightArmPivot.rotation.x = armAngle;
+          this.rightArmPivot.rotation.z = 0;
+        }
+      } else if (this.isHoldingCup) {
+        this.leftArmPivot.rotation.x = -armAngle;
+        this.leftArmPivot.rotation.z = 0;
         this.rightArmPivot.rotation.x = -1.25;
         this.rightArmPivot.rotation.z = -0.3;
       } else {
+        this.leftArmPivot.rotation.x = -armAngle;
+        this.leftArmPivot.rotation.z = 0;
         this.rightArmPivot.rotation.x = armAngle;
         this.rightArmPivot.rotation.z = 0;
       }
@@ -302,6 +325,86 @@ export class Character {
       // Cute head & body vertical bob
       this.modelRoot.position.y = Math.abs(Math.sin(this.animTime * speed)) * 0.08;
       this.headGroup.rotation.z = Math.sin(this.animTime * speed * 0.5) * 0.05;
+    } else if (this.anim === 'jump') {
+      // Cute aerial jump pose with arms reaching slightly up and legs bent
+      this.leftLegPivot.rotation.x = -0.45;
+      this.rightLegPivot.rotation.x = -0.35;
+      this.leftLegPivot.rotation.z = -0.15;
+      this.rightLegPivot.rotation.z = 0.15;
+      this.leftArmPivot.rotation.x = -1.6;
+      this.rightArmPivot.rotation.x = -1.6;
+      this.leftArmPivot.rotation.z = -0.35;
+      this.rightArmPivot.rotation.z = 0.35;
+      this.headGroup.rotation.z = 0;
+    } else if (this.anim === 'hug') {
+      // Warm tight loving embrace!
+      this.modelRoot.position.y = 0.02;
+      this.leftLegPivot.rotation.x = 0;
+      this.rightLegPivot.rotation.x = 0;
+      this.leftArmPivot.rotation.x = -1.45;
+      this.rightArmPivot.rotation.x = -1.45;
+      this.leftArmPivot.rotation.z = 0.52;
+      this.rightArmPivot.rotation.z = -0.52;
+      this.headGroup.rotation.z = 0.12;
+      this.headGroup.rotation.y = 0.08;
+    } else if (this.anim === 'sleep') {
+      // Cozy horizontal sleeping pose
+      this.modelRoot.rotation.x = -Math.PI / 2;
+      const breath = Math.sin(this.animTime * 1.8) * 0.02;
+      this.modelRoot.position.y = 0.22 + breath;
+      this.modelRoot.position.z = 0.2;
+      this.leftLegPivot.rotation.x = 0;
+      this.rightLegPivot.rotation.x = 0;
+      this.leftArmPivot.rotation.x = -0.2;
+      this.rightArmPivot.rotation.x = -0.2;
+      this.leftArmPivot.rotation.z = 0.15;
+      this.rightArmPivot.rotation.z = -0.15;
+      this.headGroup.rotation.z = 0.1;
+    } else if (this.anim === 'chop') {
+      // Dynamic wood chopping swing
+      const swing = Math.sin(this.animTime * 9);
+      this.modelRoot.rotation.x = Math.max(0, swing * 0.35);
+      this.modelRoot.position.y = Math.max(0, -swing * 0.1);
+      this.leftLegPivot.rotation.x = -0.25;
+      this.rightLegPivot.rotation.x = 0.25;
+      this.leftArmPivot.rotation.x = -1.6 + swing * 1.1;
+      this.rightArmPivot.rotation.x = -1.6 + swing * 1.1;
+      this.leftArmPivot.rotation.z = 0.25;
+      this.rightArmPivot.rotation.z = -0.25;
+    } else if (this.anim === 'farm') {
+      // Tending crops / tilling / watering
+      this.modelRoot.position.y = -0.12;
+      this.modelRoot.rotation.x = 0.42;
+      this.leftLegPivot.rotation.x = -0.2;
+      this.rightLegPivot.rotation.x = 0.2;
+      const tend = Math.sin(this.animTime * 6) * 0.3;
+      this.leftArmPivot.rotation.x = -1.1 + tend;
+      this.rightArmPivot.rotation.x = -1.1 - tend;
+      this.leftArmPivot.rotation.z = 0.2;
+      this.rightArmPivot.rotation.z = -0.2;
+    } else if (this.anim === 'slide') {
+      // Sliding down playground slide
+      this.modelRoot.position.y = -0.06;
+      this.leftLegPivot.rotation.x = -Math.PI / 2.05;
+      this.rightLegPivot.rotation.x = -Math.PI / 2.05;
+      this.leftLegPivot.rotation.z = -0.08;
+      this.rightLegPivot.rotation.z = 0.08;
+      this.leftArmPivot.rotation.x = -2.1;
+      this.rightArmPivot.rotation.x = -2.1;
+      this.leftArmPivot.rotation.z = -0.3;
+      this.rightArmPivot.rotation.z = 0.3;
+      this.headGroup.rotation.z = Math.sin(this.animTime * 8) * 0.08;
+    } else if (this.anim === 'angry') {
+      // Cute cartoon pout / stomp!
+      const stomp = Math.sin(this.animTime * 10);
+      this.leftLegPivot.rotation.x = Math.max(0, stomp * 0.5);
+      this.rightLegPivot.rotation.x = Math.max(0, -stomp * 0.5);
+      this.leftArmPivot.rotation.x = -0.9;
+      this.rightArmPivot.rotation.x = -0.9;
+      this.leftArmPivot.rotation.z = 0.45;
+      this.rightArmPivot.rotation.z = -0.45;
+      this.headGroup.rotation.y = Math.sin(this.animTime * 8) * 0.18;
+      this.headGroup.rotation.z = -0.06;
     } else if (this.anim === 'sit') {
       this.modelRoot.position.y = -0.05;
       this.leftLegPivot.rotation.x = -Math.PI / 2.2;
@@ -314,20 +417,18 @@ export class Character {
       this.rightArmPivot.rotation.z = 0;
       this.headGroup.rotation.z = 0;
     } else if (this.anim === 'ride') {
-      // Driver holding motorbike handlebars
+      // Driver holding handlebars or helicopter flight stick
       this.modelRoot.position.y = 0.05;
       this.leftLegPivot.rotation.x = -Math.PI / 2.6;
       this.rightLegPivot.rotation.x = -Math.PI / 2.6;
       this.leftLegPivot.rotation.z = -0.25;
       this.rightLegPivot.rotation.z = 0.25;
-      // Reach hands forward to handlebars
       this.leftArmPivot.rotation.x = -1.15;
       this.rightArmPivot.rotation.x = -1.15;
       this.leftArmPivot.rotation.z = -0.2;
       this.rightArmPivot.rotation.z = 0.2;
       this.headGroup.rotation.z = 0;
     } else if (this.anim === 'passenger') {
-      // Passenger holding onto driver's waist/seat
       this.modelRoot.position.y = 0.05;
       this.leftLegPivot.rotation.x = -Math.PI / 2.4;
       this.rightLegPivot.rotation.x = -Math.PI / 2.4;
@@ -339,21 +440,18 @@ export class Character {
       this.rightArmPivot.rotation.z = -0.2;
       this.headGroup.rotation.z = 0.05;
     } else if (this.anim === 'swing') {
-      // Relaxed swing sit with gentle leg sway
       this.modelRoot.position.y = -0.02;
       const sway = Math.sin(this.animTime * 2.2) * 0.25;
       this.leftLegPivot.rotation.x = -Math.PI / 2.3 + sway;
       this.rightLegPivot.rotation.x = -Math.PI / 2.3 + sway;
       this.leftLegPivot.rotation.z = -0.1;
       this.rightLegPivot.rotation.z = 0.1;
-      // Arms reaching UP to hold swing ropes (nearly vertical)
       this.leftArmPivot.rotation.x = -2.6;
       this.rightArmPivot.rotation.x = -2.6;
       this.leftArmPivot.rotation.z = -0.15;
       this.rightArmPivot.rotation.z = 0.15;
       this.headGroup.rotation.z = Math.sin(this.animTime * 1.5) * 0.08;
     } else if (this.anim === 'cheer') {
-      // Arms up cheering
       this.leftArmPivot.rotation.x = -2.8;
       this.rightArmPivot.rotation.x = -2.8;
       this.leftArmPivot.rotation.z = -0.4;
@@ -365,13 +463,27 @@ export class Character {
       this.modelRoot.position.y = breath;
       this.leftLegPivot.rotation.x = 0;
       this.rightLegPivot.rotation.x = 0;
-      this.leftArmPivot.rotation.x = 0;
-      this.leftArmPivot.rotation.z = 0;
 
-      if (this.isHoldingCup) {
+      if (this.isHoldingHands) {
+        if (this.holdingSide === 'right') {
+          this.rightArmPivot.rotation.x = -0.55;
+          this.rightArmPivot.rotation.z = -0.42;
+          this.leftArmPivot.rotation.x = 0;
+          this.leftArmPivot.rotation.z = 0;
+        } else {
+          this.leftArmPivot.rotation.x = -0.55;
+          this.leftArmPivot.rotation.z = 0.42;
+          this.rightArmPivot.rotation.x = 0;
+          this.rightArmPivot.rotation.z = 0;
+        }
+      } else if (this.isHoldingCup) {
+        this.leftArmPivot.rotation.x = 0;
+        this.leftArmPivot.rotation.z = 0;
         this.rightArmPivot.rotation.x = -1.25;
         this.rightArmPivot.rotation.z = -0.3;
       } else {
+        this.leftArmPivot.rotation.x = 0;
+        this.leftArmPivot.rotation.z = 0;
         this.rightArmPivot.rotation.x = 0;
         this.rightArmPivot.rotation.z = 0;
       }
@@ -387,11 +499,11 @@ export class Character {
     return pos;
   }
 
-  setPosition(x, z, rotY, y = 0) {
-    this.group.position.x = x;
-    this.group.position.z = z;
-    this.group.position.y = y;
-    if (rotY !== undefined) {
+  setPosition(x, z, rotY, y) {
+    if (x !== undefined && !isNaN(x)) this.group.position.x = x;
+    if (z !== undefined && !isNaN(z)) this.group.position.z = z;
+    if (y !== undefined && !isNaN(y)) this.group.position.y = y;
+    if (rotY !== undefined && !isNaN(rotY)) {
       this.group.rotation.y = rotY;
     }
   }

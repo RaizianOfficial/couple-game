@@ -194,6 +194,9 @@ export class SyncService {
   }
 
   isBothHolding() {
+    if (!this.partnerUid) {
+      return Boolean(this.handsData?.p1Holding || this.handsData?.p2Holding);
+    }
     return Boolean(this.handsData?.p1Holding && this.handsData?.p2Holding);
   }
 
@@ -268,13 +271,14 @@ export class SyncService {
 
   async submitOutfitPick(pick) {
     if (!this.roomId || !this.uid) return;
-    const partnerUid = this.partnerUid;
+    const partnerUid = this.partnerUid || roomService.partnerUid;
     const outfitRef = dbRef(`rooms/${this.roomId}/games/outfit`);
     await dbRunTransaction(outfitRef, (current) => {
       const state = current || { picks: {}, revealed: false };
       const picks = { ...(state.picks || {}) };
       picks[this.uid] = { ...pick };
-      const both = Boolean(partnerUid && picks[this.uid] && picks[partnerUid]);
+      const otherUid = partnerUid || Object.keys(picks).find(k => k !== this.uid);
+      const both = Boolean(otherUid && picks[this.uid] && picks[otherUid]);
       return {
         picks,
         revealed: both

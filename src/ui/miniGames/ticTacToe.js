@@ -63,9 +63,11 @@ export class TicTacToeGame {
     this.modal.classList.remove('hidden');
     soundEngine.playPop();
 
-    // Check if game exists; if not, initialize
+    // Check if game exists; if not and host (slot 1), initialize
     if (!this.syncService.tictactoeState) {
-      this.initNewBoard();
+      if (this.roomService.slot === 1) {
+        this.initNewBoard();
+      }
     } else {
       this.renderState(this.syncService.tictactoeState);
     }

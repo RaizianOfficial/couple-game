@@ -31,6 +31,12 @@ export class GameHUD {
           <span class="presence-text" id="hud-presence-text">Waiting...</span>
         </div>
 
+        <!-- Inventory Pill for Wood & Crops -->
+        <div class="hud-inventory" id="hud-inventory-pill">
+          <span class="inv-item" title="Wood">🪵 <span id="hud-wood-val">0</span></span>
+          <span class="inv-item" title="Harvested Crops">🌾 <span id="hud-crop-val">0</span></span>
+        </div>
+
         <div class="hud-top-actions">
           <button class="icon-btn" id="hud-quality-btn" title="Toggle Quality (High/Low)">✨ High</button>
           <button class="icon-btn" id="hud-fs-btn" title="Fullscreen">⛶</button>
@@ -39,6 +45,30 @@ export class GameHUD {
 
       <!-- Right Action Controls Area -->
       <div class="hud-right-actions">
+        <!-- Helicopter Aerial Controls (shown only when inside helicopter) -->
+        <div class="hud-flight-row hidden" id="hud-flight-controls">
+          <button class="action-btn flight-btn" id="hud-ascend-btn">
+            <span class="btn-icon">⬆️</span>
+            <span class="btn-label">Ascend</span>
+          </button>
+          <button class="action-btn flight-btn" id="hud-descend-btn">
+            <span class="btn-icon">⬇️</span>
+            <span class="btn-label">Descend</span>
+          </button>
+        </div>
+
+        <!-- Jump Action Button -->
+        <button class="action-btn jump-btn" id="hud-jump-btn" title="Jump (Space)">
+          <span class="btn-icon">🦘</span>
+          <span class="btn-label">Jump</span>
+        </button>
+
+        <!-- Romantic Warm Hug Button -->
+        <button class="action-btn hug-btn hidden" id="hud-hug-btn">
+          <span class="btn-icon">🫂</span>
+          <span class="btn-label">Hug ❤️</span>
+        </button>
+
         <!-- Hold Hands Context Button -->
         <button class="action-btn hold-hands-btn hidden" id="hud-hold-hands-btn">
           <span class="btn-icon">🤝</span>
@@ -107,6 +137,13 @@ export class GameHUD {
     this.interactBtn = this.hudEl.querySelector('#hud-interact-btn');
     this.interactIcon = this.hudEl.querySelector('#hud-interact-icon');
     this.interactLabel = this.hudEl.querySelector('#hud-interact-label');
+    this.jumpBtn = this.hudEl.querySelector('#hud-jump-btn');
+    this.hugBtn = this.hudEl.querySelector('#hud-hug-btn');
+    this.flightControls = this.hudEl.querySelector('#hud-flight-controls');
+    this.ascendBtn = this.hudEl.querySelector('#hud-ascend-btn');
+    this.descendBtn = this.hudEl.querySelector('#hud-descend-btn');
+    this.woodVal = this.hudEl.querySelector('#hud-wood-val');
+    this.cropVal = this.hudEl.querySelector('#hud-crop-val');
     this.emojiBtn = this.hudEl.querySelector('#hud-emoji-btn');
     this.gamesBtn = this.hudEl.querySelector('#hud-games-btn');
     this.gamesMenu = this.hudEl.querySelector('#hud-games-menu');
@@ -115,29 +152,68 @@ export class GameHUD {
   }
 
   initEvents() {
-    // Hold Hands Press-and-Hold
+    // Hold Hands Press-and-Hold & Tap-to-Toggle
+    let holdStartTime = 0;
     const startHold = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.isHoldingHands = true;
-      this.holdHandsBtn.classList.add('pressed');
-      if (this.callbacks.onHoldHandsStart) this.callbacks.onHoldHandsStart();
+      holdStartTime = Date.now();
+      if (!this.isHoldingHands) {
+        this.isHoldingHands = true;
+        this.holdHandsBtn.classList.add('pressed');
+        if (this.callbacks.onHoldHandsStart) this.callbacks.onHoldHandsStart();
+      }
     };
 
     const endHold = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (this.isHoldingHands) {
+      const holdDuration = Date.now() - holdStartTime;
+      if (holdDuration > 400 && this.isHoldingHands) {
         this.isHoldingHands = false;
         this.holdHandsBtn.classList.remove('pressed');
         if (this.callbacks.onHoldHandsEnd) this.callbacks.onHoldHandsEnd();
       }
     };
 
+    this.holdHandsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const holdDuration = Date.now() - holdStartTime;
+      if (holdDuration <= 400 && this.isHoldingHands && this.holdHandsBtn.classList.contains('active-holding')) {
+        this.isHoldingHands = false;
+        this.holdHandsBtn.classList.remove('pressed');
+        this.holdHandsBtn.classList.remove('active-holding');
+        if (this.callbacks.onHoldHandsEnd) this.callbacks.onHoldHandsEnd();
+      }
+    });
+
     this.holdHandsBtn.addEventListener('pointerdown', startHold);
     this.holdHandsBtn.addEventListener('pointerup', endHold);
-    this.holdHandsBtn.addEventListener('pointercancel', endHold);
-    this.holdHandsBtn.addEventListener('pointerleave', endHold);
+
+    // Jump button
+    this.jumpBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.callbacks.onJump) this.callbacks.onJump();
+    });
+
+    // Hug button
+    this.hugBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.callbacks.onHug) this.callbacks.onHug();
+    });
+
+    // Helicopter flight controls
+    const bindHoldButton = (btn, onStart, onEnd) => {
+      btn.addEventListener('pointerdown', (e) => { e.preventDefault(); if (onStart) onStart(); });
+      btn.addEventListener('pointerup', (e) => { e.preventDefault(); if (onEnd) onEnd(); });
+      btn.addEventListener('pointercancel', (e) => { e.preventDefault(); if (onEnd) onEnd(); });
+      btn.addEventListener('pointerleave', (e) => { e.preventDefault(); if (onEnd) onEnd(); });
+    };
+    bindHoldButton(this.ascendBtn, this.callbacks.onAscendStart, this.callbacks.onAscendEnd);
+    bindHoldButton(this.descendBtn, this.callbacks.onDescendStart, this.callbacks.onDescendEnd);
 
     // Interact button tap
     this.interactBtn.addEventListener('click', () => {
@@ -218,11 +294,22 @@ export class GameHUD {
 
   showHoldHandsButton(visible) {
     this.holdHandsBtn.classList.toggle('hidden', !visible);
-    if (!visible && this.isHoldingHands) {
-      this.isHoldingHands = false;
-      this.holdHandsBtn.classList.remove('pressed');
-      if (this.callbacks.onHoldHandsEnd) this.callbacks.onHoldHandsEnd();
-    }
+  }
+
+  showHugButton(visible) {
+    this.hugBtn.classList.toggle('hidden', !visible);
+  }
+
+  showFlightControls(visible) {
+    this.flightControls.classList.toggle('hidden', !visible);
+  }
+
+  setWoodCount(count) {
+    if (this.woodVal) this.woodVal.textContent = count;
+  }
+
+  setCropCount(count) {
+    if (this.cropVal) this.cropVal.textContent = count;
   }
 
   setHandsConnected(isConnected) {

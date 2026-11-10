@@ -1,7 +1,7 @@
 // Sweet Emoji Reactions Tray & Floating 3D/Screen World Animation
 import { soundEngine } from '../audio.js';
 
-export const SWEET_EMOJIS = ['❤️', '😍', '😂', '🥰', '😘', '✨', '👏', '🌹'];
+export const SWEET_EMOJIS = ['❤️', '😍', '😂', '🥰', '😘', '✨', '👏', '🌹', '😡', '😤'];
 
 export class EmojiSystem {
   constructor(containerEl, onSendEmoji) {

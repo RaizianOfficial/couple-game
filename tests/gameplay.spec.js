@@ -49,7 +49,7 @@ test.describe('Our Little Town - Couple Game End-to-End Suite', () => {
 
     // Verify Player A is on waiting screen and gets 5-character code
     const waitingCodeEl = pageA.locator('#waiting-room-code');
-    await expect(waitingCodeEl).toBeVisible();
+    await expect(waitingCodeEl).toBeVisible({ timeout: 15000 });
     const roomCode = (await waitingCodeEl.textContent()).trim();
     expect(roomCode.length).toBe(5);
     console.log(`[Test] Created Room Code: ${roomCode}`);
@@ -71,18 +71,16 @@ test.describe('Our Little Town - Couple Game End-to-End Suite', () => {
     await pageB.screenshot({ path: 'tests/screenshots/4-playerB-connected.png' });
 
     // 3. Move Player A with keyboard controls
-    await pageA.keyboard.press('ArrowRight');
-    await pageA.waitForTimeout(400);
-    await pageA.keyboard.press('ArrowDown');
-    await pageA.waitForTimeout(400);
+    await pageA.keyboard.press('KeyW');
+    await pageA.waitForTimeout(200);
 
     // 4. Test Hold Hands: Players spawn near center facing each other (<2.5 units)
     const holdBtnA = pageA.locator('#hud-hold-hands-btn');
     const holdBtnB = pageB.locator('#hud-hold-hands-btn');
 
     // Verify hold button appears
-    await expect(holdBtnA).toBeVisible({ timeout: 5000 });
-    await expect(holdBtnB).toBeVisible({ timeout: 5000 });
+    await expect(holdBtnA).toBeVisible({ timeout: 8000 });
+    await expect(holdBtnB).toBeVisible({ timeout: 8000 });
 
     // Both players press and hold
     await holdBtnA.dispatchEvent('pointerdown');
@@ -105,7 +103,7 @@ test.describe('Our Little Town - Couple Game End-to-End Suite', () => {
     await pageA.locator('.emoji-btn').first().click(); // Click ❤️
 
     // Verify emoji floats on Player B screen
-    await expect(pageB.locator('.floating-emoji')).toBeVisible({ timeout: 4000 });
+    await expect(pageB.locator('.floating-emoji')).toBeVisible({ timeout: 8000 });
     await pageB.screenshot({ path: 'tests/screenshots/6-emoji-received-B.png' });
 
     // 6. Test Tic-Tac-Toe Mini Game

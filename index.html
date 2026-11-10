@@ -821,6 +821,35 @@
       cursor: pointer;
     }
 
+    .camera-hint {
+      position: absolute;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 12, 30, 0.72);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 24px;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+      transition: opacity 0.6s ease;
+      z-index: 15;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hint-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -833,6 +862,11 @@
     <div id="ui-layer">
       <!-- Joystick Container (Left) -->
       <div class="joystick-container interactive" id="joystick-mount"></div>
+
+      <!-- 360 Camera Drag Hint -->
+      <div class="camera-hint" id="camera-hint">
+        <span>👆 Drag to look around · 🤏 Pinch zoom · Double-tap to reset</span>
+      </div>
     </div>
 
     <!-- Portrait Rotation Overlay -->

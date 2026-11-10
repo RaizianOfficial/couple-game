@@ -61,11 +61,14 @@ export class EmojiSystem {
 
   // Show floating emoji above character on screen
   spawnFloatingEmoji(emoji, screenX, screenY) {
+    const clampedX = Math.max(40, Math.min(window.innerWidth - 40, screenX || window.innerWidth / 2));
+    const clampedY = Math.max(60, Math.min(window.innerHeight - 60, screenY || window.innerHeight / 2));
+
     const el = document.createElement('div');
     el.className = 'floating-emoji';
     el.textContent = emoji;
-    el.style.left = `${screenX}px`;
-    el.style.top = `${screenY}px`;
+    el.style.left = `${clampedX}px`;
+    el.style.top = `${clampedY}px`;
 
     this.floatingLayer.appendChild(el);
     soundEngine.playPop();

@@ -1,5 +1,4 @@
-// Analog Virtual Touch Joystick with Dead Zone & Keyboard Support (WASD / Arrows)
-// Translates 2D screen input relative to the 45-degree isometric camera
+// Virtual Analog Touch Joystick with Dynamic Camera Angle Compensation & Keyboard Support
 
 export class VirtualJoystick {
   constructor(containerEl) {
@@ -7,18 +6,13 @@ export class VirtualJoystick {
     this.isActive = false;
     this.touchId = null;
 
-    // Joystick values between -1 and 1
+    // Raw inputs between -1 and 1
     this.inputX = 0; // -1 (left) to +1 (right)
     this.inputY = 0; // -1 (down) to +1 (up/forward)
 
-    // Camera relative output
-    this.worldMoveX = 0;
-    this.worldMoveZ = 0;
-
     this.deadZone = 0.15;
-    this.radius = 48; // Joystick base radius
+    this.radius = 48;
 
-    // Keyboard state
     this.keys = {
       up: false,
       down: false,
@@ -42,8 +36,8 @@ export class VirtualJoystick {
   }
 
   initEvents() {
-    // Touch & Pointer events for virtual joystick
     this.base.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
       this.isActive = true;
       this.touchId = e.pointerId;
       this.base.setPointerCapture(e.pointerId);
@@ -52,6 +46,7 @@ export class VirtualJoystick {
 
     this.base.addEventListener('pointermove', (e) => {
       if (!this.isActive || e.pointerId !== this.touchId) return;
+      e.stopPropagation();
       this.handlePointer(e);
     });
 
@@ -66,7 +61,7 @@ export class VirtualJoystick {
     this.base.addEventListener('pointerup', endPointer);
     this.base.addEventListener('pointercancel', endPointer);
 
-    // Keyboard controls for desktop
+    // Desktop Keyboard controls (WASD / Arrows)
     window.addEventListener('keydown', (e) => {
       if (['ArrowUp', 'KeyW'].includes(e.code)) this.keys.up = true;
       if (['ArrowDown', 'KeyS'].includes(e.code)) this.keys.down = true;
@@ -108,10 +103,8 @@ export class VirtualJoystick {
     } else {
       const scaledDist = (normDist - this.deadZone) / (1 - this.deadZone);
       this.inputX = Math.cos(angle) * scaledDist;
-      this.inputY = -Math.sin(angle) * scaledDist; // Invert so UP is positive
+      this.inputY = -Math.sin(angle) * scaledDist; // UP is positive
     }
-
-    this.calculateWorldVector();
   }
 
   resetStick() {
@@ -119,8 +112,6 @@ export class VirtualJoystick {
     if (!this.hasActiveKey()) {
       this.inputX = 0;
       this.inputY = 0;
-      this.worldMoveX = 0;
-      this.worldMoveZ = 0;
     }
   }
 
@@ -129,7 +120,7 @@ export class VirtualJoystick {
   }
 
   updateKeyboardInput() {
-    if (this.isActive) return; // Touch takes priority if actively used
+    if (this.isActive) return;
 
     let kx = 0;
     let ky = 0;
@@ -146,34 +137,35 @@ export class VirtualJoystick {
       this.inputX = 0;
       this.inputY = 0;
     }
-
-    this.calculateWorldVector();
   }
 
-  calculateWorldVector() {
-    // 45 degree isometric camera projection
-    // Camera is placed at (+X, +Y, +Z) looking at (0, 0, 0)
-    // Up on screen -> (-X, -Z)
-    // Down on screen -> (+X, +Z)
-    // Right on screen -> (+X, -Z)
-    // Left on screen -> (-X, +Z)
-    const cos45 = 0.707106;
-    const sin45 = 0.707106;
+  // Calculate world movement relative to current camera yaw angle
+  getMovement(cameraYaw = 0) {
+    const isMoving = Math.abs(this.inputX) > 0.05 || Math.abs(this.inputY) > 0.05;
 
-    const screenRight = this.inputX;
-    const screenForward = this.inputY;
+    if (!isMoving) {
+      return { x: 0, z: 0, rawX: 0, rawY: 0, isMoving: false };
+    }
 
-    this.worldMoveX = (screenRight - screenForward) * cos45;
-    this.worldMoveZ = (-screenRight - screenForward) * sin45;
-  }
+    // Camera forward vector along ground plane (Y=0)
+    const sinYaw = Math.sin(cameraYaw);
+    const cosYaw = Math.cos(cameraYaw);
 
-  getMovement() {
+    const forwardX = sinYaw;
+    const forwardZ = cosYaw;
+
+    const rightX = cosYaw;
+    const rightZ = -sinYaw;
+
+    const moveX = (forwardX * this.inputY) + (rightX * this.inputX);
+    const moveZ = (forwardZ * this.inputY) + (rightZ * this.inputX);
+
     return {
-      x: this.worldMoveX,
-      z: this.worldMoveZ,
+      x: moveX,
+      z: moveZ,
       rawX: this.inputX,
       rawY: this.inputY,
-      isMoving: Math.abs(this.inputX) > 0.05 || Math.abs(this.inputY) > 0.05
+      isMoving: true
     };
   }
 }

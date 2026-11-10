@@ -8,6 +8,7 @@ import { SwingSpot } from './game/spots/swing.js';
 import { TeaStallSpot } from './game/spots/teaStall.js';
 import { HandHoldingSystem } from './game/hands.js';
 import { VirtualJoystick } from './ui/joystick.js';
+import { TouchLookController } from './ui/touchLook.js';
 import { GameHUD } from './ui/hud.js';
 import { EmojiSystem } from './ui/emojiTray.js';
 import { TicTacToeGame } from './ui/miniGames/ticTacToe.js';
@@ -137,8 +138,11 @@ class App {
     const joystickMount = document.getElementById('joystick-mount');
     this.joystick = new VirtualJoystick(joystickMount);
 
-    // HUD
+    // 360° Touch & Mouse Look
     const uiLayer = document.getElementById('ui-layer');
+    this.touchLook = new TouchLookController(uiLayer, this.engine);
+
+    // HUD
     this.hud = new GameHUD(uiLayer, {
       onHoldHandsStart: () => {
         syncService.setHandHolding(true);
@@ -379,7 +383,7 @@ class App {
   }
 
   onTick(delta) {
-    const move = this.joystick.getMovement();
+    const move = this.joystick.getMovement(this.engine.cameraYaw);
     const myPos = this.myChar ? this.myChar.getPosition() : null;
     const partnerPos = this.partnerChar && this.partnerChar.group.visible ? this.partnerChar.getPosition() : null;
 
@@ -401,7 +405,7 @@ class App {
 
     // 3. Movement Execution
     if (this.myChar && !this.currentSpot) {
-      let speed = isHandsConnected ? 2.4 : 3.2; // Gentle cooperative pace when holding hands
+      let speed = isHandsConnected ? 2.6 : 3.6;
 
       if (isHandsConnected && partnerPos) {
         // Tether distance clamp: keep partners side-by-side gracefully
@@ -409,7 +413,6 @@ class App {
         const dz = myPos.z - partnerPos.z;
         const dist = Math.hypot(dx, dz);
         if (dist > 2.0) {
-          // Gently pull closer
           const pullAngle = Math.atan2(dz, dx);
           move.x -= Math.cos(pullAngle) * 0.4;
           move.z -= Math.sin(pullAngle) * 0.4;
@@ -425,9 +428,12 @@ class App {
           this.myChar.setPosition(nextX, nextZ);
         }
 
-        // Face movement direction
-        const rotY = Math.atan2(move.x, move.z);
-        this.myChar.group.rotation.y = rotY;
+        // Smoothly face movement direction
+        const targetRotY = Math.atan2(move.x, move.z);
+        let diff = targetRotY - this.myChar.group.rotation.y;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        this.myChar.group.rotation.y += diff * Math.min(1, delta * 14);
         this.myChar.anim = 'walk';
       } else {
         this.myChar.anim = 'idle';
@@ -491,13 +497,11 @@ class App {
     // 5. Contextual Spot Interaction Assessment
     this.updateContextInteraction(myPos);
 
-    // 6. Camera Follow
+    // 6. Camera Follow — always chase my character
     if (this.myChar) {
       const targetPos = this.myChar.group.position.clone();
-      if (isHandsConnected && this.partnerChar) {
-        // Center between both partners
-        targetPos.add(this.partnerChar.group.position).multiplyScalar(0.5);
-      }
+      // Let engine know character's facing direction for double-tap reset
+      this.engine.setCharacterFacing(this.myChar.group.rotation.y);
       this.engine.setCameraTarget(targetPos);
     }
   }

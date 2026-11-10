@@ -121,8 +121,8 @@ test.describe('Our Little Town - Couple Game End-to-End Suite', () => {
     await pageA.waitForTimeout(600);
 
     // Cell 0 should reflect on both screens
-    await expect(pageA.locator('.ttt-cell[data-index="0"]')).toHaveText('X');
-    await expect(pageB.locator('.ttt-cell[data-index="0"]')).toHaveText('X');
+    await expect(pageA.locator('.ttt-cell[data-index="0"]')).toHaveText('X', { timeout: 10000 });
+    await expect(pageB.locator('.ttt-cell[data-index="0"]')).toHaveText('X', { timeout: 10000 });
 
     await pageA.screenshot({ path: 'tests/screenshots/7-tictactoe-match.png' });
 

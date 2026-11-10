@@ -432,10 +432,11 @@ class App {
       this.myChar.update(delta);
       syncService.sendState(seat.x, seat.z, this.swing.rotationY, 'swing', false, seat.y + 0.08);
     } else if (this.currentSpot?.startsWith('bench_')) {
-      const benchId = this.currentSpot.replace('bench_', '');
+      const isLeft = this.currentSpot.endsWith('_left');
+      const benchId = this.currentSpot.replace(/^bench_/, '').replace(/_(left|right)$/, '');
       const bench = this.chairSystem.getBenchById(benchId);
       if (bench) {
-        const seat = this.chairSystem.getSeatWorldPos(bench, true);
+        const seat = this.chairSystem.getSeatWorldPos(bench, isLeft);
         this.myChar.setPosition(seat.x, seat.z, bench.rotationY, seat.y - 0.05);
         this.myChar.anim = 'sit';
         this.myChar.update(delta);
@@ -589,10 +590,24 @@ class App {
       }
     }
 
-    // 5. PARK BENCHES / CHAIRS (Sit on ANY bench in town)
+    // 5. PARK BENCHES / CHAIRS (Sit side-by-side as a couple!)
     const nearBench = this.chairSystem.getNearestBench(myPos, 2.4);
     if (nearBench) {
-      this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, icon: '🪑', label: 'Sit on Bench' }); return;
+      const occ = syncService.spotsData?.[nearBench.id]?.occupants || {};
+      const leftOccupied = Boolean(occ.left);
+      const rightOccupied = Boolean(occ.right);
+
+      if (!leftOccupied && !rightOccupied) {
+        const myPreferredSide = (roomService.slot === 2) ? 'right' : 'left';
+        this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, side: myPreferredSide, icon: '🪑', label: 'Sit on Bench' });
+        return;
+      } else if (leftOccupied && !rightOccupied) {
+        this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, side: 'right', icon: '🪑', label: 'Sit Beside Partner 💕' });
+        return;
+      } else if (!leftOccupied && rightOccupied) {
+        this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, side: 'left', icon: '🪑', label: 'Sit Beside Partner 💕' });
+        return;
+      }
     }
 
     // 6. PLAYGROUND SLIDE
@@ -710,8 +725,11 @@ class App {
       }
     }
     else if (action.type === 'sit_bench') {
-      this.currentSpot = 'bench_' + action.bench.id;
-      soundEngine.playPop();
+      const side = action.side || (roomService.slot === 2 ? 'right' : 'left');
+      if (await syncService.claimSeat(action.bench.id, side)) {
+        this.currentSpot = `bench_${action.bench.id}_${side}`;
+        soundEngine.playPop();
+      }
     }
     else if (action.type === 'sleep_bed_left') { this.currentSpot = 'bed_left'; soundEngine.playSleep(); }
     else if (action.type === 'sleep_bed_right') { this.currentSpot = 'bed_right'; soundEngine.playSleep(); }
@@ -767,7 +785,10 @@ class App {
       } else if (prev === 'swing_2') {
         this.myChar.setPosition(this.swing.position.x + 1.2, this.swing.position.z + 1.2, this.swing.rotationY, 0);
       } else if (prev.startsWith('bench_')) {
-        const benchId = prev.replace('bench_', '');
+        const isLeft = prev.endsWith('_left');
+        const side = isLeft ? 'left' : 'right';
+        const benchId = prev.replace(/^bench_/, '').replace(/_(left|right)$/, '');
+        await syncService.releaseSeat(benchId, side);
         const bench = this.chairSystem.getBenchById(benchId);
         if (bench) {
           const dismount = this.chairSystem.getDismountWorldPos(bench);

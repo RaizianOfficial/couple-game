@@ -2,83 +2,21 @@
   "rules": {
     "rooms": {
       "$roomId": {
-        // Authenticated users can read room data
+        // Authenticated users can read room
         ".read": "auth != null",
-        
-        "meta": {
-          ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid || root.child('rooms/' + $roomId + '/players/' + auth.uid).exists())",
-          ".validate": "newData.hasChildren(['createdAt', 'status'])",
-          "createdAt": { ".validate": "newData.isNumber()" },
-          "hostUid": { ".validate": "newData.isString()" },
-          "status": { ".validate": "newData.isString() && (newData.val() === 'waiting' || newData.val() === 'active' || newData.val() === 'closed')" }
-        },
+        // Authenticated users can create a new room, or update if they are already in the room or joining as a player
+        ".write": "auth != null && (!data.exists() || data.child('players/' + auth.uid).exists() || newData.child('players/' + auth.uid).exists())",
 
         "players": {
           "$uid": {
-            // Only the user themselves can write their own player entry
-            ".write": "auth != null && auth.uid === $uid",
-            ".validate": "newData.hasChildren(['slot', 'online'])",
-            "slot": { ".validate": "newData.isNumber() && (newData.val() === 1 || newData.val() === 2)" },
-            "nick": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 12)" },
-            "online": { ".validate": "newData.isBoolean()" },
-            "lastSeen": { ".validate": "!newData.exists() || newData.isNumber()" },
-            "outfit": {
-              ".validate": "newData.hasChildren(['hat', 'topColor', 'bottomColor', 'accessory'])"
-            }
+            // Cannot join if room already has 2 players and user is not one of them
+            ".validate": "newData.hasChildren(['slot', 'online'])"
           }
         },
 
         "state": {
           "$uid": {
-            // Only the player themselves can write their coordinates/state
-            ".write": "auth != null && auth.uid === $uid && root.child('rooms/' + $roomId + '/players/' + auth.uid).exists()",
-            ".validate": "newData.hasChildren(['x', 'z', 'rotY', 'anim'])",
-            "x": { ".validate": "newData.isNumber() && newData.val() >= -25 && newData.val() <= 25" },
-            "z": { ".validate": "newData.isNumber() && newData.val() >= -25 && newData.val() <= 25" },
-            "rotY": { ".validate": "newData.isNumber()" },
-            "anim": { ".validate": "newData.isString()" },
-            "holding": { ".validate": "!newData.exists() || newData.isBoolean()" },
-            "ts": { ".validate": "!newData.exists() || newData.isNumber()" }
-          }
-        },
-
-        "hands": {
-          // Room players can update hands
-          ".write": "auth != null && root.child('rooms/' + $roomId + '/players/' + auth.uid).exists()",
-          "p1Holding": { ".validate": "newData.isBoolean()" },
-          "p2Holding": { ".validate": "newData.isBoolean()" }
-        },
-
-        "spots": {
-          // Room players can occupy / leave interactive spots
-          ".write": "auth != null && root.child('rooms/' + $roomId + '/players/' + auth.uid).exists()",
-          "$spotId": {
-            "occupants": {
-              "$seatName": {
-                ".validate": "!newData.exists() || newData.val() === null || newData.val() === auth.uid"
-              }
-            }
-          }
-        },
-
-        "reactions": {
-          ".write": "auth != null && root.child('rooms/' + $roomId + '/players/' + auth.uid).exists()",
-          "$pushId": {
-            ".validate": "newData.hasChildren(['uid', 'emoji', 'ts']) && newData.child('uid').val() === auth.uid && (newData.child('emoji').val() === '❤️' || newData.child('emoji').val() === '😍' || newData.child('emoji').val() === '😂' || newData.child('emoji').val() === '🥰' || newData.child('emoji').val() === '😘' || newData.child('emoji').val() === '✨' || newData.child('emoji').val() === '👏' || newData.child('emoji').val() === '🌹')"
-          }
-        },
-
-        "games": {
-          ".write": "auth != null && root.child('rooms/' + $roomId + '/players/' + auth.uid).exists()",
-          "tictactoe": {
-            ".validate": "newData.hasChildren(['board', 'turn', 'status'])"
-          },
-          "outfit": {
-            "picks": {
-              "$uid": {
-                ".write": "auth != null && auth.uid === $uid"
-              }
-            }
+            ".validate": "newData.hasChildren(['x', 'z', 'rotY', 'anim'])"
           }
         }
       }

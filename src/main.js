@@ -320,18 +320,16 @@ class App {
     this.myChar.isLocal = true;
 
     if (slot === 1) {
-      this.myChar.setPosition(-1.0, 0, Math.PI / 2);
-      // Camera starts BEHIND player 1 (facing +X → camera at -X → yaw = π/2)
-      this.engine.targetYaw = Math.PI / 2;
-      this.engine.cameraYaw = Math.PI / 2;
+      this.myChar.setPosition(-0.8, 4.5, Math.PI / 2);
+      this.engine.targetYaw = 0;
+      this.engine.cameraYaw = 0;
       this.waitingRoomCode.textContent = roomId;
       this.screenWaiting.classList.remove('hidden');
       this.hud.setPresence('waiting');
     } else {
-      this.myChar.setPosition(1.0, 0, -Math.PI / 2);
-      // Camera starts BEHIND player 2 (facing -X → camera at +X → yaw = -π/2)
-      this.engine.targetYaw = -Math.PI / 2;
-      this.engine.cameraYaw = -Math.PI / 2;
+      this.myChar.setPosition(0.8, 4.5, -Math.PI / 2);
+      this.engine.targetYaw = 0;
+      this.engine.cameraYaw = 0;
       this.screenWaiting.classList.add('hidden');
       this.hud.setPresence('online');
     }

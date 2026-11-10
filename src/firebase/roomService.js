@@ -102,8 +102,8 @@ export class RoomService {
       },
       state: {
         [uid]: {
-          x: -1.0,
-          z: 0,
+          x: -0.8,
+          z: 4.5,
           rotY: Math.PI / 2,
           anim: 'idle',
           holding: false,
@@ -183,8 +183,8 @@ export class RoomService {
         outfit: defaultOutfit
       },
       [`state/${uid}`]: {
-        x: 1.0,
-        z: 0,
+        x: 0.8,
+        z: 4.5,
         rotY: -Math.PI / 2,
         anim: 'idle',
         holding: false,

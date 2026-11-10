@@ -295,19 +295,55 @@ export class Character {
       this.modelRoot.position.y = Math.abs(Math.sin(this.animTime * speed)) * 0.08;
       this.headGroup.rotation.z = Math.sin(this.animTime * speed * 0.5) * 0.05;
     } else if (this.anim === 'sit') {
-      this.modelRoot.position.y = -0.15;
-      this.leftLegPivot.rotation.x = -Math.PI / 2;
-      this.rightLegPivot.rotation.x = -Math.PI / 2;
-      this.leftArmPivot.rotation.x = -0.3;
-      this.rightArmPivot.rotation.x = -0.3;
+      this.modelRoot.position.y = -0.05;
+      this.leftLegPivot.rotation.x = -Math.PI / 2.2;
+      this.rightLegPivot.rotation.x = -Math.PI / 2.2;
+      this.leftLegPivot.rotation.z = -0.15;
+      this.rightLegPivot.rotation.z = 0.15;
+      this.leftArmPivot.rotation.x = -0.4;
+      this.rightArmPivot.rotation.x = -0.4;
+      this.leftArmPivot.rotation.z = 0;
+      this.rightArmPivot.rotation.z = 0;
       this.headGroup.rotation.z = 0;
     } else if (this.anim === 'ride') {
-      this.modelRoot.position.y = 0.1;
-      this.leftLegPivot.rotation.x = Math.sin(this.animTime * 8) * 0.5;
-      this.rightLegPivot.rotation.x = -Math.sin(this.animTime * 8) * 0.5;
-      this.leftArmPivot.rotation.x = -0.8;
-      this.rightArmPivot.rotation.x = -0.8;
+      // Driver holding motorbike handlebars
+      this.modelRoot.position.y = 0.05;
+      this.leftLegPivot.rotation.x = -Math.PI / 2.6;
+      this.rightLegPivot.rotation.x = -Math.PI / 2.6;
+      this.leftLegPivot.rotation.z = -0.25;
+      this.rightLegPivot.rotation.z = 0.25;
+      // Reach hands forward to handlebars
+      this.leftArmPivot.rotation.x = -1.15;
+      this.rightArmPivot.rotation.x = -1.15;
+      this.leftArmPivot.rotation.z = -0.2;
+      this.rightArmPivot.rotation.z = 0.2;
       this.headGroup.rotation.z = 0;
+    } else if (this.anim === 'passenger') {
+      // Passenger holding onto driver's waist/seat
+      this.modelRoot.position.y = 0.05;
+      this.leftLegPivot.rotation.x = -Math.PI / 2.4;
+      this.rightLegPivot.rotation.x = -Math.PI / 2.4;
+      this.leftLegPivot.rotation.z = -0.2;
+      this.rightLegPivot.rotation.z = 0.2;
+      this.leftArmPivot.rotation.x = -0.9;
+      this.rightArmPivot.rotation.x = -0.9;
+      this.leftArmPivot.rotation.z = 0.2;
+      this.rightArmPivot.rotation.z = -0.2;
+      this.headGroup.rotation.z = 0.05;
+    } else if (this.anim === 'swing') {
+      // Relaxed swing sit with gentle leg sway
+      this.modelRoot.position.y = -0.02;
+      const sway = Math.sin(this.animTime * 2.2) * 0.25;
+      this.leftLegPivot.rotation.x = -Math.PI / 2.3 + sway;
+      this.rightLegPivot.rotation.x = -Math.PI / 2.3 + sway;
+      this.leftLegPivot.rotation.z = -0.1;
+      this.rightLegPivot.rotation.z = 0.1;
+      // Arms holding swing ropes
+      this.leftArmPivot.rotation.x = -1.0;
+      this.rightArmPivot.rotation.x = -1.0;
+      this.leftArmPivot.rotation.z = -0.2;
+      this.rightArmPivot.rotation.z = 0.2;
+      this.headGroup.rotation.z = Math.sin(this.animTime * 1.5) * 0.08;
     } else if (this.anim === 'cheer') {
       // Arms up cheering
       this.leftArmPivot.rotation.x = -2.8;
@@ -337,9 +373,10 @@ export class Character {
     return pos;
   }
 
-  setPosition(x, z, rotY) {
+  setPosition(x, z, rotY, y = 0) {
     this.group.position.x = x;
     this.group.position.z = z;
+    this.group.position.y = y;
     if (rotY !== undefined) {
       this.group.rotation.y = rotY;
     }
@@ -348,6 +385,7 @@ export class Character {
   getPosition() {
     return {
       x: this.group.position.x,
+      y: this.group.position.y,
       z: this.group.position.z,
       rotY: this.group.rotation.y
     };

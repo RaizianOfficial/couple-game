@@ -115,7 +115,7 @@ export class RoomService {
         p2Holding: false
       },
       spots: {
-        bike: { occupants: { driver: null, passenger: null }, extra: { x: 4, z: 2, rotY: 0 } },
+        bike: { occupants: { driver: null, passenger: null }, extra: { x: 8, z: 4, rotY: 0 } },
         swing: { occupants: { seat1: null, seat2: null }, extra: {} },
         teaStall: { occupants: { seat: null }, extra: { cupHolder: null, teaState: 'idle' } }
       }
@@ -258,6 +258,17 @@ export class RoomService {
         this.onRoomUpdated(data, partnerData);
       }
     });
+  }
+
+  async reconnect() {
+    if (!this.roomId || !this.user) return;
+    try {
+      await dbUpdate(dbRef(`rooms/${this.roomId}/players/${this.user.uid}`), {
+        online: true,
+        lastSeen: getServerTimestamp()
+      });
+      await this._setupPresence(this.roomId, this.user.uid);
+    } catch (_) {}
   }
 
   async leaveRoom() {

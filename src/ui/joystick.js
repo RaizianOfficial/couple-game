@@ -139,30 +139,34 @@ export class VirtualJoystick {
     }
   }
 
-  // Calculate world movement relative to current camera yaw angle
-  getMovement(cameraYaw = 0) {
+  // Calculate world movement relative to current camera screen orientation
+  getMovement(cameraVectors = null) {
     const isMoving = Math.abs(this.inputX) > 0.05 || Math.abs(this.inputY) > 0.05;
 
     if (!isMoving) {
       return { x: 0, z: 0, rawX: 0, rawY: 0, isMoving: false };
     }
 
-    // Camera forward vector along ground plane (Y=0)
-    const sinYaw = Math.sin(cameraYaw);
-    const cosYaw = Math.cos(cameraYaw);
+    if (cameraVectors && cameraVectors.forward && cameraVectors.right) {
+      const f = cameraVectors.forward;
+      const r = cameraVectors.right;
+      // inputY > 0 is UP on screen (forward into screen)
+      // inputX > 0 is RIGHT on screen (rightward on screen)
+      const moveX = (f.x * this.inputY) + (r.x * this.inputX);
+      const moveZ = (f.z * this.inputY) + (r.z * this.inputX);
+      return {
+        x: moveX,
+        z: moveZ,
+        rawX: this.inputX,
+        rawY: this.inputY,
+        isMoving: true
+      };
+    }
 
-    const forwardX = sinYaw;
-    const forwardZ = cosYaw;
-
-    const rightX = cosYaw;
-    const rightZ = -sinYaw;
-
-    const moveX = (forwardX * this.inputY) + (rightX * this.inputX);
-    const moveZ = (forwardZ * this.inputY) + (rightZ * this.inputX);
-
+    // Fallback if no vectors passed
     return {
-      x: moveX,
-      z: moveZ,
+      x: this.inputX,
+      z: -this.inputY,
       rawX: this.inputX,
       rawY: this.inputY,
       isMoving: true

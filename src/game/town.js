@@ -1,521 +1,549 @@
-// Procedural Low-Poly Dreamy Pastel Town (No external textures or assets)
+// Procedural Low-Poly Dreamy Pastel Expanded Town (75x75 map, No external textures)
 import * as THREE from 'three';
 
 export class Town {
   constructor(scene) {
     this.scene = scene;
-    this.colliders = []; // Array of collision boundaries: { type: 'box', minX, maxX, minZ, maxZ } or { type: 'circle', x, z, r }
-    this.interactiveSpots = {}; // Anchors for bike, swing, tea stall
+    this.colliders = [];
+    this.interactiveSpots = {};
 
     this.initPalette();
     this.buildGround();
-    this.buildPaths();
-    this.buildPond();
+    this.buildRoadsAndPaths();
+    this.buildCentralFountainPlaza();
+    this.buildRiverAndBridge();
     this.buildBuildings();
+    this.buildRomanticGazebo();
     this.buildTrees();
-    this.buildLampPosts();
+    this.buildStreetlamps();
     this.buildBenches();
-    this.buildFences();
+    this.buildPerimeterHedges();
   }
 
   initPalette() {
     this.colors = {
-      grass: 0xc7f9cc,        // Fresh soft mint grass
-      groundBase: 0xa7f3d0,
-      path: 0xfef3c7,         // Warm sand / stone path
-      pathBorder: 0xfde68a,
-      water: 0x93c5fd,        // Dreamy sky blue water
+      grass: 0xc7f9cc,        // Fresh mint grass
+      groundUnder: 0x86efac,
+      road: 0xfef3c7,         // Warm sandstone road
+      roadBorder: 0xfde68a,
+      water: 0x93c5fd,        // Sparkling water
       waterDeep: 0x60a5fa,
       lilyPad: 0x86efac,
       stone: 0xe2e8f0,        // Soft river stone
-      fenceWood: 0xfde047,    // Cute warm wooden fence
-      bark: 0x92400e,         // Warm chestnut bark
+      fountainWater: 0x67e8f9,
+      woodDark: 0x78350f,     // Rich chestnut wood
+      woodWarm: 0xb45309,
       
-      // Building Pastel Colors
+      // Buildings
       wallPink: 0xfce7f3,
       wallLavender: 0xede9fe,
       wallPeach: 0xffedd5,
       wallMint: 0xccfbf1,
+      wallSky: 0xe0f2fe,
+      wallYellow: 0xfef9c3,
       roofPink: 0xf472b6,
       roofPurple: 0xa78bfa,
       roofOrange: 0xfb923c,
       roofTeal: 0x2dd4bf,
-      doorWood: 0xb45309,
+      roofSky: 0x38bdf8,
+      roofRose: 0xf43f5e,
       windowGlow: 0xfef08a,
-      lampGlow: 0xfef08a,
+      lampGlow: 0xfffbeb,
       lampPost: 0x475569
     };
 
-    // Shared materials for performance and batching
     this.materials = {
       grass: new THREE.MeshLambertMaterial({ color: this.colors.grass }),
-      path: new THREE.MeshLambertMaterial({ color: this.colors.path }),
+      road: new THREE.MeshLambertMaterial({ color: this.colors.road }),
+      roadBorder: new THREE.MeshLambertMaterial({ color: this.colors.roadBorder }),
       stone: new THREE.MeshLambertMaterial({ color: this.colors.stone }),
-      water: new THREE.MeshLambertMaterial({ color: this.colors.water, transparent: true, opacity: 0.85 }),
-      bark: new THREE.MeshLambertMaterial({ color: this.colors.bark }),
+      water: new THREE.MeshLambertMaterial({ color: this.colors.water, transparent: true, opacity: 0.88 }),
+      wood: new THREE.MeshLambertMaterial({ color: this.colors.woodWarm }),
+      woodDark: new THREE.MeshLambertMaterial({ color: this.colors.woodDark }),
+      window: new THREE.MeshBasicMaterial({ color: this.colors.windowGlow }),
+      lampLight: new THREE.MeshBasicMaterial({ color: this.colors.lampGlow }),
+      fountainWater: new THREE.MeshBasicMaterial({ color: this.colors.fountainWater, transparent: true, opacity: 0.8 }),
       foliagePink: new THREE.MeshLambertMaterial({ color: 0xfbcfe8, flatShading: true }),
       foliagePeach: new THREE.MeshLambertMaterial({ color: 0xfed7aa, flatShading: true }),
       foliageMint: new THREE.MeshLambertMaterial({ color: 0xa7f3d0, flatShading: true }),
       foliageLavender: new THREE.MeshLambertMaterial({ color: 0xddd6fe, flatShading: true }),
-      window: new THREE.MeshBasicMaterial({ color: this.colors.windowGlow }),
-      lampLight: new THREE.MeshBasicMaterial({ color: 0xfffbeb })
+      hedge: new THREE.MeshLambertMaterial({ color: 0x6ee7b7, flatShading: true })
     };
   }
 
   buildGround() {
-    // 32x32 Main island ground
-    const groundGeo = new THREE.BoxGeometry(32, 1, 32);
+    // Large 75x75 island ground
+    const groundGeo = new THREE.BoxGeometry(75, 1.2, 75);
     const ground = new THREE.Mesh(groundGeo, this.materials.grass);
-    ground.position.y = -0.5;
+    ground.position.y = -0.6;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
     // Decorative floating underside rim
-    const underGeo = new THREE.BoxGeometry(32.4, 0.4, 32.4);
-    const underMat = new THREE.MeshLambertMaterial({ color: 0x86efac });
+    const underGeo = new THREE.BoxGeometry(75.8, 0.5, 75.8);
+    const underMat = new THREE.MeshLambertMaterial({ color: this.colors.groundUnder });
     const under = new THREE.Mesh(underGeo, underMat);
-    under.position.y = -0.7;
+    under.position.y = -0.9;
     this.scene.add(under);
   }
 
-  buildPaths() {
-    // Central circular plaza
-    const plazaGeo = new THREE.CylinderGeometry(4.2, 4.2, 0.04, 24);
-    const plaza = new THREE.Mesh(plazaGeo, this.materials.path);
-    plaza.position.set(0, 0.02, 0);
+  buildRoadsAndPaths() {
+    // Wide network of open roads for walking and driving the motorbike smoothly
+    // 1. Central Ring Road & Cross Roads
+    this.createRoadSegment(0, 0, 70, 4.2); // East-West Grand Avenue
+    this.createRoadSegment(0, 0, 4.2, 70); // North-South Promenade
+
+    // Outer Boulevard loop
+    this.createRoadSegment(0, -22, 54, 3.6); // North Boulevard
+    this.createRoadSegment(0, 22, 54, 3.6);  // South Boulevard
+    this.createRoadSegment(22, 0, 3.6, 46);  // East Residential Street
+    this.createRoadSegment(-22, 0, 3.6, 46); // West Riverbank Way
+  }
+
+  createRoadSegment(x, z, width, length) {
+    const geo = new THREE.BoxGeometry(width, 0.04, length);
+    const mesh = new THREE.Mesh(geo, this.materials.road);
+    mesh.position.set(x, 0.02, z);
+    mesh.receiveShadow = true;
+    this.scene.add(mesh);
+  }
+
+  buildCentralFountainPlaza() {
+    // Grand Circular Town Square Plaza
+    const plazaGeo = new THREE.CylinderGeometry(6.8, 6.8, 0.06, 28);
+    const plaza = new THREE.Mesh(plazaGeo, this.materials.road);
+    plaza.position.set(0, 0.03, 0);
     plaza.receiveShadow = true;
     this.scene.add(plaza);
 
-    // Cute cobblestone circle border
-    const stoneGeo = new THREE.CylinderGeometry(0.25, 0.28, 0.08, 6);
-    for (let i = 0; i < 20; i++) {
-      const angle = (i / 20) * Math.PI * 2;
+    // Plaza cobblestone border
+    const stoneGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.1, 6);
+    for (let i = 0; i < 28; i++) {
+      const angle = (i / 28) * Math.PI * 2;
       const stone = new THREE.Mesh(stoneGeo, this.materials.stone);
-      stone.position.set(Math.cos(angle) * 4.3, 0.04, Math.sin(angle) * 4.3);
+      stone.position.set(Math.cos(angle) * 7.0, 0.05, Math.sin(angle) * 7.0);
       stone.rotation.y = Math.random() * Math.PI;
       stone.receiveShadow = true;
       this.scene.add(stone);
     }
 
-    // Paths connecting to spots
-    // North path (to Tea Stall)
-    this.createPathSegment(0, -6.5, 2.6, 5);
-    // East path (to Bike Spot)
-    this.createPathSegment(6.5, 0, 5, 2.6);
-    // South-West path (to Swing & Pond)
-    this.createPathSegment(-5.5, 5, 4.5, 2.4);
-    // South path
-    this.createPathSegment(0, 7.5, 2.4, 4);
-  }
+    // Central Romantic Tiered Fountain
+    const fountainGroup = new THREE.Group();
+    fountainGroup.position.set(0, 0, 0);
 
-  createPathSegment(x, z, width, length) {
-    const geo = new THREE.BoxGeometry(width, 0.03, length);
-    const pathMesh = new THREE.Mesh(geo, this.materials.path);
-    pathMesh.position.set(x, 0.015, z);
-    pathMesh.receiveShadow = true;
-    this.scene.add(pathMesh);
-  }
+    // Basin
+    const basin = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.6, 0.55, 16), this.materials.stone);
+    basin.position.y = 0.275;
+    basin.castShadow = true;
+    fountainGroup.add(basin);
 
-  buildPond() {
-    // Tranquil pond at bottom-left (-7.5, 7.5)
-    const pondCenter = { x: -8, z: 8 };
-    const pondRadius = 3.6;
+    // Water surface inside basin
+    const waterMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.25, 2.25, 0.04, 16), this.materials.fountainWater);
+    waterMesh.position.y = 0.48;
+    fountainGroup.add(waterMesh);
 
-    // Recessed water surface
-    const waterGeo = new THREE.CylinderGeometry(pondRadius, pondRadius, 0.15, 24);
-    const water = new THREE.Mesh(waterGeo, this.materials.water);
-    water.position.set(pondCenter.x, 0.05, pondCenter.z);
-    water.receiveShadow = true;
-    this.scene.add(water);
+    // Middle pedestal & top tier
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 1.2, 10), this.materials.stone);
+    stem.position.y = 0.85;
+    stem.castShadow = true;
+    fountainGroup.add(stem);
 
-    // Pond bed ring
-    const ringGeo = new THREE.RingGeometry(pondRadius - 0.2, pondRadius + 0.5, 24);
-    const ringMat = new THREE.MeshLambertMaterial({ color: 0xfde68a, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(pondCenter.x, 0.02, pondCenter.z);
-    this.scene.add(ring);
+    const upperTier = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.25, 12), this.materials.stone);
+    upperTier.position.y = 1.35;
+    upperTier.castShadow = true;
+    fountainGroup.add(upperTier);
 
-    // Lily pads
-    const lilyGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.02, 8);
-    const lilyMat = new THREE.MeshLambertMaterial({ color: this.colors.lilyPad });
-    [
-      { x: -7.5, z: 7.2 },
-      { x: -8.8, z: 8.5 },
-      { x: -7.0, z: 9.0 }
-    ].forEach((pos) => {
-      const lily = new THREE.Mesh(lilyGeo, lilyMat);
-      lily.position.set(pos.x, 0.14, pos.z);
-      this.scene.add(lily);
+    const upperWater = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.02, 12), this.materials.fountainWater);
+    upperWater.position.y = 1.48;
+    fountainGroup.add(upperWater);
 
-      // Pink lotus flower bud
-      const flowerGeo = new THREE.SphereGeometry(0.1, 6, 6);
-      const flowerMat = new THREE.MeshLambertMaterial({ color: 0xf472b6 });
-      const flower = new THREE.Mesh(flowerGeo, flowerMat);
-      flower.position.set(pos.x, 0.22, pos.z);
-      this.scene.add(flower);
-    });
+    // Spouting finial / sphere with heart
+    const topSphere = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), this.materials.stone);
+    topSphere.position.y = 1.7;
+    fountainGroup.add(topSphere);
 
-    // Decorative river stones around pond
-    for (let i = 0; i < 14; i++) {
-      const angle = (i / 14) * Math.PI * 2;
-      const r = pondRadius + 0.3 + (Math.sin(i * 3) * 0.2);
-      const stoneGeo = new THREE.DodecahedronGeometry(0.22 + Math.random() * 0.12, 0);
-      const stone = new THREE.Mesh(stoneGeo, this.materials.stone);
-      stone.position.set(pondCenter.x + Math.cos(angle) * r, 0.15, pondCenter.z + Math.sin(angle) * r);
-      stone.castShadow = true;
-      stone.receiveShadow = true;
-      this.scene.add(stone);
-    }
+    this.scene.add(fountainGroup);
 
-    // Add circular collider for pond so characters don't walk into deep water
+    // Collider for fountain center
     this.colliders.push({
       type: 'circle',
-      x: pondCenter.x,
-      z: pondCenter.z,
-      r: pondRadius - 0.2
+      x: 0,
+      z: 0,
+      r: 2.6
+    });
+  }
+
+  buildRiverAndBridge() {
+    // Scenic River / Canal flowing through western side of town
+    const riverGeo = new THREE.BoxGeometry(7.0, 0.02, 54);
+    const river = new THREE.Mesh(riverGeo, this.materials.water);
+    river.position.set(-18, 0.01, 0);
+    this.scene.add(river);
+
+    // River stone banks
+    for (let z = -25; z <= 25; z += 2.5) {
+      [-21.6, -14.4].forEach(x => {
+        const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35 + Math.random() * 0.2, 1), this.materials.stone);
+        s.position.set(x + (Math.random() - 0.5) * 0.4, 0.08, z + (Math.random() - 0.5) * 0.4);
+        s.scale.set(1.4, 0.6, 1.2);
+        this.scene.add(s);
+      });
+    }
+
+    // Lily pads in river
+    const lilyGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.02, 8);
+    const lilyMat = new THREE.MeshLambertMaterial({ color: 0x4ade80 });
+    for (let i = 0; i < 14; i++) {
+      const lily = new THREE.Mesh(lilyGeo, lilyMat);
+      lily.position.set(-18 + (Math.sin(i * 1.7) * 2.4), 0.02, -22 + i * 3.6);
+      this.scene.add(lily);
+    }
+
+    // Charming Arched Wooden Bridge over the river at Grand Avenue (x = -18, z = 0)
+    const bridgeGroup = new THREE.Group();
+    bridgeGroup.position.set(-18, 0, 0);
+
+    const bridgeDeck = new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.16, 4.6), this.materials.wood);
+    bridgeDeck.position.y = 0.45;
+    bridgeDeck.castShadow = true;
+    bridgeGroup.add(bridgeDeck);
+
+    // Bridge ramps
+    [-4.6, 4.6].forEach((rx, idx) => {
+      const ramp = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.14, 4.6), this.materials.wood);
+      ramp.position.set(rx * 0.9, 0.22, 0);
+      ramp.rotation.z = idx === 0 ? 0.2 : -0.2;
+      bridgeGroup.add(ramp);
+    });
+
+    // Bridge Handrails
+    [-2.2, 2.2].forEach(rz => {
+      // Rail bar
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.08, 0.08), this.materials.woodDark);
+      rail.position.set(0, 1.05, rz);
+      rail.castShadow = true;
+      bridgeGroup.add(rail);
+
+      // Posts
+      for (let px = -4.0; px <= 4.0; px += 1.6) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6), this.materials.woodDark);
+        post.position.set(px, 0.75, rz);
+        bridgeGroup.add(post);
+      }
+    });
+
+    this.scene.add(bridgeGroup);
+
+    // River Colliders: block water except on the bridge
+    this.colliders.push({
+      type: 'box',
+      minX: -21.8,
+      maxX: -14.2,
+      minZ: -28,
+      maxZ: -2.8
+    });
+    this.colliders.push({
+      type: 'box',
+      minX: -21.8,
+      maxX: -14.2,
+      minZ: 2.8,
+      maxZ: 28
     });
   }
 
   buildBuildings() {
-    // 1. Cozy Pastel Bakery / Cafe (Top-Left: x=-8.5, z=-8.5)
-    this.createHouse({
-      x: -8.5,
-      z: -8.5,
-      width: 4.5,
-      depth: 4.2,
-      height: 3.2,
-      wallColor: this.colors.wallPeach,
-      roofColor: this.colors.roofOrange,
-      doorFacing: '+z',
-      hasAwning: true,
-      awningColor: 0xfb7185
-    });
+    // 6 Cozy Pastel Cottages in residential street & around town
+    const houses = [
+      { x: 12, z: -12, w: 5.2, d: 4.8, h: 3.4, color: this.colors.wallPink, roof: this.colors.roofPurple, rot: 0 },
+      { x: 24, z: -12, w: 4.8, d: 4.5, h: 3.2, color: this.colors.wallLavender, roof: this.colors.roofPink, rot: 0 },
+      { x: 12, z: 12,  w: 5.0, d: 4.6, h: 3.4, color: this.colors.wallPeach, roof: this.colors.roofTeal, rot: Math.PI },
+      { x: 24, z: 12,  w: 5.4, d: 4.8, h: 3.5, color: this.colors.wallMint, roof: this.colors.roofOrange, rot: Math.PI },
+      { x: -10, z: -22, w: 5.0, d: 4.4, h: 3.2, color: this.colors.wallSky, roof: this.colors.roofRose, rot: Math.PI / 2 },
+      { x: 12, z: -26, w: 4.6, d: 4.2, h: 3.0, color: this.colors.wallYellow, roof: this.colors.roofSky, rot: 0 }
+    ];
 
-    // 2. Sweet Lavender Library / Bookshop (Top-Right: x=8.5, z=-8.5)
-    this.createHouse({
-      x: 8.5,
-      z: -8.5,
-      width: 4.8,
-      depth: 4.4,
-      height: 3.5,
-      wallColor: this.colors.wallLavender,
-      roofColor: this.colors.roofPurple,
-      doorFacing: '+z',
-      hasChimney: true
-    });
-
-    // 3. Flower Cottage (Bottom-Right: x=8.5, z=8.5)
-    this.createHouse({
-      x: 8.5,
-      z: 8.5,
-      width: 4.2,
-      depth: 4.0,
-      height: 3.0,
-      wallColor: this.colors.wallMint,
-      roofColor: this.colors.roofPink,
-      doorFacing: '-z',
-      hasChimney: true
+    houses.forEach(h => {
+      this.createHouse(h.x, h.z, h.w, h.d, h.h, h.color, h.roof, h.rot);
     });
   }
 
-  createHouse(cfg) {
-    const group = new THREE.Group();
-    group.position.set(cfg.x, 0, cfg.z);
+  createHouse(x, z, width, depth, height, wallColor, roofColor, rotY) {
+    const houseGroup = new THREE.Group();
+    houseGroup.position.set(x, 0, z);
+    houseGroup.rotation.y = rotY;
 
-    // Main Body
-    const bodyGeo = new THREE.BoxGeometry(cfg.width, cfg.height, cfg.depth);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: cfg.wallColor });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = cfg.height / 2;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    group.add(body);
+    // Walls
+    const wallMat = new THREE.MeshLambertMaterial({ color: wallColor });
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), wallMat);
+    walls.position.y = height / 2;
+    walls.castShadow = true;
+    walls.receiveShadow = true;
+    houseGroup.add(walls);
 
-    // Roof (Prism / Slanted roof)
-    const roofOverhang = 0.5;
-    const roofHeight = 1.6;
-    const roofGeo = new THREE.ConeGeometry((cfg.width + roofOverhang) * 0.75, roofHeight, 4);
-    const roofMat = new THREE.MeshLambertMaterial({ color: cfg.roofColor, flatShading: true });
+    // Gabled Roof
+    const roofMat = new THREE.MeshLambertMaterial({ color: roofColor });
+    const roofGeo = new THREE.ConeGeometry(Math.max(width, depth) * 0.74, height * 0.55, 4);
     const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = cfg.height + roofHeight / 2 - 0.1;
+    roof.position.y = height + (height * 0.27);
     roof.rotation.y = Math.PI / 4;
-    roof.scale.set(1, 1, cfg.depth / cfg.width);
+    roof.scale.set(width / depth, 1, 1);
     roof.castShadow = true;
-    group.add(roof);
+    houseGroup.add(roof);
+
+    // Chimney
+    const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.5), new THREE.MeshLambertMaterial({ color: 0xb45309 }));
+    chimney.position.set(width * 0.28, height + 0.6, -depth * 0.2);
+    chimney.castShadow = true;
+    houseGroup.add(chimney);
 
     // Door
-    const doorGeo = new THREE.BoxGeometry(1.0, 1.8, 0.1);
-    const doorMat = new THREE.MeshLambertMaterial({ color: this.colors.doorWood });
-    const door = new THREE.Mesh(doorGeo, doorMat);
-    const doorZ = cfg.doorFacing === '+z' ? cfg.depth / 2 + 0.05 : -cfg.depth / 2 - 0.05;
-    door.position.set(0, 0.9, doorZ);
-    group.add(door);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.6, 0.08), this.materials.woodDark);
+    door.position.set(0, 0.8, depth / 2 + 0.04);
+    houseGroup.add(door);
 
-    // Glowing Windows
-    const winGeo = new THREE.BoxGeometry(0.7, 0.7, 0.12);
-    const win1 = new THREE.Mesh(winGeo, this.materials.window);
-    win1.position.set(-1.2, 1.8, doorZ);
-    group.add(win1);
+    // Windows with warm glow
+    [-width * 0.28, width * 0.28].forEach(wx => {
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.06), this.materials.window);
+      win.position.set(wx, 1.6, depth / 2 + 0.04);
+      houseGroup.add(win);
+    });
 
-    const win2 = new THREE.Mesh(winGeo, this.materials.window);
-    win2.position.set(1.2, 1.8, doorZ);
-    group.add(win2);
+    this.scene.add(houseGroup);
 
-    // Optional Cute Chimney
-    if (cfg.hasChimney) {
-      const chimGeo = new THREE.BoxGeometry(0.6, 1.4, 0.6);
-      const chimMat = new THREE.MeshLambertMaterial({ color: cfg.wallColor });
-      const chimney = new THREE.Mesh(chimGeo, chimMat);
-      chimney.position.set(cfg.width * 0.3, cfg.height + 1.2, 0);
-      chimney.castShadow = true;
-      group.add(chimney);
-    }
-
-    // Optional Cute Striped Awning
-    if (cfg.hasAwning) {
-      const awnGeo = new THREE.BoxGeometry(1.6, 0.15, 0.8);
-      const awnMat = new THREE.MeshLambertMaterial({ color: cfg.awningColor });
-      const awning = new THREE.Mesh(awnGeo, awnMat);
-      awning.position.set(0, 2.0, cfg.depth / 2 + 0.4);
-      awning.rotation.x = 0.25;
-      awning.castShadow = true;
-      group.add(awning);
-    }
-
-    this.scene.add(group);
-
-    // Add AABB collider with small padding
-    const halfW = cfg.width / 2 + 0.3;
-    const halfD = cfg.depth / 2 + 0.3;
+    // Collider for house
     this.colliders.push({
       type: 'box',
-      minX: cfg.x - halfW,
-      maxX: cfg.x + halfW,
-      minZ: cfg.z - halfD,
-      maxZ: cfg.z + halfD
+      minX: x - width / 2 - 0.2,
+      maxX: x + width / 2 + 0.2,
+      minZ: z - depth / 2 - 0.2,
+      maxZ: z + depth / 2 + 0.2
+    });
+  }
+
+  buildRomanticGazebo() {
+    // Octagonal romantic garden gazebo at South-East park (x = 18, z = 24)
+    const gazeboGroup = new THREE.Group();
+    gazeboGroup.position.set(18, 0, 24);
+
+    // Stone base
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.4, 0.4, 8), this.materials.stone);
+    base.position.y = 0.2;
+    base.castShadow = true;
+    gazeboGroup.add(base);
+
+    // 8 White Wooden Pillars
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+      pillar.position.set(Math.cos(a) * 2.8, 1.3, Math.sin(a) * 2.8);
+      pillar.castShadow = true;
+      gazeboGroup.add(pillar);
+    }
+
+    // Octagonal Roof
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(3.6, 1.4, 8), new THREE.MeshLambertMaterial({ color: 0xf472b6 }));
+    roof.position.y = 3.1;
+    roof.castShadow = true;
+    gazeboGroup.add(roof);
+
+    // Center circular table & round bench
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.7, 10), this.materials.wood);
+    table.position.y = 0.75;
+    gazeboGroup.add(table);
+
+    this.scene.add(gazeboGroup);
+
+    this.colliders.push({
+      type: 'circle',
+      x: 18,
+      z: 24,
+      r: 3.2
     });
   }
 
   buildTrees() {
-    // Cherry blossom and pastel trees scattered in corners and parks
-    const treePositions = [
-      { x: -12, z: -4, col: 'foliagePink', s: 1.2 },
-      { x: -12, z: 2, col: 'foliagePeach', s: 1.0 },
-      { x: -3.5, z: -11, col: 'foliagePink', s: 1.1 },
-      { x: 3.5, z: -11, col: 'foliageMint', s: 1.0 },
-      { x: 12, z: -4, col: 'foliageLavender', s: 1.2 },
-      { x: 12, z: 3, col: 'foliagePink', s: 1.1 },
-      { x: -12, z: 12, col: 'foliageMint', s: 1.1 },
-      { x: 4, z: 12, col: 'foliagePeach', s: 1.0 },
-      { x: -2.5, z: 11, col: 'foliagePink', s: 0.9 }
+    // 45+ lush low-poly trees scattered across parks and avenues
+    const treeTypes = ['foliagePink', 'foliagePeach', 'foliageMint', 'foliageLavender'];
+    const treeCoords = [
+      // Along North promenade
+      { x: -5, z: -8 }, { x: 5, z: -8 }, { x: -5, z: -16 }, { x: 5, z: -16 },
+      // Near Tea Stall
+      { x: -3.5, z: -14 }, { x: 3.5, z: -14 }, { x: 0, z: -18 },
+      // Waterfront park (West)
+      { x: -12, z: 6 }, { x: -12, z: 14 }, { x: -16, z: 18 }, { x: -24, z: 10 },
+      { x: -24, z: -8 }, { x: -24, z: -18 }, { x: -14, z: -12 }, { x: -12, z: 22 },
+      // Residential gardens (East)
+      { x: 18, z: -6 }, { x: 28, z: -6 }, { x: 8, z: -18 }, { x: 28, z: -18 },
+      { x: 18, z: 6 }, { x: 28, z: 6 }, { x: 8, z: 18 }, { x: 28, z: 18 },
+      // Gazebo park (South)
+      { x: 12, z: 24 }, { x: 24, z: 24 }, { x: 18, z: 30 }, { x: 14, z: 30 },
+      // Perimeter grove
+      { x: -30, z: -30 }, { x: -20, z: -32 }, { x: 0, z: -32 }, { x: 20, z: -32 }, { x: 30, z: -30 },
+      { x: -32, z: 0 }, { x: -32, z: 20 }, { x: -30, z: 30 }, { x: 0, z: 32 }, { x: 30, z: 30 }
     ];
 
-    treePositions.forEach(t => {
-      this.createTree(t.x, t.z, t.col, t.s);
+    treeCoords.forEach((pt, idx) => {
+      const type = treeTypes[idx % treeTypes.length];
+      const scale = 0.85 + (idx % 3) * 0.2;
+      this.createTree(pt.x, pt.z, type, scale);
     });
   }
 
-  createTree(x, z, foliageType, scale = 1.0) {
-    const group = new THREE.Group();
-    group.position.set(x, 0, z);
+  createTree(x, z, foliageType, scale = 1) {
+    const treeGroup = new THREE.Group();
+    treeGroup.position.set(x, 0, z);
 
     // Trunk
-    const trunkGeo = new THREE.CylinderGeometry(0.22 * scale, 0.3 * scale, 1.8 * scale, 7);
-    const trunk = new THREE.Mesh(trunkGeo, this.materials.bark);
+    const trunkMat = new THREE.MeshLambertMaterial({ color: this.colors.woodDark });
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18 * scale, 0.26 * scale, 1.8 * scale, 8), trunkMat);
     trunk.position.y = 0.9 * scale;
     trunk.castShadow = true;
-    trunk.receiveShadow = true;
-    group.add(trunk);
+    treeGroup.add(trunk);
 
-    // Foliage (Layered cute spheres / dodecahedrons)
+    // Fluffy cloud-like foliage spheres
     const mat = this.materials[foliageType] || this.materials.foliagePink;
+    const crown1 = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2 * scale, 1), mat);
+    crown1.position.y = 2.4 * scale;
+    crown1.castShadow = true;
+    treeGroup.add(crown1);
 
-    const f1Geo = new THREE.DodecahedronGeometry(1.2 * scale, 1);
-    const f1 = new THREE.Mesh(f1Geo, mat);
-    f1.position.y = 2.2 * scale;
-    f1.castShadow = true;
-    group.add(f1);
+    const crown2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.95 * scale, 1), mat);
+    crown2.position.set(0.4 * scale, 2.9 * scale, 0.3 * scale);
+    crown2.castShadow = true;
+    treeGroup.add(crown2);
 
-    const f2Geo = new THREE.DodecahedronGeometry(0.9 * scale, 1);
-    const f2 = new THREE.Mesh(f2Geo, mat);
-    f2.position.set(0.2 * scale, 2.9 * scale, -0.1 * scale);
-    f2.castShadow = true;
-    group.add(f2);
+    const crown3 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.85 * scale, 1), mat);
+    crown3.position.set(-0.35 * scale, 2.8 * scale, -0.3 * scale);
+    crown3.castShadow = true;
+    treeGroup.add(crown3);
 
-    this.scene.add(group);
+    this.scene.add(treeGroup);
 
-    // Collider for tree trunk
+    // Small collider for trunk
     this.colliders.push({
       type: 'circle',
       x,
       z,
-      r: 0.65 * scale
+      r: 0.45 * scale
     });
   }
 
-  buildLampPosts() {
-    const posts = [
-      { x: -3.2, z: -3.2 },
-      { x: 3.2, z: -3.2 },
-      { x: -3.2, z: 3.2 },
-      { x: 3.2, z: 3.2 }
+  buildStreetlamps() {
+    // Beautiful lampposts with glowing warm globes along roads
+    const lampCoords = [
+      { x: -5, z: -5 }, { x: 5, z: -5 }, { x: -5, z: 5 }, { x: 5, z: 5 },
+      { x: -14, z: 0 }, { x: 14, z: 0 }, { x: 0, z: -14 }, { x: 0, z: 14 },
+      { x: 22, z: -18 }, { x: 22, z: 18 }, { x: -18, z: 10 }, { x: 18, z: 18 }
     ];
 
-    posts.forEach(p => {
-      const group = new THREE.Group();
-      group.position.set(p.x, 0, p.z);
+    lampCoords.forEach(pos => {
+      const lampGroup = new THREE.Group();
+      lampGroup.position.set(pos.x, 0, pos.y || pos.z);
 
-      // Post
-      const postGeo = new THREE.CylinderGeometry(0.08, 0.12, 2.4, 8);
       const postMat = new THREE.MeshLambertMaterial({ color: this.colors.lampPost });
-      const post = new THREE.Mesh(postGeo, postMat);
-      post.position.y = 1.2;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.8, 8), postMat);
+      post.position.y = 1.4;
       post.castShadow = true;
-      group.add(post);
+      lampGroup.add(post);
 
-      // Glowing Lantern head
-      const headGeo = new THREE.DodecahedronGeometry(0.28, 0);
-      const head = new THREE.Mesh(headGeo, this.materials.lampLight);
-      head.position.y = 2.4;
-      group.add(head);
+      // Glowing sphere head
+      const globe = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 10), this.materials.lampLight);
+      globe.position.y = 2.85;
+      lampGroup.add(globe);
 
-      // Cute small soft point light
-      const light = new THREE.PointLight(0xfef08a, 0.4, 4.5);
-      light.position.y = 2.4;
-      group.add(light);
-
-      this.scene.add(group);
+      this.scene.add(lampGroup);
 
       this.colliders.push({
         type: 'circle',
-        x: p.x,
-        z: p.z,
-        r: 0.3
+        x: pos.x,
+        z: pos.y || pos.z,
+        r: 0.25
       });
     });
   }
 
   buildBenches() {
-    // Park benches near the plaza
+    // Cozy park benches for couples
     const benchPositions = [
-      { x: -2.8, z: 0, rotY: Math.PI / 2 },
-      { x: 0, z: -2.8, rotY: 0 }
+      { x: -4.5, z: -3.5, rot: Math.PI / 4 },
+      { x: 4.5, z: -3.5, rot: -Math.PI / 4 },
+      { x: -13.5, z: 7, rot: -Math.PI / 2 }, // By the river
+      { x: 8, z: 8, rot: 0 }
     ];
 
-    const benchMat = new THREE.MeshLambertMaterial({ color: 0xb45309 });
-    const legMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
-
     benchPositions.forEach(b => {
-      const group = new THREE.Group();
-      group.position.set(b.x, 0, b.z);
-      group.rotation.y = b.rotY;
+      const benchGroup = new THREE.Group();
+      benchGroup.position.set(b.x, 0, b.z);
+      benchGroup.rotation.y = b.rot;
 
-      // Seat
-      const seatGeo = new THREE.BoxGeometry(1.6, 0.08, 0.5);
-      const seat = new THREE.Mesh(seatGeo, benchMat);
-      seat.position.y = 0.45;
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 0.42), this.materials.wood);
+      seat.position.y = 0.42;
       seat.castShadow = true;
-      group.add(seat);
+      benchGroup.add(seat);
 
-      // Backrest
-      const backGeo = new THREE.BoxGeometry(1.6, 0.4, 0.08);
-      const back = new THREE.Mesh(backGeo, benchMat);
-      back.position.set(0, 0.75, -0.22);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 0.06), this.materials.wood);
+      back.position.set(0, 0.72, -0.18);
       back.castShadow = true;
-      group.add(back);
+      benchGroup.add(back);
 
-      // Legs
-      [-0.65, 0.65].forEach(lx => {
-        const legGeo = new THREE.BoxGeometry(0.08, 0.45, 0.45);
-        const leg = new THREE.Mesh(legGeo, legMat);
-        leg.position.set(lx, 0.225, 0);
-        group.add(leg);
-      });
+      this.scene.add(benchGroup);
+    });
+  }
 
-      this.scene.add(group);
+  buildPerimeterHedges() {
+    // Perimeter safety hedges around the 75x75 island
+    const half = 35.5;
+    const hedgeThick = 1.2;
+    const hedgeHeight = 1.6;
 
+    // North & South
+    [-half, half].forEach(z => {
+      const hedge = new THREE.Mesh(new THREE.BoxGeometry(72, hedgeHeight, hedgeThick), this.materials.hedge);
+      hedge.position.set(0, hedgeHeight / 2, z);
+      this.scene.add(hedge);
       this.colliders.push({
         type: 'box',
-        minX: b.x - (b.rotY ? 0.4 : 0.9),
-        maxX: b.x + (b.rotY ? 0.4 : 0.9),
-        minZ: b.z - (b.rotY ? 0.9 : 0.4),
-        maxZ: b.z + (b.rotY ? 0.9 : 0.4)
+        minX: -36,
+        maxX: 36,
+        minZ: z - hedgeThick,
+        maxZ: z + hedgeThick
+      });
+    });
+
+    // East & West
+    [-half, half].forEach(x => {
+      const hedge = new THREE.Mesh(new THREE.BoxGeometry(hedgeThick, hedgeHeight, 72), this.materials.hedge);
+      hedge.position.set(x, hedgeHeight / 2, 0);
+      this.scene.add(hedge);
+      this.colliders.push({
+        type: 'box',
+        minX: x - hedgeThick,
+        maxX: x + hedgeThick,
+        minZ: -36,
+        maxZ: 36
       });
     });
   }
 
-  buildFences() {
-    // Perimeter bounds: town map is bounded between [-15, 15] x [-15, 15]
-    this.mapBounds = { minX: -14.5, maxX: 14.5, minZ: -14.5, maxZ: 14.5 };
-
-    const fenceMat = new THREE.MeshLambertMaterial({ color: 0xfef08a });
-    const postMat = new THREE.MeshLambertMaterial({ color: 0xfcd34d });
-
-    const postGeo = new THREE.BoxGeometry(0.18, 0.75, 0.18);
-    const railGeo = new THREE.BoxGeometry(1.8, 0.1, 0.08);
-
-    // Build perimeter picket fence segments along 4 sides with entry gaps
-    const createFenceLine = (start, end) => {
-      const dist = Math.hypot(end.x - start.x, end.z - start.z);
-      const steps = Math.floor(dist / 1.8);
-      const dx = (end.x - start.x) / steps;
-      const dz = (end.z - start.z) / steps;
-
-      for (let i = 0; i <= steps; i++) {
-        const px = start.x + dx * i;
-        const pz = start.z + dz * i;
-
-        // Post
-        const post = new THREE.Mesh(postGeo, postMat);
-        post.position.set(px, 0.375, pz);
-        post.castShadow = true;
-        this.scene.add(post);
-
-        // Rail
-        if (i < steps) {
-          const rail = new THREE.Mesh(railGeo, fenceMat);
-          rail.position.set(px + dx / 2, 0.45, pz + dz / 2);
-          rail.rotation.y = Math.atan2(-dz, dx);
-          rail.castShadow = true;
-          this.scene.add(rail);
-        }
-      }
-    };
-
-    // 4 borders
-    createFenceLine({ x: -14.5, z: -14.5 }, { x: 14.5, z: -14.5 });
-    createFenceLine({ x: 14.5, z: -14.5 }, { x: 14.5, z: 14.5 });
-    createFenceLine({ x: 14.5, z: 14.5 }, { x: -14.5, z: 14.5 });
-    createFenceLine({ x: -14.5, z: 14.5 }, { x: -14.5, z: -14.5 });
-  }
-
-  // Check collision for an entity with radius r at (x, z)
-  checkCollision(x, z, r = 0.4) {
-    // 1. Boundary check
-    if (
-      x - r < this.mapBounds.minX ||
-      x + r > this.mapBounds.maxX ||
-      z - r < this.mapBounds.minZ ||
-      z + r > this.mapBounds.maxZ
-    ) {
+  // Smooth circular and box collision detection with cushion radius
+  checkCollision(x, z, radius = 0.35) {
+    // Map boundaries check
+    if (x < -34 || x > 34 || z < -34 || z > 34) {
       return true;
     }
 
-    // 2. Obstacles check
-    for (const c of this.colliders) {
-      if (c.type === 'circle') {
-        const distSq = (x - c.x) ** 2 + (z - c.z) ** 2;
-        const minDist = r + c.r;
-        if (distSq < minDist * minDist) {
-          return true;
-        }
-      } else if (c.type === 'box') {
-        // Nearest point on box
-        const nearestX = Math.max(c.minX, Math.min(x, c.maxX));
-        const nearestZ = Math.max(c.minZ, Math.min(z, c.maxZ));
-        const distSq = (x - nearestX) ** 2 + (z - nearestZ) ** 2;
-        if (distSq < r * r) {
+    for (let i = 0; i < this.colliders.length; i++) {
+      const col = this.colliders[i];
+      if (col.type === 'circle') {
+        const dist = Math.hypot(x - col.x, z - col.z);
+        if (dist < col.r + radius) return true;
+      } else if (col.type === 'box') {
+        if (
+          x + radius > col.minX &&
+          x - radius < col.maxX &&
+          z + radius > col.minZ &&
+          z - radius < col.maxZ
+        ) {
           return true;
         }
       }

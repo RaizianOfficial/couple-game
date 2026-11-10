@@ -73,11 +73,20 @@ class App {
       document.getElementById('ios-install-banner')?.classList.add('hidden');
     });
 
-    // Request Screen Wake Lock
+    // Request Screen Wake Lock & Reconnect presence when tab awakens
     this.requestWakeLock();
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         this.requestWakeLock();
+        if (roomService.roomId && roomService.user) {
+          roomService.reconnect();
+        }
+      }
+    });
+
+    window.addEventListener('online', () => {
+      if (roomService.roomId && roomService.user) {
+        roomService.reconnect();
       }
     });
 
@@ -312,13 +321,17 @@ class App {
 
     if (slot === 1) {
       this.myChar.setPosition(-1.0, 0, Math.PI / 2);
-      // Host shows waiting screen until partner connects
+      // Camera starts BEHIND player 1 (facing +X → camera at -X → yaw = π/2)
+      this.engine.targetYaw = Math.PI / 2;
+      this.engine.cameraYaw = Math.PI / 2;
       this.waitingRoomCode.textContent = roomId;
       this.screenWaiting.classList.remove('hidden');
       this.hud.setPresence('waiting');
     } else {
       this.myChar.setPosition(1.0, 0, -Math.PI / 2);
-      // Guest transitions directly to gameplay
+      // Camera starts BEHIND player 2 (facing -X → camera at +X → yaw = -π/2)
+      this.engine.targetYaw = -Math.PI / 2;
+      this.engine.cameraYaw = -Math.PI / 2;
       this.screenWaiting.classList.add('hidden');
       this.hud.setPresence('online');
     }
@@ -330,6 +343,18 @@ class App {
 
     // Start render loop
     this.startLoop();
+    // Heartbeat: refresh presence every 25s so Firebase onDisconnect doesn't fire on network blips
+    this._heartbeatTimer = setInterval(() => {
+      if (roomService.roomId && roomService.user) {
+        const { dbRef: ref, dbUpdate: upd } = window.__fbApi || {};
+        import('./firebase/config.js').then(({ dbRef, dbUpdate, getServerTimestamp }) => {
+          dbUpdate(dbRef(`rooms/${roomService.roomId}/players/${roomService.user.uid}`), {
+            online: true,
+            lastSeen: getServerTimestamp()
+          }).catch(() => {});
+        });
+      }
+    }, 25000);
   }
 
   handleRoomUpdate(roomData, partnerData) {
@@ -343,7 +368,34 @@ class App {
 
     // Partner is in room
     const isPartnerOnline = partnerData.online !== false;
-    this.hud.setPresence(isPartnerOnline ? 'online' : 'offline');
+
+    if (isPartnerOnline) {
+      if (this._offlineGraceTimer) {
+        clearTimeout(this._offlineGraceTimer);
+        this._offlineGraceTimer = null;
+      }
+      this.hud.setPresence('online');
+      if (this.partnerChar) {
+        this.partnerChar.group.visible = true;
+      }
+    } else {
+      // 2.5-second grace period before declaring partner offline
+      // Prevents brief network packet drops from flickering partner out
+      if (!this._offlineGraceTimer) {
+        this._offlineGraceTimer = setTimeout(() => {
+          this.hud.setPresence('offline');
+          if (this.partnerChar) {
+            this.partnerChar.group.visible = false;
+          }
+          if (this.handsSystem.isConnected) {
+            syncService.setHandHolding(false);
+          }
+          if (this.currentSpot === 'bike_passenger' && !roomData.spots?.bike?.occupants?.driver) {
+            this.exitSpot();
+          }
+        }, 2500);
+      }
+    }
 
     // Dismiss waiting screen once partner arrives
     if (!this.screenWaiting.classList.contains('hidden')) {
@@ -359,19 +411,8 @@ class App {
       syncService.init(roomService.roomId, roomService.user.uid, roomService.partnerUid);
     }
 
-    this.partnerChar.group.visible = isPartnerOnline;
     if (partnerData.outfit) {
       this.partnerChar.applyOutfit(partnerData.outfit);
-    }
-
-    // If partner went offline, release any joined hands or shared bike
-    if (!isPartnerOnline) {
-      if (this.handsSystem.isConnected) {
-        syncService.setHandHolding(false);
-      }
-      if (this.currentSpot === 'bike_passenger' && !roomData.spots?.bike?.occupants?.driver) {
-        this.exitSpot();
-      }
     }
   }
 
@@ -383,14 +424,14 @@ class App {
   }
 
   onTick(delta) {
-    const move = this.joystick.getMovement(this.engine.cameraYaw);
+    const move = this.joystick.getMovement(this.engine.getCameraVectors());
     const myPos = this.myChar ? this.myChar.getPosition() : null;
     const partnerPos = this.partnerChar && this.partnerChar.group.visible ? this.partnerChar.getPosition() : null;
 
     // 1. Update Partner Interpolation
     if (this.partnerChar && this.partnerChar.group.visible) {
       const interp = syncService.updatePartnerInterpolation(delta);
-      this.partnerChar.setPosition(interp.x, interp.z, interp.rotY);
+      this.partnerChar.setPosition(interp.x, interp.z, interp.rotY, interp.y || 0);
       this.partnerChar.anim = interp.anim || 'idle';
       this.partnerChar.update(delta);
     }
@@ -405,7 +446,7 @@ class App {
 
     // 3. Movement Execution
     if (this.myChar && !this.currentSpot) {
-      let speed = isHandsConnected ? 2.6 : 3.6;
+      let speed = isHandsConnected ? 2.6 : 3.8;
 
       if (isHandsConnected && partnerPos) {
         // Tether distance clamp: keep partners side-by-side gracefully
@@ -425,7 +466,7 @@ class App {
 
         // Town collision check
         if (!this.town.checkCollision(nextX, nextZ, 0.35)) {
-          this.myChar.setPosition(nextX, nextZ);
+          this.myChar.setPosition(nextX, nextZ, undefined, 0);
         }
 
         // Smoothly face movement direction
@@ -443,11 +484,10 @@ class App {
 
       // Throttled sync to Firebase (10-15 Hz)
       const cur = this.myChar.getPosition();
-      syncService.sendState(cur.x, cur.z, cur.rotY, this.myChar.anim);
+      syncService.sendState(cur.x, cur.z, cur.rotY, this.myChar.anim, false, 0);
     }
 
     // 4. Update Spots & Riding Physics
-    this.bike.frontWheel.rotation.x += delta * 0.5; // subtle idle rotation
     this.swing.update(delta);
     this.teaStall.update(delta);
 
@@ -455,7 +495,8 @@ class App {
     if (this.currentSpot === 'bike_driver') {
       const moved = this.bike.updateMovement(move.x, move.z, delta);
       const seatPos = this.bike.getDriverSeatWorldPos();
-      this.myChar.setPosition(seatPos.x, seatPos.z, this.bike.group.rotation.y);
+      const seatY = seatPos.y - 0.28;
+      this.myChar.setPosition(seatPos.x, seatPos.z, this.bike.group.rotation.y, seatY);
       this.myChar.anim = moved ? 'ride' : 'sit';
       this.myChar.update(delta);
 
@@ -465,25 +506,28 @@ class App {
         z: this.bike.group.position.z,
         rotY: this.bike.group.rotation.y
       });
-      syncService.sendState(seatPos.x, seatPos.z, this.bike.group.rotation.y, this.myChar.anim);
+      syncService.sendState(seatPos.x, seatPos.z, this.bike.group.rotation.y, this.myChar.anim, false, seatY);
     } else if (this.currentSpot === 'bike_passenger') {
       const seatPos = this.bike.getPassengerSeatWorldPos();
-      this.myChar.setPosition(seatPos.x, seatPos.z, this.bike.group.rotation.y);
-      this.myChar.anim = 'sit';
+      const seatY = seatPos.y - 0.28;
+      this.myChar.setPosition(seatPos.x, seatPos.z, this.bike.group.rotation.y, seatY);
+      this.myChar.anim = 'passenger';
       this.myChar.update(delta);
-      syncService.sendState(seatPos.x, seatPos.z, this.bike.group.rotation.y, 'sit');
+      syncService.sendState(seatPos.x, seatPos.z, this.bike.group.rotation.y, 'passenger', false, seatY);
     } else if (this.currentSpot === 'swing_seat1') {
       const seatPos = this.swing.getSeat1WorldPos();
-      this.myChar.setPosition(seatPos.x, seatPos.z, this.swing.rotationY);
-      this.myChar.anim = 'sit';
+      const seatY = seatPos.y - 0.22;
+      this.myChar.setPosition(seatPos.x, seatPos.z, this.swing.rotationY, seatY);
+      this.myChar.anim = 'swing';
       this.myChar.update(delta);
-      syncService.sendState(seatPos.x, seatPos.z, this.swing.rotationY, 'sit');
+      syncService.sendState(seatPos.x, seatPos.z, this.swing.rotationY, 'swing', false, seatY);
     } else if (this.currentSpot === 'swing_seat2') {
       const seatPos = this.swing.getSeat2WorldPos();
-      this.myChar.setPosition(seatPos.x, seatPos.z, this.swing.rotationY);
-      this.myChar.anim = 'sit';
+      const seatY = seatPos.y - 0.22;
+      this.myChar.setPosition(seatPos.x, seatPos.z, this.swing.rotationY, seatY);
+      this.myChar.anim = 'swing';
       this.myChar.update(delta);
-      syncService.sendState(seatPos.x, seatPos.z, this.swing.rotationY, 'sit');
+      syncService.sendState(seatPos.x, seatPos.z, this.swing.rotationY, 'swing', false, seatY);
     }
 
     // If partner is driving bike and I am not, sync bike transform from partner
@@ -525,20 +569,20 @@ class App {
     const swingDist = Math.hypot(myPos.x - this.swing.position.x, myPos.z - this.swing.position.z);
     const teaDist = Math.hypot(myPos.x - this.teaStall.position.x, myPos.z - (this.teaStall.position.z + 1.2));
 
-    if (bikeDist < 2.2) {
+    if (bikeDist < 2.6) {
       const driver = spots.bike?.occupants?.driver;
       const passenger = spots.bike?.occupants?.passenger;
 
       if (!driver) {
-        this.hud.setInteractAction({ type: 'bike_drive', icon: '🚲', label: 'Ride Bike' });
+        this.hud.setInteractAction({ type: 'bike_drive', icon: '🛵', label: 'Drive Scooter' });
         return;
       } else if (!passenger) {
-        this.hud.setInteractAction({ type: 'bike_passenger', icon: '🚲', label: 'Sit Behind' });
+        this.hud.setInteractAction({ type: 'bike_passenger', icon: '🛵', label: 'Ride Behind' });
         return;
       }
     }
 
-    if (swingDist < 2.4) {
+    if (swingDist < 2.6) {
       const s1 = spots.swing?.occupants?.seat1;
       const s2 = spots.swing?.occupants?.seat2;
       if (!s1 || !s2) {
@@ -547,7 +591,7 @@ class App {
       }
     }
 
-    if (teaDist < 2.2) {
+    if (teaDist < 2.6) {
       const holder = spots.teaStall?.extra?.cupHolder;
       if (!holder) {
         this.hud.setInteractAction({ type: 'tea_pickup', icon: '🍵', label: 'Pick Up Cup' });
@@ -639,6 +683,7 @@ class App {
     if (this.myChar) {
       this.myChar.anim = 'idle';
       this.myChar.modelRoot.position.y = 0;
+      this.myChar.group.position.y = 0;
     }
   }
 }

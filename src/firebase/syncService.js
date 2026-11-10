@@ -10,6 +10,10 @@ import {
 } from './config.js';
 import { roomService } from './roomService.js';
 
+// Heartbeat interval (ms) — keep presence alive so Firebase onDisconnect
+// doesn't trigger on brief network hiccups (25 s is well under the ~60 s timeout)
+const HEARTBEAT_MS = 25_000;
+
 export class SyncService {
   constructor() {
     this.lastWriteTime = 0;
@@ -35,6 +39,7 @@ export class SyncService {
     this.outfitState = null;
 
     this.unsubscribers = [];
+    this._heartbeatTimer = null;
   }
 
   init(roomId, uid, partnerUid) {
@@ -43,6 +48,17 @@ export class SyncService {
     this.uid = uid;
     this.partnerUid = partnerUid;
 
+    // Start heartbeat — ping presence every 25 s to prevent spurious disconnects
+    this._heartbeatTimer = setInterval(async () => {
+      if (!this.roomId || !this.uid) return;
+      try {
+        await dbUpdate(dbRef(`rooms/${this.roomId}/players/${this.uid}`), {
+          online: true,
+          lastSeen: getServerTimestamp()
+        });
+      } catch (_) {}
+    }, HEARTBEAT_MS);
+
     // 1. Listen to partner's state
     if (partnerUid) {
       const partnerStateRef = dbRef(`rooms/${roomId}/state/${partnerUid}`);
@@ -50,12 +66,14 @@ export class SyncService {
         if (!snap.exists()) return;
         const val = snap.val();
         this.partnerTarget.x = val.x ?? 0;
+        this.partnerTarget.y = val.y ?? 0;
         this.partnerTarget.z = val.z ?? 0;
         this.partnerTarget.rotY = val.rotY ?? 0;
         this.partnerTarget.anim = val.anim || 'idle';
         if (!this.hasPartnerState) {
           // snap immediately on first packet
           this.partnerCurrent.x = this.partnerTarget.x;
+          this.partnerCurrent.y = this.partnerTarget.y;
           this.partnerCurrent.z = this.partnerTarget.z;
           this.partnerCurrent.rotY = this.partnerTarget.rotY;
           this.partnerCurrent.anim = this.partnerTarget.anim;
@@ -118,27 +136,29 @@ export class SyncService {
   }
 
   // Update own position to Firebase (throttled to 10-15 Hz, only if changed)
-  sendState(x, z, rotY, anim, force = false) {
+  sendState(x, z, rotY, anim, force = false, y = 0) {
     if (!this.roomId || !this.uid) return;
     const now = performance.now();
     if (!force && now - this.lastWriteTime < this.writeInterval) return;
 
     // Check if changed significantly
     const dx = Math.abs(x - (this.lastWrittenState.x ?? 999));
+    const dy = Math.abs(y - (this.lastWrittenState.y ?? 999));
     const dz = Math.abs(z - (this.lastWrittenState.z ?? 999));
     const drot = Math.abs(rotY - (this.lastWrittenState.rotY ?? 999));
     const animChanged = anim !== this.lastWrittenState.anim;
 
-    if (!force && dx < 0.02 && dz < 0.02 && drot < 0.03 && !animChanged) {
+    if (!force && dx < 0.02 && dy < 0.02 && dz < 0.02 && drot < 0.03 && !animChanged) {
       return;
     }
 
     this.lastWriteTime = now;
-    this.lastWrittenState = { x, z, rotY, anim };
+    this.lastWrittenState = { x, y, z, rotY, anim };
 
     const stateRef = dbRef(`rooms/${this.roomId}/state/${this.uid}`);
     dbUpdate(stateRef, {
       x: Math.round(x * 100) / 100,
+      y: Math.round(y * 100) / 100,
       z: Math.round(z * 100) / 100,
       rotY: Math.round(rotY * 100) / 100,
       anim,
@@ -152,6 +172,7 @@ export class SyncService {
     // Smooth exponential lerp
     const t = Math.min(1, delta * 12);
     this.partnerCurrent.x += (this.partnerTarget.x - this.partnerCurrent.x) * t;
+    this.partnerCurrent.y += ((this.partnerTarget.y || 0) - (this.partnerCurrent.y || 0)) * t;
     this.partnerCurrent.z += (this.partnerTarget.z - this.partnerCurrent.z) * t;
     
     // Smooth angle lerp (shortest path)

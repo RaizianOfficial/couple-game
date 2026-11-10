@@ -241,6 +241,22 @@ export class GameEngine {
     this._characterFacing = rotY;
   }
 
+  // Get camera's true forward and right vectors projected onto ground (Y=0)
+  // Guarantees joystick UP = directly forward into screen, RIGHT = directly right on screen
+  getCameraVectors() {
+    // In Three.js, camera view direction is -Z in local space
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    forward.y = 0;
+    forward.normalize();
+
+    // Camera local +X is screen right in world space
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    right.y = 0;
+    right.normalize();
+
+    return { forward, right };
+  }
+
   updateCameraPosition() {
     // Faster dampening for snappier FPS-like feel
     this.cameraYaw += (this.targetYaw - this.cameraYaw) * 0.22;

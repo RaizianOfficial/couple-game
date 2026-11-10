@@ -248,8 +248,15 @@ export class SyncService {
 
   async updateSpotExtra(spotId, extraData) {
     if (!this.roomId) return;
+    // Throttle high-frequency updates (e.g. bike driving physics at 60 FPS) to ~14 Hz to eliminate latency & queue lag
+    const now = performance.now();
+    this._lastSpotExtraWrite = this._lastSpotExtraWrite || {};
+    if (this._lastSpotExtraWrite[spotId] && (now - this._lastSpotExtraWrite[spotId] < 70)) {
+      return;
+    }
+    this._lastSpotExtraWrite[spotId] = now;
     const extraRef = dbRef(`rooms/${this.roomId}/spots/${spotId}/extra`);
-    await dbUpdate(extraRef, extraData);
+    await dbUpdate(extraRef, extraData).catch(() => {});
   }
 
   // Mini-Game Actions

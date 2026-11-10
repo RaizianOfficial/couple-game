@@ -290,3 +290,12 @@ export class RoomService {
 }
 
 export const roomService = new RoomService();
+
+// Promptly mark offline when tab is closed
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    if (roomService.roomId && roomService.user) {
+      roomService.leaveRoom().catch(() => {});
+    }
+  });
+}

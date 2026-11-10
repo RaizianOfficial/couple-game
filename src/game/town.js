@@ -164,12 +164,12 @@ export class Town {
 
     this.scene.add(fountainGroup);
 
-    // Collider for fountain center
+    // Collider for fountain center (slightly larger than basin to block stepping up)
     this.colliders.push({
       type: 'circle',
       x: 0,
       z: 0,
-      r: 2.6
+      r: 3.2
     });
   }
 

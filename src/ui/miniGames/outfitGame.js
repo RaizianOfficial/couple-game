@@ -102,6 +102,7 @@ export class OutfitGame {
 
         <div class="modal-footer">
           <button class="btn-primary" id="outfit-submit-btn">Submit Look for Partner</button>
+          <button class="btn-primary hidden" id="outfit-accept-btn" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);">Accept Partner's Look ✨</button>
           <button class="btn-secondary hidden" id="outfit-keep-btn">Keep This Look</button>
           <button class="btn-secondary hidden" id="outfit-replay-btn">Play Again</button>
         </div>
@@ -112,12 +113,14 @@ export class OutfitGame {
 
     this.statusEl = this.modal.querySelector('#outfit-status');
     this.submitBtn = this.modal.querySelector('#outfit-submit-btn');
+    this.acceptBtn = this.modal.querySelector('#outfit-accept-btn');
     this.keepBtn = this.modal.querySelector('#outfit-keep-btn');
     this.replayBtn = this.modal.querySelector('#outfit-replay-btn');
     this.closeBtn = this.modal.querySelector('#outfit-close-btn');
 
     this.closeBtn.addEventListener('click', () => this.close());
     this.submitBtn.addEventListener('click', () => this.submitPicks());
+    this.acceptBtn.addEventListener('click', () => this.acceptPartnerLook());
     this.keepBtn.addEventListener('click', () => this.keepLook());
     this.replayBtn.addEventListener('click', () => this.restart());
 
@@ -184,6 +187,27 @@ export class OutfitGame {
     });
   }
 
+  async acceptPartnerLook() {
+    const uid = this.roomService.user?.uid;
+    const partnerUid = this.roomService.partnerUid;
+    const state = this.syncService.outfitState;
+
+    if (state?.picks && partnerUid && state.picks[partnerUid]) {
+      const lookForMe = state.picks[partnerUid];
+      soundEngine.playCheer();
+      if (this.onApplyLook) {
+        this.onApplyLook(uid, lookForMe);
+      }
+      if (this.roomService.roomId && uid) {
+        await this.syncService.setPartnerOutfit(uid, lookForMe);
+      }
+      this.statusEl.textContent = '💖 Look accepted & equipped!';
+      this.statusEl.className = 'outfit-status revealed';
+      this.acceptBtn.classList.add('hidden');
+      this.keepBtn.classList.remove('hidden');
+    }
+  }
+
   async keepLook() {
     soundEngine.playCheer();
     this.close();
@@ -201,6 +225,7 @@ export class OutfitGame {
       this.statusEl.textContent = '✨ Tada! Revealed! Look at your partner’s new style!';
       this.statusEl.className = 'outfit-status revealed';
       this.submitBtn.classList.add('hidden');
+      this.acceptBtn.classList.remove('hidden');
       this.keepBtn.classList.remove('hidden');
       this.replayBtn.classList.remove('hidden');
 

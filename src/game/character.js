@@ -289,7 +289,15 @@ export class Character {
       this.leftLegPivot.rotation.x = legAngle;
       this.rightLegPivot.rotation.x = -legAngle;
       this.leftArmPivot.rotation.x = -armAngle;
-      this.rightArmPivot.rotation.x = armAngle;
+
+      // If holding cup with right hand, keep right arm bent forward holding cup
+      if (this.isHoldingCup) {
+        this.rightArmPivot.rotation.x = -1.25;
+        this.rightArmPivot.rotation.z = -0.3;
+      } else {
+        this.rightArmPivot.rotation.x = armAngle;
+        this.rightArmPivot.rotation.z = 0;
+      }
 
       // Cute head & body vertical bob
       this.modelRoot.position.y = Math.abs(Math.sin(this.animTime * speed)) * 0.08;
@@ -338,11 +346,11 @@ export class Character {
       this.rightLegPivot.rotation.x = -Math.PI / 2.3 + sway;
       this.leftLegPivot.rotation.z = -0.1;
       this.rightLegPivot.rotation.z = 0.1;
-      // Arms holding swing ropes
-      this.leftArmPivot.rotation.x = -1.0;
-      this.rightArmPivot.rotation.x = -1.0;
-      this.leftArmPivot.rotation.z = -0.2;
-      this.rightArmPivot.rotation.z = 0.2;
+      // Arms reaching UP to hold swing ropes (nearly vertical)
+      this.leftArmPivot.rotation.x = -2.6;
+      this.rightArmPivot.rotation.x = -2.6;
+      this.leftArmPivot.rotation.z = -0.15;
+      this.rightArmPivot.rotation.z = 0.15;
       this.headGroup.rotation.z = Math.sin(this.animTime * 1.5) * 0.08;
     } else if (this.anim === 'cheer') {
       // Arms up cheering
@@ -358,9 +366,15 @@ export class Character {
       this.leftLegPivot.rotation.x = 0;
       this.rightLegPivot.rotation.x = 0;
       this.leftArmPivot.rotation.x = 0;
-      this.rightArmPivot.rotation.x = 0;
       this.leftArmPivot.rotation.z = 0;
-      this.rightArmPivot.rotation.z = 0;
+
+      if (this.isHoldingCup) {
+        this.rightArmPivot.rotation.x = -1.25;
+        this.rightArmPivot.rotation.z = -0.3;
+      } else {
+        this.rightArmPivot.rotation.x = 0;
+        this.rightArmPivot.rotation.z = 0;
+      }
       this.headGroup.rotation.z = 0;
     }
   }

@@ -252,13 +252,16 @@ export class TeaStallSpot {
   attachCupToHand(handObject) {
     if (handObject) {
       handObject.add(this.cupMesh);
-      this.cupMesh.position.set(0, 0.12, 0.05);
+      // Place cup upright in palm — offset accounts for arm being rotated forward (-1.25 rad)
+      this.cupMesh.position.set(0, -0.02, 0.1);
+      this.cupMesh.rotation.set(0, 0, 0);
     }
   }
 
   returnCupToCounter() {
     this.group.add(this.cupMesh);
     this.cupMesh.position.set(0.1, 1.11, 0.25);
+    this.cupMesh.rotation.set(0, 0, 0);
   }
 
   getInteractionPoint() {

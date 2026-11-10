@@ -162,9 +162,9 @@ test.describe('Our Little Town - Couple Game End-to-End Suite', () => {
     await pageB.close();
     await pageA.waitForTimeout(1000);
 
-    // Confirm Player A shows "Your partner went offline"
-    await expect(pageA.locator('#hud-presence-badge')).toHaveClass(/offline/, { timeout: 10000 });
-    await expect(pageA.locator('#hud-offline-banner')).toBeVisible({ timeout: 10000 });
+    // Confirm Player A shows "Your partner went offline" (allow up to 20s for cloud RTDB onDisconnect trigger)
+    await expect(pageA.locator('#hud-presence-badge')).toHaveClass(/offline/, { timeout: 20000 });
+    await expect(pageA.locator('#hud-offline-banner')).toBeVisible({ timeout: 20000 });
 
     await pageA.screenshot({ path: 'tests/screenshots/9-partner-offline-A.png' });
 

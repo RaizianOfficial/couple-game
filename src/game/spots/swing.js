@@ -6,8 +6,8 @@ export class SwingSpot {
     this.scene = scene;
     this.town = town;
     this.id = 'swing';
-    this.position = new THREE.Vector3(-14, 0, 10); // Placed in romantic waterfront park
-    this.rotationY = 0; // Facing the open park/water
+    this.position = new THREE.Vector3(-10, 0, 11); // Placed safely in waterfront park on open lawn
+    this.rotationY = 0; // Facing the open park
 
     this.seat1Uid = null;
     this.seat2Uid = null;
@@ -26,51 +26,64 @@ export class SwingSpot {
     const topCapMat = new THREE.MeshLambertMaterial({ color: 0xa16207 });
     const ropeMat = new THREE.MeshLambertMaterial({ color: 0xfef08a }); // Sweet golden rope
     const seatMat = new THREE.MeshLambertMaterial({ color: 0xf472b6 }); // Pastel pink wooden seat
+    const baseMat = new THREE.MeshLambertMaterial({ color: 0xfde68a }); // Sandy cobblestone lawn patch
 
-    // 1. A-Frame Side Supports (Clean symmetrical wooden posts)
-    const legGeo = new THREE.CylinderGeometry(0.08, 0.09, 2.7, 8);
-    // Left A-frame
+    // 0. Cute Circular Sandstone Base Under Swing
+    const basePlatform = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.3, 0.04, 20), baseMat);
+    basePlatform.position.y = 0.02;
+    basePlatform.receiveShadow = true;
+    this.group.add(basePlatform);
+
+    // 1. A-Frame Side Supports (True A-Frame: wide ground stance /\ meeting cleanly at top beam)
+    // Leg cylinder: height 2.65, tilted so base spreads out to z = ±0.75, top meets at z = 0
+    const legGeo = new THREE.CylinderGeometry(0.08, 0.09, 2.65, 8);
+
+    // Left A-Frame:
+    // Front leg (L1): Base at +Z, tilting back towards top beam
     const legL1 = new THREE.Mesh(legGeo, woodMat);
-    legL1.position.set(-1.45, 1.3, 0.55);
-    legL1.rotation.x = 0.32;
+    legL1.position.set(-1.45, 1.25, 0.38);
+    legL1.rotation.x = -0.30;
     legL1.castShadow = true;
     this.group.add(legL1);
 
+    // Back leg (L2): Base at -Z, tilting forward towards top beam
     const legL2 = new THREE.Mesh(legGeo, woodMat);
-    legL2.position.set(-1.45, 1.3, -0.55);
-    legL2.rotation.x = -0.32;
+    legL2.position.set(-1.45, 1.25, -0.38);
+    legL2.rotation.x = 0.30;
     legL2.castShadow = true;
     this.group.add(legL2);
 
-    // Left A-frame crossbar
-    const crossL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.8), woodMat);
-    crossL.position.set(-1.45, 0.7, 0);
+    // Left A-frame horizontal crossbar (connecting the A-legs at mid-height)
+    const crossL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.92), woodMat);
+    crossL.position.set(-1.45, 0.72, 0);
     crossL.castShadow = true;
     this.group.add(crossL);
 
-    // Right A-frame
+    // Right A-Frame:
+    // Front leg (R1)
     const legR1 = new THREE.Mesh(legGeo, woodMat);
-    legR1.position.set(1.45, 1.3, 0.55);
-    legR1.rotation.x = 0.32;
+    legR1.position.set(1.45, 1.25, 0.38);
+    legR1.rotation.x = -0.30;
     legR1.castShadow = true;
     this.group.add(legR1);
 
+    // Back leg (R2)
     const legR2 = new THREE.Mesh(legGeo, woodMat);
-    legR2.position.set(1.45, 1.3, -0.55);
-    legR2.rotation.x = -0.32;
+    legR2.position.set(1.45, 1.25, -0.38);
+    legR2.rotation.x = 0.30;
     legR2.castShadow = true;
     this.group.add(legR2);
 
-    // Right A-frame crossbar
-    const crossR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.8), woodMat);
-    crossR.position.set(1.45, 0.7, 0);
+    // Right A-frame horizontal crossbar
+    const crossR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, 0.92), woodMat);
+    crossR.position.set(1.45, 0.72, 0);
     crossR.castShadow = true;
     this.group.add(crossR);
 
     // Top Beam
     const beamGeo = new THREE.CylinderGeometry(0.09, 0.09, 3.4, 8);
     const beam = new THREE.Mesh(beamGeo, woodMat);
-    beam.position.set(0, 2.5, 0);
+    beam.position.set(0, 2.48, 0);
     beam.rotation.z = Math.PI / 2;
     beam.castShadow = true;
     this.group.add(beam);
@@ -135,14 +148,14 @@ export class SwingSpot {
 
     this.scene.add(this.group);
 
-    // Colliders for the frame posts only (leaves path clear in front/back)
+    // Colliders for the frame posts
     if (this.town && this.town.colliders) {
       this.town.colliders.push({
         type: 'box',
         minX: this.position.x - 1.6,
         maxX: this.position.x + 1.6,
-        minZ: this.position.z - 0.4,
-        maxZ: this.position.z + 0.4
+        minZ: this.position.z - 0.75,
+        maxZ: this.position.z + 0.75
       });
     }
   }

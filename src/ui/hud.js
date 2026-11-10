@@ -244,4 +244,49 @@ export class GameHUD {
       this.interactBtn.classList.add('hidden');
     }
   }
+
+  // Look Share Banner with Accept button
+  showLookInvite(partnerNick, outfit, onAccept, onView) {
+    if (this.lookInviteEl) {
+      this.lookInviteEl.remove();
+    }
+
+    const name = partnerNick || 'Partner';
+    this.lookInviteEl = document.createElement('div');
+    this.lookInviteEl.className = 'partner-look-invite';
+    this.lookInviteEl.id = 'hud-look-invite';
+    this.lookInviteEl.innerHTML = `
+      <div class="look-invite-content">
+        <span class="invite-icon">👗</span>
+        <div class="invite-text">
+          <strong>${name} styled a new look for you!</strong>
+          <small>Tap Accept to wear it now!</small>
+        </div>
+      </div>
+      <div class="look-invite-actions">
+        <button class="btn-accept-look" id="hud-btn-accept-look">Accept ✨</button>
+        <button class="btn-dismiss-look" id="hud-btn-view-look">View</button>
+      </div>
+    `;
+
+    this.hudEl.appendChild(this.lookInviteEl);
+
+    this.lookInviteEl.querySelector('#hud-btn-accept-look').addEventListener('click', () => {
+      soundEngine.playCheer();
+      if (onAccept) onAccept(outfit);
+      this.hideLookInvite();
+    });
+
+    this.lookInviteEl.querySelector('#hud-btn-view-look').addEventListener('click', () => {
+      if (onView) onView();
+      this.hideLookInvite();
+    });
+  }
+
+  hideLookInvite() {
+    if (this.lookInviteEl) {
+      this.lookInviteEl.remove();
+      this.lookInviteEl = null;
+    }
+  }
 }

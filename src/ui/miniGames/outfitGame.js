@@ -1,4 +1,4 @@
-// Outfit Dress-Up Game: Pick an outfit FOR your partner!
+// Outfit Dress-Up Game: Pick and Equip Outfits Seamlessly!
 import { soundEngine } from '../../audio.js';
 
 export const OUTFIT_OPTIONS = {
@@ -40,7 +40,6 @@ export class OutfitGame {
     this.onApplyLook = onApplyLook;
     this.isOpen = false;
 
-    // My current selections FOR my partner
     this.myPicks = {
       hat: 'straw',
       topColor: '#f472b6',
@@ -59,10 +58,10 @@ export class OutfitGame {
     this.modal.innerHTML = `
       <div class="modal-card modal-large">
         <div class="modal-header">
-          <span class="modal-title">👗 Style Your Partner!</span>
+          <span class="modal-title">👗 Style & Wardrobe</span>
           <button class="modal-close-btn" id="outfit-close-btn" aria-label="Close">✕</button>
         </div>
-        <p class="modal-desc">Pick a sweet look for your partner. When you both submit, reveal the styles!</p>
+        <p class="modal-desc">Pick custom colors & hats! Wear it on yourself or gift it to your partner.</p>
 
         <div class="outfit-sections">
           <!-- Hat -->
@@ -98,13 +97,12 @@ export class OutfitGame {
           </div>
         </div>
 
-        <div class="outfit-status" id="outfit-status">Choose items and tap Submit!</div>
+        <div class="outfit-status" id="outfit-status">Select your favorite look!</div>
 
-        <div class="modal-footer">
-          <button class="btn-primary" id="outfit-submit-btn">Submit Look for Partner</button>
-          <button class="btn-primary hidden" id="outfit-accept-btn" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);">Accept Partner's Look ✨</button>
-          <button class="btn-secondary hidden" id="outfit-keep-btn">Keep This Look</button>
-          <button class="btn-secondary hidden" id="outfit-replay-btn">Play Again</button>
+        <div class="modal-footer" style="display:flex; gap:8px; width:100%; justify-content:center; flex-wrap:wrap;">
+          <button class="btn-primary" id="outfit-wear-self-btn" style="flex:1; min-width:140px; background:linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);">Wear on Myself ✨</button>
+          <button class="btn-primary" id="outfit-submit-btn" style="flex:1; min-width:140px; background:linear-gradient(135deg, #ec4899 0%, #db2777 100%);">Gift to Partner 🎁</button>
+          <button class="btn-secondary hidden" id="outfit-accept-btn" style="width:100%;">Accept Partner's Gift ✨</button>
         </div>
       </div>
     `;
@@ -112,22 +110,15 @@ export class OutfitGame {
     this.container.appendChild(this.modal);
 
     this.statusEl = this.modal.querySelector('#outfit-status');
+    this.wearSelfBtn = this.modal.querySelector('#outfit-wear-self-btn');
     this.submitBtn = this.modal.querySelector('#outfit-submit-btn');
     this.acceptBtn = this.modal.querySelector('#outfit-accept-btn');
-    this.keepBtn = this.modal.querySelector('#outfit-keep-btn');
-    this.replayBtn = this.modal.querySelector('#outfit-replay-btn');
     this.closeBtn = this.modal.querySelector('#outfit-close-btn');
 
     this.closeBtn.addEventListener('click', () => this.close());
+    this.wearSelfBtn.addEventListener('click', () => this.wearOnSelf());
     this.submitBtn.addEventListener('click', () => this.submitPicks());
     this.acceptBtn.addEventListener('click', () => this.acceptPartnerLook());
-    this.keepBtn.addEventListener('click', () => this.keepLook());
-    this.replayBtn.addEventListener('click', () => this.restart());
-
-    // Register real-time sync listener
-    this.syncService.onOutfitUpdated = (state) => {
-      this.renderState(state);
-    };
 
     // Selection handlers
     this.modal.querySelectorAll('[data-type]').forEach(btn => {
@@ -136,7 +127,6 @@ export class OutfitGame {
         const val = btn.getAttribute('data-val');
         this.myPicks[type] = val;
 
-        // Update active class on siblings
         btn.parentElement.querySelectorAll(`[data-type="${type}"]`).forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         soundEngine.playPop();
@@ -148,7 +138,10 @@ export class OutfitGame {
     this.isOpen = true;
     this.modal.classList.remove('hidden');
     soundEngine.playPop();
-    this.renderState(this.syncService.outfitState);
+    this.statusEl.textContent = 'Select items and choose Wear or Gift!';
+    this.statusEl.className = 'outfit-status';
+    this.submitBtn.disabled = false;
+    this.wearSelfBtn.disabled = false;
   }
 
   close() {
@@ -156,20 +149,33 @@ export class OutfitGame {
     this.modal.classList.add('hidden');
   }
 
+  // Instant equip to local player and sync to Firebase!
+  async wearOnSelf() {
+    const uid = this.roomService.user?.uid;
+    if (!uid) return;
+
+    soundEngine.playCheer();
+    if (this.onApplyLook) {
+      this.onApplyLook(uid, this.myPicks);
+    }
+    if (this.roomService.roomId) {
+      await this.syncService.setPartnerOutfit(uid, this.myPicks);
+    }
+    this.statusEl.textContent = '✨ You are now wearing this look!';
+    this.statusEl.className = 'outfit-status revealed';
+    setTimeout(() => this.close(), 900);
+  }
+
+  // Send look as a gift to partner
   async submitPicks() {
     const uid = this.roomService.user?.uid;
     if (!uid) return;
 
     soundEngine.playPop();
+    this.statusEl.textContent = '🎁 Sent to your partner!';
+    this.statusEl.className = 'outfit-status waiting';
     await this.syncService.submitOutfitPick(this.myPicks);
-  }
-
-  async restart() {
-    soundEngine.playPop();
-    await this.syncService.updateOutfit({
-      picks: {},
-      revealed: false
-    });
+    setTimeout(() => this.close(), 1200);
   }
 
   async acceptPartnerLook() {
@@ -186,56 +192,21 @@ export class OutfitGame {
       if (this.roomService.roomId && uid) {
         await this.syncService.setPartnerOutfit(uid, lookForMe);
       }
-      this.statusEl.textContent = '💖 Look accepted & equipped!';
-      this.statusEl.className = 'outfit-status revealed';
-      this.acceptBtn.classList.add('hidden');
-      this.keepBtn.classList.remove('hidden');
+      this.statusEl.textContent = '💖 Look equipped!';
+      setTimeout(() => this.close(), 800);
     }
-  }
-
-  async keepLook() {
-    soundEngine.playCheer();
-    this.close();
   }
 
   renderState(state) {
     if (!this.isOpen) return;
-    const uid = this.roomService.user?.uid;
     const partnerUid = this.roomService.partnerUid;
-
-    const mySubmitted = state?.picks && state.picks[uid];
     const partnerSubmitted = state?.picks && partnerUid && state.picks[partnerUid];
 
-    if (state?.revealed) {
-      this.statusEl.textContent = '✨ Tada! Revealed! Look at your partner’s new style!';
-      this.statusEl.className = 'outfit-status revealed';
-      this.submitBtn.classList.add('hidden');
+    if (partnerSubmitted) {
       this.acceptBtn.classList.remove('hidden');
-      this.keepBtn.classList.remove('hidden');
-      this.replayBtn.classList.remove('hidden');
-
-      // Apply the partner's pick to my character!
-      if (partnerSubmitted && this.onApplyLook) {
-        this.onApplyLook(uid, state.picks[partnerUid]);
-      }
-      if (mySubmitted && this.onApplyLook && partnerUid) {
-        this.onApplyLook(partnerUid, state.picks[uid]);
-      }
-    } else if (mySubmitted && !partnerSubmitted) {
-      this.statusEl.textContent = '💌 Look submitted! Waiting for partner to choose...';
-      this.statusEl.className = 'outfit-status waiting';
-      this.submitBtn.disabled = true;
-      this.submitBtn.textContent = 'Submitted (Waiting...)';
-      this.keepBtn.classList.add('hidden');
-      this.replayBtn.classList.add('hidden');
+      this.acceptBtn.textContent = `Accept Gift from Partner ✨`;
     } else {
-      this.statusEl.textContent = 'Pick a style for your partner and tap Submit!';
-      this.statusEl.className = 'outfit-status';
-      this.submitBtn.disabled = false;
-      this.submitBtn.textContent = 'Submit Look for Partner';
-      this.submitBtn.classList.remove('hidden');
-      this.keepBtn.classList.add('hidden');
-      this.replayBtn.classList.add('hidden');
+      this.acceptBtn.classList.add('hidden');
     }
   }
 }

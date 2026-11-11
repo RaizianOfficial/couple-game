@@ -13,6 +13,7 @@ export class FarmingSpot {
     this.cropInventory = 0;
     this.plots = [];
     this.sparkles = [];
+    this.onPlotChanged = null; // Callback for network sync
 
     this.initSparkles();
     this.buildFarmGarden();
@@ -231,17 +232,20 @@ export class FarmingSpot {
       plot.state = 'tilled';
       soundEngine.playPop();
       this.rebuildPlotMesh(plot);
+      if (this.onPlotChanged) this.onPlotChanged(plot.id, plot.state, plot.cropType, 0);
       return { type: 'tilled', label: 'Tilled Soil 🚜' };
     } else if (plot.state === 'tilled') {
       plot.state = 'seeded';
       soundEngine.playPlantSeed();
       this.rebuildPlotMesh(plot);
+      if (this.onPlotChanged) this.onPlotChanged(plot.id, plot.state, plot.cropType, 0);
       return { type: 'seeded', label: 'Planted Seeds 🌱' };
     } else if (plot.state === 'seeded') {
       plot.state = 'growing';
       plot.growTimer = 0;
       soundEngine.playWaterCrop();
       this.rebuildPlotMesh(plot);
+      if (this.onPlotChanged) this.onPlotChanged(plot.id, plot.state, plot.cropType, 0);
       return { type: 'watered', label: 'Watered Crops 💧' };
     } else if (plot.state === 'ready') {
       // Harvest!
@@ -250,10 +254,31 @@ export class FarmingSpot {
       this.cropInventory += 1;
       this.spawnHarvestSparkles(plot.worldPos.x, 0.6, plot.worldPos.z);
       this.rebuildPlotMesh(plot);
+      if (this.onPlotChanged) this.onPlotChanged(plot.id, plot.state, plot.cropType, 0);
       return { type: 'harvested', label: 'Harvested Crops! ✨' };
     }
 
     return null;
+  }
+
+  // Network sync update from partner
+  applySyncState(farmingSyncData) {
+    if (!farmingSyncData) return;
+    for (const plot of this.plots) {
+      if (farmingSyncData[plot.id]) {
+        const synced = farmingSyncData[plot.id];
+        if (synced.state !== plot.state || (synced.cropType && synced.cropType !== plot.cropType)) {
+          plot.state = synced.state;
+          if (synced.cropType) plot.cropType = synced.cropType;
+          plot.growTimer = synced.growTimer || 0;
+          this.rebuildPlotMesh(plot);
+          if (synced.state === 'tilled' && synced.updatedBy) {
+            // Visual harvest sparkle if partner just harvested
+            this.spawnHarvestSparkles(plot.worldPos.x, 0.6, plot.worldPos.z);
+          }
+        }
+      }
+    }
   }
 
   spawnHarvestSparkles(x, y, z) {

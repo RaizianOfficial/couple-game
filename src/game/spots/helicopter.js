@@ -1,4 +1,4 @@
-// Interactive 2-Seater Flyable Helicopter Spot with Helipad and Aerial Flight Controls
+// Interactive 2-Seater Flyable Helicopter Spot with Cute Low-Poly Revamped Design
 import * as THREE from 'three';
 import { soundEngine } from '../../audio.js';
 
@@ -78,7 +78,7 @@ export class HelicopterSpot {
     crossBar.position.set(0, 0.087, 0);
     this.padGroup.add(crossBar);
 
-    // Perimeter landing lights (4 warm glowing mini pylons)
+    // Perimeter landing lights (warm glowing mini pylons)
     const lightMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
@@ -90,145 +90,139 @@ export class HelicopterSpot {
     this.scene.add(this.padGroup);
   }
 
+  // ✨ Revamped Cute Rounded Low-Poly Helicopter
   buildHelicopterMesh() {
     this.group = new THREE.Group();
     this.group.position.copy(this.position);
     this.group.rotation.y = this.rotationY;
 
-    // Materials
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x38bdf8 }); // Sky Cyan pastel body
-    const whiteMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
-    const glassMat = new THREE.MeshLambertMaterial({ color: 0xbfdbfe, transparent: true, opacity: 0.72 });
-    const metalMat = new THREE.MeshLambertMaterial({ color: 0x475569 }); // Slate dark metal
-    const rotorMat = new THREE.MeshLambertMaterial({ color: 0x1e293b }); // Graphite rotor blades
-    const seatMat = new THREE.MeshLambertMaterial({ color: 0xf472b6 });  // Pastel pink seats
+    // Sweet Cute Pastel Color Palette
+    const mainColor = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });   // Sky Blue
+    const bellyColor = new THREE.MeshLambertMaterial({ color: 0xf8fafc });  // Cream White
+    const pinkAccent = new THREE.MeshLambertMaterial({ color: 0xf472b6 });  // Sweet Pink
+    const glassMat = new THREE.MeshLambertMaterial({ color: 0xc7d2fe, transparent: true, opacity: 0.75 }); // Pastel Tint Glass
+    const metalMat = new THREE.MeshLambertMaterial({ color: 0x475569 });    // Slate metal
+    const rotorMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });    // Dark graphite
+    const yellowLight = new THREE.MeshBasicMaterial({ color: 0xfde047 });   // Cute glowing headlights
 
-    // 1. Aerodynamic Main Cabin
-    const cabinGeo = new THREE.BoxGeometry(1.6, 1.25, 2.2);
-    const cabin = new THREE.Mesh(cabinGeo, bodyMat);
-    cabin.position.set(0, 1.05, 0.1);
-    cabin.castShadow = true;
-    this.group.add(cabin);
+    // 1. Cute Rounded Cabin Body
+    const cabinGroup = new THREE.Group();
+    cabinGroup.position.set(0, 0.95, 0.2);
 
-    // Nose cone / cockpit curve
-    const noseGeo = new THREE.ConeGeometry(0.95, 1.0, 12);
-    const nose = new THREE.Mesh(noseGeo, bodyMat);
-    nose.rotation.x = -Math.PI / 2;
-    nose.position.set(0, 0.98, 1.45);
-    nose.castShadow = true;
-    this.group.add(nose);
+    // Main rounded fuselage (sphere scaled like an egg)
+    const fuselage = new THREE.Mesh(new THREE.SphereGeometry(1.05, 14, 12), mainColor);
+    fuselage.scale.set(0.9, 0.85, 1.25);
+    fuselage.castShadow = true;
+    cabinGroup.add(fuselage);
 
-    // Cockpit Windshield (large panoramic pastel glass)
-    const windshieldGeo = new THREE.BoxGeometry(1.45, 0.82, 0.95);
-    const windshield = new THREE.Mesh(windshieldGeo, glassMat);
-    windshield.position.set(0, 1.22, 0.88);
-    this.group.add(windshield);
+    // White belly stripe
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(1.02, 12, 10), bellyColor);
+    belly.scale.set(0.88, 0.42, 1.22);
+    belly.position.set(0, -0.36, 0);
+    cabinGroup.add(belly);
 
-    // Side windows
-    [-0.81, 0.81].forEach(wx => {
-      const sideWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.6, 0.9), glassMat);
-      sideWin.position.set(wx, 1.15, 0.1);
-      this.group.add(sideWin);
+    // Cute Bubble Windshield (front bubble)
+    const bubbleGeo = new THREE.SphereGeometry(0.85, 12, 10);
+    const bubble = new THREE.Mesh(bubbleGeo, glassMat);
+    bubble.scale.set(0.88, 0.78, 0.95);
+    bubble.position.set(0, 0.12, 0.48);
+    cabinGroup.add(bubble);
+
+    // Cute Headlights in front
+    [-0.42, 0.42].forEach(hx => {
+      const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), yellowLight);
+      headlight.position.set(hx, -0.15, 1.15);
+      cabinGroup.add(headlight);
     });
 
-    // 2. Cockpit Interior Seats (Dual: Pilot on Left, Passenger on Right)
-    [-0.42, 0.42].forEach((sx, idx) => {
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.1, 0.48), seatMat);
-      seat.position.set(sx, 0.65, 0.3);
-      this.group.add(seat);
+    // 2. Interior Seats (Left Pilot, Right Passenger)
+    [-0.34, 0.34].forEach((sx) => {
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.42), pinkAccent);
+      seat.position.set(sx, -0.16, 0.15);
+      cabinGroup.add(seat);
 
-      const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.5, 0.08), seatMat);
-      seatBack.position.set(sx, 0.92, 0.08);
-      this.group.add(seatBack);
-
-      // Flight stick
-      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 6), metalMat);
-      stick.position.set(sx, 0.8, 0.65);
-      stick.rotation.x = -0.2;
-      this.group.add(stick);
+      const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.45, 0.08), pinkAccent);
+      seatBack.position.set(sx, 0.08, -0.05);
+      cabinGroup.add(seatBack);
     });
 
-    // 3. Tail Boom & Fin
-    const tailGeo = new THREE.CylinderGeometry(0.18, 0.32, 2.8, 8);
-    const tailBoom = new THREE.Mesh(tailGeo, bodyMat);
+    this.group.add(cabinGroup);
+
+    // 3. Sleek Tail Boom & Cute Vertical Fin
+    const tailBoom = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.24, 2.4, 8), mainColor);
     tailBoom.rotation.x = Math.PI / 2;
-    tailBoom.position.set(0, 1.1, -2.1);
+    tailBoom.position.set(0, 1.05, -1.8);
     tailBoom.castShadow = true;
     this.group.add(tailBoom);
 
-    // Vertical Tail Fin
-    const finGeo = new THREE.BoxGeometry(0.08, 0.9, 0.55);
-    const fin = new THREE.Mesh(finGeo, bodyMat);
-    fin.position.set(0, 1.45, -3.4);
+    // Vertical fin
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.85, 0.52), pinkAccent);
+    fin.position.set(0, 1.42, -2.9);
     fin.castShadow = true;
     this.group.add(fin);
 
-    // Horizontal stabilizer
-    const stabGeo = new THREE.BoxGeometry(1.1, 0.06, 0.3);
-    const stab = new THREE.Mesh(stabGeo, whiteMat);
-    stab.position.set(0, 1.18, -3.0);
+    // Cute small horizontal stabilizers with winglets
+    const stab = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.05, 0.28), bellyColor);
+    stab.position.set(0, 1.12, -2.6);
     this.group.add(stab);
 
-    // 4. Main Rotor Mast & Blades (Pivots at top)
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.45, 8), metalMat);
-    mast.position.set(0, 1.85, 0.1);
+    // 4. Main Rotor Mast, Cap & Blades
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.38, 8), metalMat);
+    mast.position.set(0, 1.88, 0.2);
     this.group.add(mast);
 
     this.mainRotorPivot = new THREE.Group();
-    this.mainRotorPivot.position.set(0, 2.05, 0.1);
+    this.mainRotorPivot.position.set(0, 2.06, 0.2);
 
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 12), metalMat);
-    this.mainRotorPivot.add(hub);
+    // Cute rounded rotor cap
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), pinkAccent);
+    cap.scale.set(1, 0.4, 1);
+    this.mainRotorPivot.add(cap);
 
-    // Twin long aerodynamic rotor blades (span ~4.4m)
-    const bladeGeo = new THREE.BoxGeometry(0.18, 0.03, 4.4);
+    // 4 Aerodynamic Rotor Blades (cute rounded tip)
+    const bladeGeo = new THREE.BoxGeometry(0.16, 0.03, 3.8);
     const blade1 = new THREE.Mesh(bladeGeo, rotorMat);
     blade1.castShadow = true;
     this.mainRotorPivot.add(blade1);
 
-    const blade2 = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.03, 0.18), rotorMat);
+    const blade2 = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.03, 0.16), rotorMat);
     blade2.castShadow = true;
     this.mainRotorPivot.add(blade2);
 
     this.group.add(this.mainRotorPivot);
 
-    // 5. Tail Rotor (Spinning on side of tail fin)
+    // 5. Tail Rotor (Spinning on side of fin)
     this.tailRotorPivot = new THREE.Group();
-    this.tailRotorPivot.position.set(0.12, 1.6, -3.4);
+    this.tailRotorPivot.position.set(0.12, 1.5, -2.9);
 
-    const tailBladeGeo = new THREE.BoxGeometry(0.06, 0.8, 0.02);
-    const tb1 = new THREE.Mesh(tailBladeGeo, rotorMat);
+    const tb1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.02), rotorMat);
     this.tailRotorPivot.add(tb1);
-
-    const tb2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.8), rotorMat);
+    const tb2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.72), rotorMat);
     this.tailRotorPivot.add(tb2);
 
     this.group.add(this.tailRotorPivot);
 
-    // 6. Landing Skids
-    const skidGeo = new THREE.CylinderGeometry(0.045, 0.045, 2.5, 8);
+    // 6. Cute Tubular Landing Skids
     const skidMat = metalMat;
-
-    [-0.75, 0.75].forEach(sx => {
+    [-0.68, 0.68].forEach(sx => {
       // Horizontal skid bar
-      const skid = new THREE.Mesh(skidGeo, skidMat);
+      const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 8), skidMat);
       skid.rotation.x = Math.PI / 2;
-      skid.position.set(sx, 0.12, 0.2);
+      skid.position.set(sx, 0.1, 0.15);
       skid.castShadow = true;
       this.group.add(skid);
 
-      // Curved skid tips
-      const tipGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.4, 6);
-      const tipF = new THREE.Mesh(tipGeo, skidMat);
-      tipF.position.set(sx, 0.24, 1.45);
+      // Curved front skid tip
+      const tipF = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.35, 6), skidMat);
+      tipF.position.set(sx, 0.2, 1.28);
       tipF.rotation.x = -0.55;
       this.group.add(tipF);
 
-      // Vertical support struts
-      [-0.45, 0.55].forEach(sz => {
-        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.65, 6), skidMat);
-        strut.position.set(sx * 0.75, 0.42, sz);
-        strut.rotation.z = sx > 0 ? -0.32 : 0.32;
+      // Support struts
+      [-0.4, 0.45].forEach(sz => {
+        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 6), skidMat);
+        strut.position.set(sx * 0.78, 0.36, sz);
+        strut.rotation.z = sx > 0 ? -0.28 : 0.28;
         this.group.add(strut);
       });
     });
@@ -238,20 +232,19 @@ export class HelicopterSpot {
 
   // Seating world positions for character attachment
   getPilotSeatWorldPos() {
-    const local = new THREE.Vector3(-0.42, 0.65, 0.3);
+    const local = new THREE.Vector3(-0.34, 0.62, 0.35);
     this.group.localToWorld(local);
     return local;
   }
 
   getPassengerSeatWorldPos() {
-    const local = new THREE.Vector3(0.42, 0.65, 0.3);
+    const local = new THREE.Vector3(0.34, 0.62, 0.35);
     this.group.localToWorld(local);
     return local;
   }
 
   // Update rotor spin, altitude, banking and sound
   update(delta, isDrivenLocally = false) {
-    // Rotor speed interpolation
     const targetSpeed = this.isFlying ? 32 : (this.hasOccupants ? 18 : 0);
     this.rotorSpeed += (targetSpeed - this.rotorSpeed) * Math.min(1, delta * 3);
 
@@ -261,7 +254,6 @@ export class HelicopterSpot {
       this.mainRotorPivot.rotation.y = this.rotorAngle;
       this.tailRotorPivot.rotation.x = this.tailRotorAngle;
 
-      // Play audio pulse periodically
       if (isDrivenLocally) {
         this.soundTimer += delta;
         if (this.soundTimer > 0.15) {
@@ -271,12 +263,10 @@ export class HelicopterSpot {
       }
     }
 
-    // Apply tilt / bank smoothly
     this.group.rotation.x = this.pitch;
     this.group.rotation.z = this.roll;
   }
 
-  // Set position from driver movement or network sync
   setTransform(x, y, z, rotY, pitch = 0, roll = 0) {
     this.group.position.set(x, y, z);
     this.group.rotation.y = rotY;

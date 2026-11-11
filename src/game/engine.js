@@ -9,16 +9,19 @@ export class GameEngine {
     this.lastFrameTime = performance.now();
     this.isTabActive = true;
     this.particles = null;
+    this.isNight = false;
 
     // 360° Orbit Camera properties (Third-Person / Chase Camera)
     this.cameraTarget = new THREE.Vector3(0, 1.2, 0);
     this.currentCameraTarget = new THREE.Vector3(0, 1.2, 0);
-    this.cameraYaw = 0; // Horizontal orbit angle (radians)
-    this.cameraPitch = 0.32; // Vertical elevation angle (radians)
+    this.cameraYaw = 0;
+    this.cameraPitch = 0.32;
     this.targetYaw = 0;
     this.targetPitch = 0.32;
-    this.cameraDistance = 5.2; // Chase distance behind character
+    this.cameraDistance = 5.2;
     this.targetDistance = 5.2;
+
+    this.raycaster = new THREE.Raycaster(); // For wall collision
 
     this.initScene();
     this.initRenderer();
@@ -27,6 +30,10 @@ export class GameEngine {
     this.initLights();
     this.initParticles();
     this.initListeners();
+
+    // Fallback resize triggers for blank screen bug
+    setTimeout(() => this.resize(), 100);
+    setTimeout(() => this.resize(), 500);
   }
 
   initScene() {
@@ -36,11 +43,10 @@ export class GameEngine {
   }
 
   initRenderer() {
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance'
-    });
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    const w = this.container.clientWidth || window.innerWidth;
+    const h = this.container.clientHeight || window.innerHeight;
+    this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -49,32 +55,27 @@ export class GameEngine {
   }
 
   initCamera() {
-    const aspect = this.container.clientWidth / this.container.clientHeight;
-    // Perspective Camera for true 3D third-person view with 360° orbit
-    this.camera = new THREE.PerspectiveCamera(56, aspect, 0.1, 350);
+    const w = this.container.clientWidth || window.innerWidth;
+    const h = this.container.clientHeight || window.innerHeight;
+    this.camera = new THREE.PerspectiveCamera(56, w / h, 0.1, 350);
     this.updateCameraPosition();
   }
 
   initSkyDome() {
-    // Dreamy 360° pastel sunset sky sphere
     const skyGeo = new THREE.SphereGeometry(140, 24, 24);
-    // Invert geometry so inside of sphere is visible
     skyGeo.scale(-1, 1, 1);
-
-    // Canvas gradient texture for pastel sunset
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 16;
     skyCanvas.height = 256;
     const ctx = skyCanvas.getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#c4b5fd');   // Soft lavender zenith
-    grad.addColorStop(0.4, '#fbcfe8'); // Sweet pink upper sky
-    grad.addColorStop(0.7, '#fed7aa'); // Warm sunset peach
-    grad.addColorStop(0.95, '#fde68a'); // Golden glow near horizon
-    grad.addColorStop(1, '#a7f3d0');   // Soft mint ground blend
+    grad.addColorStop(0, '#c4b5fd');
+    grad.addColorStop(0.4, '#fbcfe8');
+    grad.addColorStop(0.7, '#fed7aa');
+    grad.addColorStop(0.95, '#fde68a');
+    grad.addColorStop(1, '#a7f3d0');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 16, 256);
-
     const skyTex = new THREE.CanvasTexture(skyCanvas);
     const skyMat = new THREE.MeshBasicMaterial({ map: skyTex });
     this.skyDome = new THREE.Mesh(skyGeo, skyMat);
@@ -84,11 +85,9 @@ export class GameEngine {
   initLights() {
     this.ambientLight = new THREE.AmbientLight(0xfff3ea, 0.9);
     this.scene.add(this.ambientLight);
-
     this.hemiLight = new THREE.HemisphereLight(0xfce7f3, 0xdcfce7, 0.65);
     this.hemiLight.position.set(0, 40, 0);
     this.scene.add(this.hemiLight);
-
     this.sunLight = new THREE.DirectionalLight(0xfef08a, 1.15);
     this.sunLight.position.set(24, 38, 18);
     this.sunLight.castShadow = true;
@@ -96,16 +95,68 @@ export class GameEngine {
     this.sunLight.shadow.mapSize.height = 1024;
     this.sunLight.shadow.camera.near = 10;
     this.sunLight.shadow.camera.far = 90;
-    
     const d = 22;
     this.sunLight.shadow.camera.left = -d;
     this.sunLight.shadow.camera.right = d;
     this.sunLight.shadow.camera.top = d;
     this.sunLight.shadow.camera.bottom = -d;
     this.sunLight.shadow.bias = -0.001;
-
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
+  }
+
+  // Toggle Day / Night with Romantic Starlit Sky & Moon Light
+  setDayNight(isNight) {
+    this.isNight = isNight;
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 16;
+    skyCanvas.height = 256;
+    const ctx = skyCanvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 256);
+
+    if (isNight) {
+      // Midnight romantic deep navy & purple starry palette
+      grad.addColorStop(0, '#090d16');
+      grad.addColorStop(0.35, '#0f172a');
+      grad.addColorStop(0.7, '#1e1b4b');
+      grad.addColorStop(0.95, '#312e81');
+      grad.addColorStop(1, '#1e293b');
+
+      this.scene.background.setHex(0x0f172a);
+      this.scene.fog.color.setHex(0x0f172a);
+      this.ambientLight.color.setHex(0x6366f1);
+      this.ambientLight.intensity = 0.35;
+      this.hemiLight.color.setHex(0x38bdf8);
+      this.hemiLight.groundColor.setHex(0x0f172a);
+      this.hemiLight.intensity = 0.4;
+      this.sunLight.color.setHex(0x93c5fd); // Cool silvery Moon Light
+      this.sunLight.intensity = 0.75;
+    } else {
+      // Sweet Pastel Sunset
+      grad.addColorStop(0, '#c4b5fd');
+      grad.addColorStop(0.4, '#fbcfe8');
+      grad.addColorStop(0.7, '#fed7aa');
+      grad.addColorStop(0.95, '#fde68a');
+      grad.addColorStop(1, '#a7f3d0');
+
+      this.scene.background.setHex(0xfde2d1);
+      this.scene.fog.color.setHex(0xfde2d1);
+      this.ambientLight.color.setHex(0xfff3ea);
+      this.ambientLight.intensity = 0.9;
+      this.hemiLight.color.setHex(0xfce7f3);
+      this.hemiLight.groundColor.setHex(0xdcfce7);
+      this.hemiLight.intensity = 0.65;
+      this.sunLight.color.setHex(0xfef08a);
+      this.sunLight.intensity = 1.15;
+    }
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 16, 256);
+    if (this.skyDome && this.skyDome.material.map) {
+      this.skyDome.material.map.dispose();
+      this.skyDome.material.map = new THREE.CanvasTexture(skyCanvas);
+      this.skyDome.material.needsUpdate = true;
+    }
   }
 
   initParticles() {
@@ -114,64 +165,31 @@ export class GameEngine {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     this.particleData = [];
-
-    const palette = [
-      new THREE.Color(0xfbcfe8),
-      new THREE.Color(0xfde047),
-      new THREE.Color(0xf472b6),
-      new THREE.Color(0xffffff)
-    ];
+    const palette = [new THREE.Color(0xfbcfe8), new THREE.Color(0xfde047), new THREE.Color(0xf472b6), new THREE.Color(0xffffff)];
 
     for (let i = 0; i < count; i++) {
       const x = (Math.random() - 0.5) * 35;
       const y = Math.random() * 8 + 0.5;
       const z = (Math.random() - 0.5) * 35;
-
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
-
+      positions[i * 3] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z;
       const col = palette[Math.floor(Math.random() * palette.length)];
-      colors[i * 3] = col.r;
-      colors[i * 3 + 1] = col.g;
-      colors[i * 3 + 2] = col.b;
-
-      this.particleData.push({
-        origY: y,
-        speedX: -0.005 - Math.random() * 0.008,
-        speedY: -0.004 - Math.random() * 0.006,
-        speedZ: 0.003 + Math.random() * 0.005,
-        wobble: Math.random() * Math.PI * 2
-      });
+      colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
+      this.particleData.push({ origY: y, speedX: -0.005 - Math.random() * 0.008, speedY: -0.004 - Math.random() * 0.006, speedZ: 0.003 + Math.random() * 0.005, wobble: Math.random() * Math.PI * 2 });
     }
-
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
+    canvas.width = 32; canvas.height = 32;
     const ctx = canvas.getContext('2d');
     const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
     grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
     grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
     grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(16, 16, 15, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(16, 16, 15, 0, Math.PI * 2); ctx.fill();
 
     const texture = new THREE.CanvasTexture(canvas);
-
-    const material = new THREE.PointsMaterial({
-      size: 0.35,
-      map: texture,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false
-    });
-
+    const material = new THREE.PointsMaterial({ size: 0.35, map: texture, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false });
     this.particles = new THREE.Points(geometry, material);
     this.scene.add(this.particles);
   }
@@ -182,32 +200,20 @@ export class GameEngine {
     for (let i = 0; i < this.particleData.length; i++) {
       const p = this.particleData[i];
       p.wobble += delta * 2;
-
       let x = positions[i * 3] + p.speedX + Math.sin(p.wobble) * 0.005;
       let y = positions[i * 3 + 1] + p.speedY;
       let z = positions[i * 3 + 2] + p.speedZ + Math.cos(p.wobble) * 0.005;
-
       if (y < 0.1 || x < -18 || z > 18) {
-        y = 7.5 + Math.random() * 2;
-        x = (Math.random() - 0.5) * 35;
-        z = (Math.random() - 0.5) * 35;
+        y = 7.5 + Math.random() * 2; x = (Math.random() - 0.5) * 35; z = (Math.random() - 0.5) * 35;
       }
-
-      positions[i * 3] = x;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = z;
+      positions[i * 3] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z;
     }
     this.particles.geometry.attributes.position.needsUpdate = true;
   }
 
-  // 360° Drag & Touch Orbit Rotation API — FPS-style feel
   rotateCamera(deltaX, deltaY) {
-    // Horizontal yaw — higher sensitivity (0.012) for snappy FPS feel
     this.targetYaw -= deltaX * 0.012;
-
-    // Vertical pitch — natural elevation control
     this.targetPitch += deltaY * 0.007;
-    // Clamp: 3° min (can't look straight up/under map), 72° max (over-shoulder)
     this.targetPitch = Math.max(0.05, Math.min(1.26, this.targetPitch));
   }
 
@@ -215,70 +221,80 @@ export class GameEngine {
     this.targetDistance = Math.max(2.5, Math.min(10.0, this.targetDistance + deltaDist));
   }
 
-  // Double-tap: snap camera behind character (like re-center in mobile games)
   resetCameraBehindCharacter() {
-    if (this._characterFacing !== undefined) {
-      // Snap yaw to character facing + π (behind)
-      this.targetYaw = this._characterFacing + Math.PI;
-    }
+    if (this._characterFacing !== undefined) this.targetYaw = this._characterFacing + Math.PI;
     this.targetPitch = 0.32;
     this.targetDistance = 5.2;
   }
 
-  // Called by main.js to let engine know character facing direction
-  setCharacterFacing(rotY) {
-    this._characterFacing = rotY;
-  }
+  setCharacterFacing(rotY) { this._characterFacing = rotY; }
 
-  // Get camera's true forward and right vectors projected onto ground (Y=0)
-  // Guarantees joystick UP = directly forward into screen, RIGHT = directly right on screen
   getCameraVectors() {
-    // In Three.js, camera view direction is -Z in local space
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    forward.y = 0;
-    forward.normalize();
-
-    // Camera local +X is screen right in world space
+    forward.y = 0; forward.normalize();
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
-    right.y = 0;
-    right.normalize();
-
+    right.y = 0; right.normalize();
     return { forward, right };
   }
 
   updateCameraPosition() {
-    // Faster dampening for snappier FPS-like feel
     this.cameraYaw += (this.targetYaw - this.cameraYaw) * 0.22;
     this.cameraPitch += (this.targetPitch - this.cameraPitch) * 0.22;
     this.cameraDistance += (this.targetDistance - this.cameraDistance) * 0.18;
-
-    // Camera target smoothly chases character (tighter follow than before)
     this.currentCameraTarget.lerp(this.cameraTarget, 0.16);
 
-    // Calculate third-person camera eye position in spherical orbit
     const cosPitch = Math.cos(this.cameraPitch);
     const sinPitch = Math.sin(this.cameraPitch);
     const sinYaw = Math.sin(this.cameraYaw);
     const cosYaw = Math.cos(this.cameraYaw);
 
-    const eyeX = this.currentCameraTarget.x - (sinYaw * cosPitch * this.cameraDistance);
-    const eyeY = this.currentCameraTarget.y + (sinPitch * this.cameraDistance);
-    const eyeZ = this.currentCameraTarget.z - (cosYaw * cosPitch * this.cameraDistance);
+    const idealEyeX = this.currentCameraTarget.x - (sinYaw * cosPitch * this.cameraDistance);
+    const idealEyeY = this.currentCameraTarget.y + (sinPitch * this.cameraDistance);
+    const idealEyeZ = this.currentCameraTarget.z - (cosYaw * cosPitch * this.cameraDistance);
+    const idealEye = new THREE.Vector3(idealEyeX, Math.max(0.5, idealEyeY), idealEyeZ);
 
-    this.camera.position.set(eyeX, Math.max(0.5, eyeY), eyeZ);
-    // Look slightly above target center so character head is in frame
-    this.camera.lookAt(
-      this.currentCameraTarget.x,
-      this.currentCameraTarget.y + 0.25,
-      this.currentCameraTarget.z
-    );
+    // 🚀 NEW: Wall Collision Glitch Fix
+    const dir = new THREE.Vector3().subVectors(idealEye, this.currentCameraTarget).normalize();
+    const dist = this.currentCameraTarget.distanceTo(idealEye);
 
-    if (this.sunLight) {
-      this.sunLight.target.position.copy(this.currentCameraTarget);
-    }
-    if (this.skyDome) {
-      this.skyDome.position.copy(this.currentCameraTarget);
-    }
+    // Provide camera to raycaster so Sprite objects don't throw warnings/errors
+    this.raycaster.camera = this.camera;
+    this.raycaster.set(this.currentCameraTarget, dir);
+
+    // Check collision against non-transparent meshes (walls, buildings)
+    let finalDistance = dist;
+    try {
+      const candidates = [];
+      this.scene.traverse((obj) => {
+        if (obj.isMesh && obj !== this.skyDome && obj !== this.particles) {
+          if (!obj.material || !obj.material.transparent) {
+            // Exclude character meshes
+            let p = obj;
+            let isChar = false;
+            while (p) {
+              if (p.name === 'character') { isChar = true; break; }
+              p = p.parent;
+            }
+            if (!isChar) candidates.push(obj);
+          }
+        }
+      });
+
+      const intersects = this.raycaster.intersectObjects(candidates, false);
+      if (intersects.length > 0 && intersects[0].distance < dist) {
+        finalDistance = Math.max(0.8, intersects[0].distance - 0.2);
+      }
+    } catch (_) {}
+
+    const finalEyeX = this.currentCameraTarget.x + dir.x * finalDistance;
+    const finalEyeY = this.currentCameraTarget.y + dir.y * finalDistance;
+    const finalEyeZ = this.currentCameraTarget.z + dir.z * finalDistance;
+
+    this.camera.position.set(finalEyeX, Math.max(0.5, finalEyeY), finalEyeZ);
+    this.camera.lookAt(this.currentCameraTarget.x, this.currentCameraTarget.y + 0.25, this.currentCameraTarget.z);
+
+    if (this.sunLight) this.sunLight.target.position.copy(this.currentCameraTarget);
+    if (this.skyDome) this.skyDome.position.copy(this.currentCameraTarget);
   }
 
   setCameraTarget(targetPos) {
@@ -308,21 +324,18 @@ export class GameEngine {
       this.fpsHistory.shift();
       if (this.quality === 'high') {
         const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
-        if (avgFps < 28) {
-          this.setQuality('low');
-        }
+        if (avgFps < 28) this.setQuality('low');
       }
     }
   }
 
   resize() {
-    const width = this.container.clientWidth;
-    const height = this.container.clientHeight;
-    if (!width || !height) return;
-
-    this.camera.aspect = width / height;
+    const w = this.container.clientWidth || window.innerWidth;
+    const h = this.container.clientHeight || window.innerHeight;
+    if (!w || !h) return;
+    this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    this.renderer.setSize(w, h);
   }
 
   initListeners() {
@@ -337,16 +350,12 @@ export class GameEngine {
     const loop = (currentTime) => {
       requestAnimationFrame(loop);
       if (!this.isTabActive) return;
-
       const deltaMs = currentTime - this.lastFrameTime;
       this.lastFrameTime = currentTime;
       const deltaSec = Math.min(deltaMs / 1000, 0.1);
-
       this.trackFps(deltaMs);
       this.updateParticles(deltaSec);
-
       if (onTick) onTick(deltaSec);
-
       this.updateCameraPosition();
       this.renderer.render(this.scene, this.camera);
     };

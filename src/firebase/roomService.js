@@ -13,27 +13,22 @@ import {
   getCurrentUser
 } from './config.js';
 
-const SAFE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-
+// New: Generate exactly 4-digit numeric room codes
 export function generateRoomCode() {
-  let code = '';
-  for (let i = 0; i < 5; i++) {
-    code += SAFE_CHARS.charAt(Math.floor(Math.random() * SAFE_CHARS.length));
-  }
-  return code;
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
 export const DEFAULT_OUTFIT_P1 = {
   hat: 'none',
-  topColor: '#f472b6',    // Sweet pink
-  bottomColor: '#cbd5e1', // Soft denim
+  topColor: '#38bdf8',    // Default Boyish/Host color
+  bottomColor: '#cbd5e1',
   accessory: 'none'
 };
 
 export const DEFAULT_OUTFIT_P2 = {
   hat: 'none',
-  topColor: '#60a5fa',    // Baby sky blue
-  bottomColor: '#94a3b8', // Soft slate
+  topColor: '#f472b6',    // Default Girlish/Partner color
+  bottomColor: '#94a3b8',
   accessory: 'none'
 };
 
@@ -43,12 +38,11 @@ export class RoomService {
     this.user = null;
     this.slot = null;
     this.nickname = '';
+    this.gender = 'boy'; // Default
     this.roomUnsubscribe = null;
     this.partnerSlot = null;
     this.partnerUid = null;
     this.onRoomUpdated = null;
-    this.onPartnerLeft = null;
-    this.onPartnerJoined = null;
   }
 
   async initAuth() {
@@ -58,23 +52,26 @@ export class RoomService {
       return this.user;
     } catch (err) {
       if (err.code === 'auth/configuration-not-found' || err.message?.includes('configuration-not-found')) {
-        throw new Error('Anonymous Auth is not enabled in Firebase. Please enable it in Firebase Console: Authentication -> Sign-in method -> Anonymous.');
+        throw new Error('Anonymous Auth is not enabled in Firebase.');
       }
       throw err;
     }
   }
 
-  async createRoom(nickname = '') {
+  // Updated to accept gender parameter from UI
+  async createRoom(nickname = '', gender = 'boy') {
     await this.initAuth();
     const uid = this.user.uid;
     const cleanNick = (nickname || 'Player 1').slice(0, 12);
     this.nickname = cleanNick;
+    this.gender = gender;
     this.slot = 1;
 
     let attempts = 0;
     let roomCode = '';
     let roomRef = null;
 
+    // Try finding an empty 4-digit room code
     while (attempts < 5) {
       roomCode = generateRoomCode();
       roomRef = dbRef(`rooms/${roomCode}`);
@@ -95,6 +92,7 @@ export class RoomService {
         [uid]: {
           slot: 1,
           nick: cleanNick,
+          gender: gender, // Save chosen gender
           online: true,
           lastSeen: getServerTimestamp(),
           outfit: DEFAULT_OUTFIT_P1
@@ -118,6 +116,7 @@ export class RoomService {
         bike: { occupants: { driver: null, passenger: null }, extra: { x: 8, z: 4, rotY: 0 } },
         swing: { occupants: { seat1: null, seat2: null }, extra: {} },
         teaStall: { occupants: { seat: null }, extra: { cupHolder: null, teaState: 'idle' } }
+        // Farming and Pets will be added to spots later in Phase 4
       }
     };
 
@@ -127,16 +126,20 @@ export class RoomService {
     return { roomId: roomCode, slot: 1, uid };
   }
 
-  async joinRoom(roomCode, nickname = '') {
+  // Updated to accept gender parameter and strict 4-digit numeric validation
+  async joinRoom(roomCode, nickname = '', gender = 'boy') {
     await this.initAuth();
-    const cleanCode = (roomCode || '').toUpperCase().trim();
-    if (cleanCode.length !== 5) {
-      throw new Error('Please enter a valid 5-character room code.');
+    const cleanCode = (roomCode || '').trim();
+
+    // Strict numeric validation
+    if (cleanCode.length !== 4 || !/^\d{4}$/.test(cleanCode)) {
+      throw new Error('Please enter a valid 4-digit numeric room code.');
     }
 
     const uid = this.user.uid;
     const cleanNick = (nickname || 'Player 2').slice(0, 12);
     this.nickname = cleanNick;
+    this.gender = gender;
 
     const roomRef = dbRef(`rooms/${cleanCode}`);
     const snap = await dbGet(roomRef);
@@ -149,10 +152,10 @@ export class RoomService {
     const players = roomData.players || {};
     const existingPlayerUids = Object.keys(players);
 
-    // If player is already in room (reconnection)
     if (players[uid]) {
       this.roomId = cleanCode;
       this.slot = players[uid].slot;
+      this.gender = players[uid].gender || 'boy'; // Recover gender
       await dbUpdate(dbRef(`rooms/${cleanCode}/players/${uid}`), {
         online: true,
         lastSeen: getServerTimestamp()
@@ -162,12 +165,10 @@ export class RoomService {
       return { roomId: cleanCode, slot: this.slot, uid };
     }
 
-    // Room full check (max 2 players)
     if (existingPlayerUids.length >= 2) {
       throw new Error('This room is full (maximum 2 players).');
     }
 
-    // Assign slot 2 (or 1 if 1 is empty)
     const takenSlots = Object.values(players).map(p => p.slot);
     this.slot = takenSlots.includes(1) ? 2 : 1;
     this.roomId = cleanCode;
@@ -178,6 +179,7 @@ export class RoomService {
       [`players/${uid}`]: {
         slot: this.slot,
         nick: cleanNick,
+        gender: gender, // Save chosen gender
         online: true,
         lastSeen: getServerTimestamp(),
         outfit: defaultOutfit
@@ -205,13 +207,11 @@ export class RoomService {
     const disconnectHandler = dbOnDisconnect(playerRef);
     await disconnectHandler.set(false);
 
-    // Also clear hand holding on disconnect
     const handKey = this.slot === 1 ? 'p1Holding' : 'p2Holding';
     const handRef = dbRef(`rooms/${roomCode}/hands/${handKey}`);
     const handDisconnect = dbOnDisconnect(handRef);
     await handDisconnect.set(false);
 
-    // Release any seats on disconnect
     const spotsRef = dbRef(`rooms/${roomCode}/spots`);
     const spotsSnap = await dbGet(spotsRef);
     if (spotsSnap.exists()) {
@@ -240,7 +240,6 @@ export class RoomService {
       const data = snapshot.val();
       const players = data.players || {};
 
-      // Identify partner
       let partnerUid = null;
       let partnerData = null;
       for (const [id, p] of Object.entries(players)) {
@@ -268,7 +267,7 @@ export class RoomService {
         lastSeen: getServerTimestamp()
       });
       await this._setupPresence(this.roomId, this.user.uid);
-    } catch (_) {}
+    } catch (_) { }
   }
 
   async leaveRoom() {
@@ -279,7 +278,7 @@ export class RoomService {
       });
       const handKey = this.slot === 1 ? 'p1Holding' : 'p2Holding';
       await dbSet(dbRef(`rooms/${this.roomId}/hands/${handKey}`), false);
-    } catch (e) {}
+    } catch (e) { }
 
     if (this.roomUnsubscribe) {
       this.roomUnsubscribe();
@@ -294,12 +293,12 @@ if (typeof window !== 'undefined') {
   window.roomService = roomService;
   window.addEventListener('pagehide', () => {
     if (roomService.roomId && roomService.user) {
-      roomService.leaveRoom().catch(() => {});
+      roomService.leaveRoom().catch(() => { });
     }
   });
   window.addEventListener('beforeunload', () => {
     if (roomService.roomId && roomService.user) {
-      roomService.leaveRoom().catch(() => {});
+      roomService.leaveRoom().catch(() => { });
     }
   });
 }

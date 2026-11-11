@@ -515,6 +515,13 @@
       background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
     }
 
+    .secondary-interact-btn {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      font-size: 13px;
+      height: 44px;
+      min-width: 120px;
+    }
+
     .hud-util-row {
       display: flex;
       gap: 12px;
@@ -572,6 +579,168 @@
 
     .emoji-btn:active { transform: scale(1.2); background: #fbcfe8; }
 
+    /* Square Box Emoji, Msg & Meme Tray */
+    .compact-square-tray {
+      position: absolute;
+      bottom: 84px;
+      right: 20px;
+      width: 260px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 18px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 30;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+    }
+
+    .tray-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 4px;
+      border-radius: 12px;
+    }
+
+    .tray-tab-btn {
+      flex: 1;
+      height: 30px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .tray-tab-btn.active {
+      background: #38bdf8;
+      color: #0f172a;
+    }
+
+    .tray-panel {
+      width: 100%;
+    }
+
+    .emoji-panel {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .tray-icon-btn {
+      aspect-ratio: 1;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .tray-icon-btn:active {
+      transform: scale(0.9);
+      background: rgba(56, 189, 248, 0.3);
+    }
+
+    .msg-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .tray-text-btn {
+      padding: 7px 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: background 0.15s ease;
+    }
+
+    .tray-text-btn:active {
+      background: rgba(244, 114, 182, 0.3);
+      border-color: #f472b6;
+    }
+
+    .meme-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 6px 0;
+    }
+
+    .tray-meme-btn {
+      height: 48px;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 88, 12, 0.3) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: 12px;
+      color: #fef08a;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .tray-meme-btn:active {
+      transform: scale(0.95);
+      background: rgba(245, 158, 11, 0.5);
+    }
+
+    /* Gender Selector */
+    .gender-toggle {
+      display: flex;
+      width: 100%;
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .gender-btn {
+      flex: 1;
+      padding: 8px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .gender-btn.active.boy {
+      background: #38bdf8;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+    }
+
+    .gender-btn.active.girl {
+      background: #f472b6;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(244, 114, 182, 0.4);
+    }
+
     /* Floating Reactions World/Screen Layer */
     .floating-reactions-layer {
       position: absolute;
@@ -589,6 +758,35 @@
       transform: translate(-50%, -50%);
       animation: floatUp 2s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
       pointer-events: none;
+    }
+
+    .floating-text-msg {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 6px 14px;
+      border-radius: 18px;
+      border: 1.5px solid #38bdf8;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      animation: floatUpMsg 3s forwards ease-out;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    .floating-text-msg.meme-bubble {
+      border-color: #f59e0b;
+      color: #fef08a;
+    }
+
+    @keyframes floatUpMsg {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.7); }
+      15% { opacity: 1; transform: translate(-50%, -20px) scale(1.05); }
+      75% { opacity: 1; transform: translate(-50%, -50px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -80px) scale(0.85); }
     }
 
     @keyframes floatUp {
@@ -1023,14 +1221,21 @@
         <div class="game-logo">🌸 Our Little Town 🌸</div>
         <p class="game-subtitle">A sweet, dreamy, real-time two-player couple game</p>
 
-        <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname (optional)" maxlength="12" />
+        <!-- Gender Selector UI -->
+        <div class="gender-toggle">
+          <input type="hidden" id="landing-gender" value="boy" />
+          <button class="gender-btn active boy" id="btn-select-boy" type="button">👦 Boy</button>
+          <button class="gender-btn girl" id="btn-select-girl" type="button">👧 Girl</button>
+        </div>
+
+        <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname" maxlength="12" />
 
         <div class="button-stack">
           <button class="btn-primary" id="btn-create-room">Create Room</button>
         </div>
 
         <div class="join-box">
-          <input type="text" class="input-field" id="landing-room-code" placeholder="ROOM CODE" maxlength="5" />
+          <input type="tel" pattern="[0-9]*" class="input-field" id="landing-room-code" placeholder="1234" maxlength="4" />
           <button class="btn-secondary" id="btn-join-room" style="flex:0.8;">Join</button>
         </div>
 
@@ -1049,7 +1254,7 @@
         <div class="game-logo" style="font-size:24px;">Waiting for your partner...</div>
         <p class="game-subtitle">Share this room code with your partner to join!</p>
 
-        <div class="room-code-display" id="waiting-room-code">ABCDE</div>
+        <div class="room-code-display" id="waiting-room-code">1234</div>
 
         <div class="button-stack">
           <button class="btn-primary" id="waiting-copy-btn">Copy Code</button>
@@ -1077,6 +1282,20 @@
     </div>
   </div>
 
+  <script>
+    document.getElementById('btn-select-boy')?.addEventListener('click', () => {
+      const g = document.getElementById('landing-gender');
+      if (g) g.value = 'boy';
+      document.getElementById('btn-select-boy')?.classList.add('active');
+      document.getElementById('btn-select-girl')?.classList.remove('active');
+    });
+    document.getElementById('btn-select-girl')?.addEventListener('click', () => {
+      const g = document.getElementById('landing-gender');
+      if (g) g.value = 'girl';
+      document.getElementById('btn-select-girl')?.classList.add('active');
+      document.getElementById('btn-select-boy')?.classList.remove('active');
+    });
+  </script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -4,10 +4,10 @@ import { soundEngine } from '../audio.js';
 export class GameHUD {
   constructor(containerEl, callbacks) {
     this.container = containerEl;
-    this.callbacks = callbacks; // { onHoldHandsStart, onHoldHandsEnd, onInteract, onToggleEmoji, onOpenGames, onToggleQuality, onToggleFullscreen }
+    this.callbacks = callbacks;
 
     this.isHoldingHands = false;
-    this.interactAction = null; // null | { type: 'bike_drive' | 'bike_passenger' | 'bike_exit' | 'swing' | 'swing_exit' | 'tea_sip' | 'tea_pass' | 'tea_exit', label: string }
+    this.interactAction = null;
 
     this.buildDOM();
     this.initEvents();
@@ -17,78 +17,135 @@ export class GameHUD {
     this.hudEl = document.createElement('div');
     this.hudEl.className = 'game-hud';
 
-    this.hudEl.innerHTML = `
+    // We add the specific styling needed for the Phase 2 compact tray dynamically.
+    const styleBlock = document.createElement('style');
+    styleBlock.textContent = `
+      .emoji-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .tray-icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        font-size: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.1s, background 0.15s;
+      }
+      .tray-icon-btn:active { transform: scale(1.1); background: rgba(255, 255, 255, 0.3); }
+      .tray-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.2);
+        margin: 8px 0;
+      }
+      .msg-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 110px;
+        overflow-y: auto;
+        padding-right: 4px;
+      }
+      .msg-list::-webkit-scrollbar { width: 4px; }
+      .msg-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+      .tray-text-btn {
+        width: 100%;
+        padding: 6px 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+      }
+      .tray-text-btn:active { background: rgba(236, 72, 153, 0.6); }
+      
+      .floating-text-msg {
+        position: absolute;
+        font-size: 14px;
+        font-weight: 800;
+        color: #fff;
+        background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 2px solid #fff;
+        box-shadow: 0 4px 16px rgba(219, 39, 119, 0.4);
+        transform: translate(-50%, -50%);
+        animation: floatUpMsg 3s forwards cubic-bezier(0.2, 0.8, 0.2, 1);
+        pointer-events: none;
+        white-space: nowrap;
+      }
+      @keyframes floatUpMsg {
+        0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+        15% { opacity: 1; transform: translate(-50%, -20px) scale(1.1); }
+        85% { opacity: 1; transform: translate(-50%, -60px) scale(1.0); }
+        100% { opacity: 0; transform: translate(-50%, -80px) scale(0.8); }
+      }
+    `;
+    this.hudEl.appendChild(styleBlock);
+
+    this.hudEl.innerHTML += `
       <!-- Top Bar -->
       <div class="hud-top-bar">
         <div class="room-chip" id="hud-room-chip">
           <span class="chip-label">Room:</span>
-          <span class="chip-code" id="hud-room-code">-----</span>
+          <span class="chip-code" id="hud-room-code">----</span>
           <button class="chip-copy-btn" id="hud-copy-btn" title="Copy Room Link">📋</button>
         </div>
-
         <div class="presence-badge" id="hud-presence-badge">
           <span class="presence-dot"></span>
           <span class="presence-text" id="hud-presence-text">Waiting...</span>
         </div>
-
-        <!-- Inventory Pill for Wood & Crops -->
         <div class="hud-inventory" id="hud-inventory-pill">
           <span class="inv-item" title="Wood">🪵 <span id="hud-wood-val">0</span></span>
           <span class="inv-item" title="Harvested Crops">🌾 <span id="hud-crop-val">0</span></span>
         </div>
-
         <div class="hud-top-actions">
-          <button class="icon-btn" id="hud-quality-btn" title="Toggle Quality (High/Low)">✨ High</button>
+          <button class="icon-btn" id="hud-daynight-btn" title="Toggle Day/Night">☀️ Day</button>
+          <button class="icon-btn" id="hud-quality-btn" title="Toggle Quality">✨ High</button>
           <button class="icon-btn" id="hud-fs-btn" title="Fullscreen">⛶</button>
         </div>
       </div>
 
       <!-- Right Action Controls Area -->
       <div class="hud-right-actions">
-        <!-- Helicopter Aerial Controls (shown only when inside helicopter) -->
+        <!-- Helicopter Aerial Controls -->
         <div class="hud-flight-row hidden" id="hud-flight-controls">
-          <button class="action-btn flight-btn" id="hud-ascend-btn">
-            <span class="btn-icon">⬆️</span>
-            <span class="btn-label">Ascend</span>
-          </button>
-          <button class="action-btn flight-btn" id="hud-descend-btn">
-            <span class="btn-icon">⬇️</span>
-            <span class="btn-label">Descend</span>
-          </button>
+          <button class="action-btn flight-btn" id="hud-ascend-btn">⬆️ Ascend</button>
+          <button class="action-btn flight-btn" id="hud-descend-btn">⬇️ Descend</button>
         </div>
 
-        <!-- Jump Action Button -->
-        <button class="action-btn jump-btn" id="hud-jump-btn" title="Jump (Space)">
-          <span class="btn-icon">🦘</span>
-          <span class="btn-label">Jump</span>
-        </button>
-
-        <!-- Romantic Warm Hug Button -->
-        <button class="action-btn hug-btn hidden" id="hud-hug-btn">
-          <span class="btn-icon">🫂</span>
-          <span class="btn-label">Hug ❤️</span>
-        </button>
-
-        <!-- Hold Hands Context Button -->
+        <button class="action-btn jump-btn" id="hud-jump-btn">🦘 Jump</button>
+        <button class="action-btn hug-btn hidden" id="hud-hug-btn">🫂 Hug ❤️</button>
         <button class="action-btn hold-hands-btn hidden" id="hud-hold-hands-btn">
           <span class="btn-icon">🤝</span>
           <span class="btn-label">Hold Hands</span>
         </button>
-
-        <!-- Dynamic Context Interact Button -->
+        
+        <!-- Dynamic Interact Button (for Pets, Trees, etc) -->
         <button class="action-btn interact-btn hidden" id="hud-interact-btn">
           <span class="btn-icon" id="hud-interact-icon">✨</span>
           <span class="btn-label" id="hud-interact-label">Interact</span>
         </button>
 
-        <!-- Secondary Utility Buttons Row -->
+        <!-- Secondary Interact Button (e.g. Untame Pet) -->
+        <button class="action-btn secondary-interact-btn hidden" id="hud-secondary-interact-btn">
+          <span class="btn-icon" id="hud-secondary-interact-icon">🔓</span>
+          <span class="btn-label" id="hud-secondary-interact-label">Untame</span>
+        </button>
+
         <div class="hud-util-row">
-          <button class="round-btn emoji-toggle-btn" id="hud-emoji-btn" title="Send Emoji">
-            😍
-          </button>
-          <button class="round-btn games-menu-btn" id="hud-games-btn" title="Mini-Games">
-            🎮
-          </button>
+          <button class="round-btn emoji-toggle-btn" id="hud-emoji-btn" title="Send Reaction">💬</button>
+          <button class="round-btn games-menu-btn" id="hud-games-btn" title="Mini-Games">🎮</button>
         </div>
       </div>
 
@@ -118,25 +175,28 @@ export class GameHUD {
         </div>
       </div>
 
-      <!-- Partner Offline Overlay Banner -->
       <div class="partner-offline-banner hidden" id="hud-offline-banner">
-        <span>💔 Your partner went offline. Waiting for them to return...</span>
+        <span>💔 Your partner went offline. Waiting...</span>
       </div>
     `;
 
     this.container.appendChild(this.hudEl);
 
-    // Elements
+    // Elements Map
     this.roomCodeEl = this.hudEl.querySelector('#hud-room-code');
     this.copyBtn = this.hudEl.querySelector('#hud-copy-btn');
     this.presenceBadge = this.hudEl.querySelector('#hud-presence-badge');
     this.presenceText = this.hudEl.querySelector('#hud-presence-text');
+    this.dayNightBtn = this.hudEl.querySelector('#hud-daynight-btn');
     this.qualityBtn = this.hudEl.querySelector('#hud-quality-btn');
     this.fullscreenBtn = this.hudEl.querySelector('#hud-fs-btn');
     this.holdHandsBtn = this.hudEl.querySelector('#hud-hold-hands-btn');
     this.interactBtn = this.hudEl.querySelector('#hud-interact-btn');
     this.interactIcon = this.hudEl.querySelector('#hud-interact-icon');
     this.interactLabel = this.hudEl.querySelector('#hud-interact-label');
+    this.secondaryInteractBtn = this.hudEl.querySelector('#hud-secondary-interact-btn');
+    this.secondaryInteractIcon = this.hudEl.querySelector('#hud-secondary-interact-icon');
+    this.secondaryInteractLabel = this.hudEl.querySelector('#hud-secondary-interact-label');
     this.jumpBtn = this.hudEl.querySelector('#hud-jump-btn');
     this.hugBtn = this.hudEl.querySelector('#hud-hug-btn');
     this.flightControls = this.hudEl.querySelector('#hud-flight-controls');
@@ -152,11 +212,9 @@ export class GameHUD {
   }
 
   initEvents() {
-    // Hold Hands Press-and-Hold & Tap-to-Toggle
     let holdStartTime = 0;
     const startHold = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       holdStartTime = Date.now();
       if (!this.isHoldingHands) {
         this.isHoldingHands = true;
@@ -164,12 +222,9 @@ export class GameHUD {
         if (this.callbacks.onHoldHandsStart) this.callbacks.onHoldHandsStart();
       }
     };
-
     const endHold = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const holdDuration = Date.now() - holdStartTime;
-      if (holdDuration > 400 && this.isHoldingHands) {
+      e.preventDefault(); e.stopPropagation();
+      if (Date.now() - holdStartTime > 400 && this.isHoldingHands) {
         this.isHoldingHands = false;
         this.holdHandsBtn.classList.remove('pressed');
         if (this.callbacks.onHoldHandsEnd) this.callbacks.onHoldHandsEnd();
@@ -177,35 +232,19 @@ export class GameHUD {
     };
 
     this.holdHandsBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const holdDuration = Date.now() - holdStartTime;
-      if (holdDuration <= 400 && this.isHoldingHands && this.holdHandsBtn.classList.contains('active-holding')) {
+      e.preventDefault(); e.stopPropagation();
+      if (Date.now() - holdStartTime <= 400 && this.isHoldingHands && this.holdHandsBtn.classList.contains('active-holding')) {
         this.isHoldingHands = false;
-        this.holdHandsBtn.classList.remove('pressed');
-        this.holdHandsBtn.classList.remove('active-holding');
+        this.holdHandsBtn.classList.remove('pressed', 'active-holding');
         if (this.callbacks.onHoldHandsEnd) this.callbacks.onHoldHandsEnd();
       }
     });
 
     this.holdHandsBtn.addEventListener('pointerdown', startHold);
     this.holdHandsBtn.addEventListener('pointerup', endHold);
+    this.jumpBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (this.callbacks.onJump) this.callbacks.onJump(); });
+    this.hugBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (this.callbacks.onHug) this.callbacks.onHug(); });
 
-    // Jump button
-    this.jumpBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (this.callbacks.onJump) this.callbacks.onJump();
-    });
-
-    // Hug button
-    this.hugBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (this.callbacks.onHug) this.callbacks.onHug();
-    });
-
-    // Helicopter flight controls
     const bindHoldButton = (btn, onStart, onEnd) => {
       btn.addEventListener('pointerdown', (e) => { e.preventDefault(); if (onStart) onStart(); });
       btn.addEventListener('pointerup', (e) => { e.preventDefault(); if (onEnd) onEnd(); });
@@ -215,7 +254,6 @@ export class GameHUD {
     bindHoldButton(this.ascendBtn, this.callbacks.onAscendStart, this.callbacks.onAscendEnd);
     bindHoldButton(this.descendBtn, this.callbacks.onDescendStart, this.callbacks.onDescendEnd);
 
-    // Interact button tap
     this.interactBtn.addEventListener('click', () => {
       soundEngine.playPop();
       if (this.callbacks.onInteract && this.interactAction) {
@@ -223,48 +261,37 @@ export class GameHUD {
       }
     });
 
-    // Emoji toggle
+    this.secondaryInteractBtn.addEventListener('click', () => {
+      soundEngine.playPop();
+      if (this.callbacks.onInteract && this.secondaryInteractAction) {
+        this.callbacks.onInteract(this.secondaryInteractAction);
+      }
+    });
+
     this.emojiBtn.addEventListener('click', () => {
       if (this.callbacks.onToggleEmoji) this.callbacks.onToggleEmoji();
     });
 
-    // Games menu
-    this.gamesBtn.addEventListener('click', () => {
+    this.gamesBtn.addEventListener('click', () => { soundEngine.playPop(); this.gamesMenu.classList.toggle('hidden'); });
+    this.gamesMenuClose.addEventListener('click', () => { this.gamesMenu.classList.add('hidden'); });
+    this.hudEl.querySelector('#choice-tictactoe').addEventListener('click', () => { this.gamesMenu.classList.add('hidden'); if (this.callbacks.onOpenGames) this.callbacks.onOpenGames('tictactoe'); });
+    this.hudEl.querySelector('#choice-outfit').addEventListener('click', () => { this.gamesMenu.classList.add('hidden'); if (this.callbacks.onOpenGames) this.callbacks.onOpenGames('outfit'); });
+
+    this.dayNightBtn.addEventListener('click', () => {
       soundEngine.playPop();
-      this.gamesMenu.classList.toggle('hidden');
+      if (this.callbacks.onToggleDayNight) this.callbacks.onToggleDayNight();
     });
 
-    this.gamesMenuClose.addEventListener('click', () => {
-      this.gamesMenu.classList.add('hidden');
-    });
-
-    this.hudEl.querySelector('#choice-tictactoe').addEventListener('click', () => {
-      this.gamesMenu.classList.add('hidden');
-      if (this.callbacks.onOpenGames) this.callbacks.onOpenGames('tictactoe');
-    });
-
-    this.hudEl.querySelector('#choice-outfit').addEventListener('click', () => {
-      this.gamesMenu.classList.add('hidden');
-      if (this.callbacks.onOpenGames) this.callbacks.onOpenGames('outfit');
-    });
-
-    // Quality Toggle
     this.qualityBtn.addEventListener('click', () => {
       if (this.callbacks.onToggleQuality) {
         const newQuality = this.callbacks.onToggleQuality();
         this.qualityBtn.textContent = newQuality === 'high' ? '✨ High' : '⚡ Low';
       }
     });
+    this.fullscreenBtn.addEventListener('click', () => { if (this.callbacks.onToggleFullscreen) this.callbacks.onToggleFullscreen(); });
 
-    // Fullscreen toggle
-    this.fullscreenBtn.addEventListener('click', () => {
-      if (this.callbacks.onToggleFullscreen) this.callbacks.onToggleFullscreen();
-    });
-
-    // Copy room link
     this.copyBtn.addEventListener('click', () => {
-      const code = this.roomCodeEl.textContent;
-      const url = `${window.location.origin}${window.location.pathname}?room=${code}`;
+      const url = `${window.location.origin}${window.location.pathname}?room=${this.roomCodeEl.textContent}`;
       navigator.clipboard?.writeText(url).then(() => {
         this.copyBtn.textContent = '✓';
         setTimeout(() => this.copyBtn.textContent = '📋', 1500);
@@ -273,51 +300,29 @@ export class GameHUD {
     });
   }
 
-  setRoomCode(code) {
-    this.roomCodeEl.textContent = code;
-  }
+  setRoomCode(code) { this.roomCodeEl.textContent = code; }
 
   setPresence(status) {
-    // status: 'waiting' | 'online' | 'offline'
     this.presenceBadge.className = `presence-badge ${status}`;
-    if (status === 'waiting') {
-      this.presenceText.textContent = 'Waiting for partner...';
-      this.offlineBanner.classList.add('hidden');
-    } else if (status === 'online') {
-      this.presenceText.textContent = 'Partner connected ❤️';
-      this.offlineBanner.classList.add('hidden');
-    } else if (status === 'offline') {
-      this.presenceText.textContent = 'Partner went offline 💔';
-      this.offlineBanner.classList.remove('hidden');
-    }
+    if (status === 'waiting') { this.presenceText.textContent = 'Waiting for partner...'; this.offlineBanner.classList.add('hidden'); }
+    else if (status === 'online') { this.presenceText.textContent = 'Partner connected ❤️'; this.offlineBanner.classList.add('hidden'); }
+    else if (status === 'offline') { this.presenceText.textContent = 'Partner went offline 💔'; this.offlineBanner.classList.remove('hidden'); }
   }
 
-  showHoldHandsButton(visible) {
-    this.holdHandsBtn.classList.toggle('hidden', !visible);
-  }
-
-  showHugButton(visible) {
-    this.hugBtn.classList.toggle('hidden', !visible);
-  }
-
-  showFlightControls(visible) {
-    this.flightControls.classList.toggle('hidden', !visible);
-  }
-
-  setWoodCount(count) {
-    if (this.woodVal) this.woodVal.textContent = count;
-  }
-
-  setCropCount(count) {
-    if (this.cropVal) this.cropVal.textContent = count;
-  }
+  showHoldHandsButton(visible) { this.holdHandsBtn.classList.toggle('hidden', !visible); }
+  showHugButton(visible) { this.hugBtn.classList.toggle('hidden', !visible); }
+  showFlightControls(visible) { this.flightControls.classList.toggle('hidden', !visible); }
+  setWoodCount(count) { if (this.woodVal) this.woodVal.textContent = count; }
+  setCropCount(count) { if (this.cropVal) this.cropVal.textContent = count; }
 
   setHandsConnected(isConnected) {
+    if (!this.holdHandsBtn) return;
     this.holdHandsBtn.classList.toggle('active-holding', isConnected);
-    if (isConnected) {
-      this.holdHandsBtn.querySelector('.btn-label').textContent = 'Holding Hands ❤️';
+    const labelEl = this.holdHandsBtn.querySelector('.btn-label');
+    if (labelEl) {
+      labelEl.textContent = isConnected ? 'Holding Hands ❤️' : 'Hold Hands';
     } else {
-      this.holdHandsBtn.querySelector('.btn-label').textContent = 'Hold Hands';
+      this.holdHandsBtn.textContent = isConnected ? '🤝 Holding Hands ❤️' : '🤝 Hold Hands';
     }
   }
 
@@ -332,48 +337,75 @@ export class GameHUD {
     }
   }
 
-  // Look Share Banner with Accept button
-  showLookInvite(partnerNick, outfit, onAccept, onView) {
-    if (this.lookInviteEl) {
-      this.lookInviteEl.remove();
+  setSecondaryInteractAction(action) {
+    this.secondaryInteractAction = action;
+    if (action) {
+      this.secondaryInteractBtn.classList.remove('hidden');
+      this.secondaryInteractIcon.textContent = action.icon || '🔓';
+      this.secondaryInteractLabel.textContent = action.label || 'Untame';
+    } else {
+      this.secondaryInteractBtn.classList.add('hidden');
     }
+  }
 
-    const name = partnerNick || 'Partner';
-    this.lookInviteEl = document.createElement('div');
-    this.lookInviteEl.className = 'partner-look-invite';
-    this.lookInviteEl.id = 'hud-look-invite';
-    this.lookInviteEl.innerHTML = `
+  setDayNightState(isNight) {
+    if (this.dayNightBtn) {
+      this.dayNightBtn.textContent = isNight ? '🌙 Night' : '☀️ Day';
+    }
+  }
+
+  showDayNightVotePrompt(targetIsNight, onApprove, onDecline) {
+    if (this.dayNightVoteEl) this.dayNightVoteEl.remove();
+    this.dayNightVoteEl = document.createElement('div');
+    this.dayNightVoteEl.className = 'partner-look-invite';
+    const label = targetIsNight ? 'switch to Night 🌙' : 'switch to Day ☀️';
+    this.dayNightVoteEl.innerHTML = `
       <div class="look-invite-content">
-        <span class="invite-icon">👗</span>
+        <span class="invite-icon">${targetIsNight ? '🌙' : '☀️'}</span>
         <div class="invite-text">
-          <strong>${name} styled a new look for you!</strong>
-          <small>Tap Accept to wear it now!</small>
+          <strong>Partner requested to ${label}!</strong>
+          <small>Do you approve?</small>
         </div>
       </div>
       <div class="look-invite-actions">
-        <button class="btn-accept-look" id="hud-btn-accept-look">Accept ✨</button>
-        <button class="btn-dismiss-look" id="hud-btn-view-look">View</button>
+        <button class="btn-accept-look" id="hud-vote-yes">Approve 👍</button>
+        <button class="btn-dismiss-look" id="hud-vote-no">Decline ✕</button>
       </div>
     `;
+    this.hudEl.appendChild(this.dayNightVoteEl);
 
-    this.hudEl.appendChild(this.lookInviteEl);
-
-    this.lookInviteEl.querySelector('#hud-btn-accept-look').addEventListener('click', () => {
+    this.dayNightVoteEl.querySelector('#hud-vote-yes').addEventListener('click', () => {
       soundEngine.playCheer();
-      if (onAccept) onAccept(outfit);
-      this.hideLookInvite();
+      if (onApprove) onApprove();
+      this.hideDayNightVotePrompt();
     });
 
-    this.lookInviteEl.querySelector('#hud-btn-view-look').addEventListener('click', () => {
-      if (onView) onView();
-      this.hideLookInvite();
+    this.dayNightVoteEl.querySelector('#hud-vote-no').addEventListener('click', () => {
+      soundEngine.playPop();
+      if (onDecline) onDecline();
+      this.hideDayNightVotePrompt();
     });
   }
 
-  hideLookInvite() {
-    if (this.lookInviteEl) {
-      this.lookInviteEl.remove();
-      this.lookInviteEl = null;
+  hideDayNightVotePrompt() {
+    if (this.dayNightVoteEl) {
+      this.dayNightVoteEl.remove();
+      this.dayNightVoteEl = null;
     }
   }
+
+  showLookInvite(partnerNick, outfit, onAccept, onView) {
+    if (this.lookInviteEl) this.lookInviteEl.remove();
+    this.lookInviteEl = document.createElement('div');
+    this.lookInviteEl.className = 'partner-look-invite';
+    this.lookInviteEl.innerHTML = `
+      <div class="look-invite-content"><span class="invite-icon">👗</span><div class="invite-text"><strong>${partnerNick || 'Partner'} styled a look!</strong><small>Tap Accept to wear it!</small></div></div>
+      <div class="look-invite-actions"><button class="btn-accept-look" id="hud-btn-accept-look">Accept ✨</button><button class="btn-dismiss-look" id="hud-btn-view-look">View</button></div>
+    `;
+    this.hudEl.appendChild(this.lookInviteEl);
+    this.lookInviteEl.querySelector('#hud-btn-accept-look').addEventListener('click', () => { soundEngine.playCheer(); if (onAccept) onAccept(outfit); this.hideLookInvite(); });
+    this.lookInviteEl.querySelector('#hud-btn-view-look').addEventListener('click', () => { if (onView) onView(); this.hideLookInvite(); });
+  }
+
+  hideLookInvite() { if (this.lookInviteEl) { this.lookInviteEl.remove(); this.lookInviteEl = null; } }
 }

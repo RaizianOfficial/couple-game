@@ -356,6 +356,33 @@ class SoundEngine {
       cOsc.stop(chimeT + 0.35);
     });
   }
+
+  // Play external or custom meme audio
+  playMemeAudio(memeKey) {
+    if (!this.enabled) return;
+    this.init();
+    const id = memeKey.toLowerCase().replace(/^meme_/, '').replace(/\s+/g, '');
+    const audio = new Audio(`./audio/memes/${id}.mp3`);
+    audio.play().catch(() => {
+      // Fallback cute synthesized chime if audio file is not found
+      if (this.ctx) {
+        const t = this.ctx.currentTime;
+        const freqs = [330, 440, 550, 660];
+        freqs.forEach((f, i) => {
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, t + i * 0.08);
+          g.gain.setValueAtTime(0.12, t + i * 0.08);
+          g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.15);
+          osc.connect(g);
+          g.connect(this.ctx.destination);
+          osc.start(t + i * 0.08);
+          osc.stop(t + i * 0.08 + 0.15);
+        });
+      }
+    });
+  }
 }
 
 export const soundEngine = new SoundEngine();

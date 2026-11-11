@@ -133,6 +133,39 @@ export class SyncService {
       if (this.onOutfitUpdated) this.onOutfitUpdated(this.outfitState);
     });
     this.unsubscribers.push(unsubOutfit);
+
+    // 6. Listen to Farming Sync
+    const farmRef = dbRef(`rooms/${roomId}/farming`);
+    const unsubFarm = dbOnValue(farmRef, (snap) => {
+      this.farmingData = snap.exists() ? snap.val() : null;
+      if (this.onFarmingUpdated) this.onFarmingUpdated(this.farmingData);
+    });
+    this.unsubscribers.push(unsubFarm);
+
+    // 7. Listen to Pets Sync
+    const petsRef = dbRef(`rooms/${roomId}/pets`);
+    const unsubPets = dbOnValue(petsRef, (snap) => {
+      this.petsData = snap.exists() ? snap.val() : null;
+      if (this.onPetsUpdated) this.onPetsUpdated(this.petsData);
+    });
+    this.unsubscribers.push(unsubPets);
+
+    // 8. Listen to Day / Night Environment and Mutual Approval
+    const envRef = dbRef(`rooms/${roomId}/environment`);
+    const unsubEnv = dbOnValue(envRef, (snap) => {
+      if (snap.exists() && this.onEnvironmentUpdated) {
+        this.onEnvironmentUpdated(snap.val());
+      }
+    });
+    this.unsubscribers.push(unsubEnv);
+
+    const voteRef = dbRef(`rooms/${roomId}/dayNightVote`);
+    const unsubVote = dbOnValue(voteRef, (snap) => {
+      if (this.onDayNightVote) {
+        this.onDayNightVote(snap.exists() ? snap.val() : null);
+      }
+    });
+    this.unsubscribers.push(unsubVote);
   }
 
   // Update own position to Firebase (throttled to 10-15 Hz, only if changed)
@@ -200,22 +233,93 @@ export class SyncService {
     return Boolean(this.handsData?.p1Holding && this.handsData?.p2Holding);
   }
 
-  // Emoji Reactions (Rate limit: 1 per 600ms)
-  async sendReaction(emoji) {
+  // Emoji Reactions, Custom Messages & Memes
+  async sendReaction(reactionData) {
     const now = Date.now();
-    if (now - this.lastReactionTime < 600) {
+    if (now - this.lastReactionTime < 400) {
       return false; // Throttled
     }
     this.lastReactionTime = now;
 
     if (!this.roomId || !this.uid) return false;
     const reactionsRef = dbRef(`rooms/${this.roomId}/reactions`);
+    
+    // Support both string shorthand and object { content, type }
+    const content = typeof reactionData === 'object' ? reactionData.content : reactionData;
+    const type = typeof reactionData === 'object' ? (reactionData.type || 'emoji') : 'emoji';
+
     dbPush(reactionsRef, {
       uid: this.uid,
-      emoji,
+      emoji: content,
+      type,
       ts: getServerTimestamp()
     });
     return true;
+  }
+
+  // Farming state sync
+  async updatePlotState(plotId, plotState, cropType, growTimer = 0) {
+    if (!this.roomId) return;
+    const plotRef = dbRef(`rooms/${this.roomId}/farming/${plotId}`);
+    await dbUpdate(plotRef, {
+      state: plotState,
+      cropType,
+      growTimer,
+      updatedBy: this.uid,
+      ts: getServerTimestamp()
+    }).catch(() => {});
+  }
+
+  // Pet taming sync
+  async tamePetSync(petId, nick) {
+    if (!this.roomId) return;
+    const petRef = dbRef(`rooms/${this.roomId}/pets/${petId}`);
+    await dbSet(petRef, {
+      tamedBy: this.uid,
+      ownerNick: nick || 'Partner',
+      ts: getServerTimestamp()
+    }).catch(() => {});
+  }
+
+  // Pet untaming sync
+  async untamePetSync(petId) {
+    if (!this.roomId) return;
+    const petRef = dbRef(`rooms/${this.roomId}/pets/${petId}`);
+    await dbSet(petRef, {
+      tamedBy: null,
+      ownerNick: '',
+      ts: getServerTimestamp()
+    }).catch(() => {});
+  }
+
+  // Day/Night switch proposal with mutual approval
+  async proposeDayNight(targetIsNight) {
+    if (!this.roomId || !this.uid) return;
+    const dayNightRef = dbRef(`rooms/${this.roomId}/dayNightVote`);
+    await dbSet(dayNightRef, {
+      proposedBy: this.uid,
+      targetIsNight,
+      status: 'pending', // 'pending' | 'approved'
+      ts: getServerTimestamp()
+    }).catch(() => {});
+  }
+
+  async respondDayNight(approved, targetIsNight) {
+    if (!this.roomId) return;
+    const dayNightRef = dbRef(`rooms/${this.roomId}/dayNightVote`);
+    if (approved) {
+      await dbUpdate(dayNightRef, {
+        status: 'approved',
+        isNight: targetIsNight,
+        ts: getServerTimestamp()
+      }).catch(() => {});
+      // Also update current active environment state in room
+      await dbUpdate(dbRef(`rooms/${this.roomId}/environment`), {
+        isNight: targetIsNight
+      }).catch(() => {});
+    } else {
+      await dbSet(dayNightRef, null).catch(() => {});
+    }
   }
 
   onReaction(callback) {

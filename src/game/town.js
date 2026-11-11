@@ -342,7 +342,72 @@ export class Town {
     this.colliders.push({ type: 'circle', x, z, r: 0.5 * scale });
   }
 
-  buildStreetlamps() { }
+  buildStreetlamps() {
+    this.streetLamps = [];
+    // Placement along major plaza perimeter, riverfront & park paths
+    const lampCoords = [
+      { x: -10, z: -10 }, { x: 10, z: -10 },
+      { x: -10, z: 10 }, { x: 10, z: 10 },
+      { x: -24, z: 0 }, { x: 24, z: 0 },
+      { x: 0, z: 22 }, { x: 0, z: -22 },
+      { x: -35, z: 18 }, { x: -35, z: -18 },
+      { x: 35, z: 18 }, { x: 35, z: -18 }
+    ];
+
+    const poleMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+    const glassMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // Warm golden glow
+
+    lampCoords.forEach((lc, idx) => {
+      const lampGrp = new THREE.Group();
+      lampGrp.position.set(lc.x, 0, lc.z);
+
+      // Base
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.35, 8), poleMat);
+      base.position.y = 0.175;
+      lampGrp.add(base);
+
+      // Pole (height 3.2m)
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 3.0, 8), poleMat);
+      pole.position.y = 1.65;
+      pole.castShadow = true;
+      lampGrp.add(pole);
+
+      // Curved lantern arm
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.06), poleMat);
+      arm.position.set(0.18, 3.15, 0);
+      lampGrp.add(arm);
+
+      // Glowing Lantern head
+      const lantern = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24, 0), glassMat);
+      lantern.position.set(0.38, 3.05, 0);
+      lampGrp.add(lantern);
+
+      // Optional PointLight for night ambiance on alternating lamps to maintain 60 FPS
+      let light = null;
+      if (idx % 2 === 0) {
+        light = new THREE.PointLight(0xfef08a, 0, 14, 1.8);
+        light.position.set(0.38, 3.0, 0);
+        lampGrp.add(light);
+      }
+
+      this.scene.add(lampGrp);
+      this.colliders.push({ type: 'circle', x: lc.x, z: lc.z, r: 0.35 });
+
+      this.streetLamps.push({ group: lampGrp, lantern, light });
+    });
+  }
+
+  setStreetLampsNight(isNight) {
+    if (!this.streetLamps) return;
+    this.streetLamps.forEach(lamp => {
+      if (lamp.lantern) {
+        lamp.lantern.material.color.setHex(isNight ? 0xfff08a : 0xe2e8f0);
+      }
+      if (lamp.light) {
+        lamp.light.intensity = isNight ? 1.6 : 0;
+      }
+    });
+  }
 
   checkCollision(x, z, radius = 0.35) {
     if (x < -74 || x > 74 || z < -74 || z > 74) return true;

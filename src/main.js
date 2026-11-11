@@ -4,7 +4,9 @@ import { GameEngine } from './game/engine.js';
 import { Town } from './game/town.js';
 import { Character } from './game/character.js';
 import { BikeSpot } from './game/spots/bike.js';
+import { BuggySpot } from './game/spots/buggy.js';
 import { SwingSpot } from './game/spots/swing.js';
+import { ParkCanopySwingSpot } from './game/spots/canopySwing.js';
 import { TeaStallSpot } from './game/spots/teaStall.js';
 import { HelicopterSpot } from './game/spots/helicopter.js';
 import { CoupleHouseSpot } from './game/spots/house.js';
@@ -12,6 +14,7 @@ import { PlaygroundSpot } from './game/spots/playground.js';
 import { TreeChoppingSystem } from './game/spots/treeChopping.js';
 import { FarmingSpot } from './game/spots/farming.js';
 import { ChairSpotSystem } from './game/spots/chair.js';
+import { PetSystem } from './game/pets.js';
 import { HandHoldingSystem } from './game/hands.js';
 import { VirtualJoystick } from './ui/joystick.js';
 import { TouchLookController } from './ui/touchLook.js';
@@ -75,7 +78,9 @@ class App {
     const roomParam = new URLSearchParams(window.location.search).get('room');
     if (roomParam) {
       const roomInput = document.getElementById('landing-room-code');
-      if (roomInput) roomInput.value = roomParam.toUpperCase().slice(0, 5);
+      // FORCE 4-Digit Cleanup from Old URLs
+      const cleanedNum = roomParam.replace(/[^0-9]/g, '').slice(0, 4);
+      if (roomInput && cleanedNum.length > 0) roomInput.value = cleanedNum;
     }
   }
 
@@ -83,7 +88,9 @@ class App {
     this.engine = new GameEngine(document.getElementById('canvas-container'));
     this.town = new Town(this.engine.scene);
     this.bike = new BikeSpot(this.engine.scene, this.town);
+    this.buggy = new BuggySpot(this.engine.scene, this.town);
     this.swing = new SwingSpot(this.engine.scene, this.town);
+    this.canopySwing = new ParkCanopySwingSpot(this.engine.scene, this.town);
     this.teaStall = new TeaStallSpot(this.engine.scene, this.town);
     this.helicopter = new HelicopterSpot(this.engine.scene, this.town);
     this.coupleHouse = new CoupleHouseSpot(this.engine.scene, this.town);
@@ -91,6 +98,12 @@ class App {
     this.treeChopping = new TreeChoppingSystem(this.engine.scene, this.town);
     this.farming = new FarmingSpot(this.engine.scene, this.town);
     this.chairSystem = new ChairSpotSystem(this.engine.scene, this.town);
+    this.petSystem = new PetSystem(this.engine.scene, this.town);
+
+    // Sync farming changes to network
+    this.farming.onPlotChanged = (plotId, state, cropType, growTimer) => {
+      syncService.updatePlotState(plotId, state, cropType, growTimer);
+    };
 
     this.isJumping = false;
     this.jumpVelY = 0;
@@ -126,6 +139,18 @@ class App {
         if (gameType === 'tictactoe') this.tictactoeGame.open();
         if (gameType === 'outfit') this.outfitGame.open();
       },
+      onToggleDayNight: () => {
+        // Propose to switch Day/Night to partner
+        const targetIsNight = !this.engine.isNight;
+        if (!roomService.partnerUid) {
+          // Solo mode: Switch immediately
+          this.applyDayNightState(targetIsNight);
+        } else {
+          syncService.proposeDayNight(targetIsNight);
+          const label = targetIsNight ? 'Night' : 'Day';
+          this.emojiSystem.spawnFloatingReaction(`☀️ Request sent to partner for ${label}!`, window.innerWidth / 2, 100);
+        }
+      },
       onToggleQuality: () => {
         const next = this.engine.quality === 'high' ? 'low' : 'high';
         this.engine.setQuality(next);
@@ -152,21 +177,64 @@ class App {
       else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') this.heliDescending = false;
     });
 
-    this.emojiSystem = new EmojiSystem(uiLayer, (emoji) => syncService.sendReaction(emoji));
+    this.emojiSystem = new EmojiSystem(uiLayer, (payload) => syncService.sendReaction(payload));
     syncService.onReaction((r) => {
-      const targetChar = (r.uid !== roomService.user?.uid) ? this.partnerChar : this.myChar;
+      const isMine = (r.uid === roomService.user?.uid);
+      const targetChar = !isMine ? this.partnerChar : this.myChar;
+
       if (targetChar) {
         const screenPos = this.toScreenPosition(targetChar.group.position);
-        this.emojiSystem.spawnFloatingEmoji(r.emoji, screenPos.x, screenPos.y - 60);
-        if (r.emoji === '😡' || r.emoji === '😤') {
+        this.emojiSystem.spawnFloatingReaction(r.emoji, screenPos.x, screenPos.y - 60, r.type);
+
+        if (r.type === 'meme' || r.emoji.startsWith('meme')) {
+          soundEngine.playMemeAudio(r.emoji);
+        }
+
+        if (r.emoji === '😡' || r.emoji === '😤' || r.emoji === 'I HATE YOU') {
           soundEngine.playAngry();
           targetChar.anim = 'angry';
           setTimeout(() => { if (targetChar && targetChar.anim === 'angry') targetChar.anim = 'idle'; }, 1800);
-        } else if (r.emoji === '🫂') {
+        } else if (r.emoji === '🫂' || r.emoji === 'COME HERE') {
           this.triggerHugAnimation();
         }
       }
     });
+
+    // Real-Time Listeners for Farming & Pets sync
+    syncService.onFarmingUpdated = (farmData) => {
+      if (this.farming) this.farming.applySyncState(farmData);
+    };
+
+    syncService.onPetsUpdated = (petsData) => {
+      if (this.petSystem) this.petSystem.applySyncState(petsData);
+    };
+
+    // Environment Day/Night Live Sync & Vote Response Listener
+    syncService.onEnvironmentUpdated = (env) => {
+      if (env && env.isNight !== undefined) {
+        this.applyDayNightState(env.isNight);
+      }
+    };
+
+    syncService.onDayNightVote = (vote) => {
+      if (!vote) {
+        if (this.hud) this.hud.hideDayNightVotePrompt();
+        return;
+      }
+      if (vote.status === 'approved') {
+        this.applyDayNightState(vote.isNight);
+        if (this.hud) this.hud.hideDayNightVotePrompt();
+      } else if (vote.status === 'pending' && vote.proposedBy !== roomService.user?.uid) {
+        // Prompt this player for approval!
+        if (this.hud) {
+          this.hud.showDayNightVotePrompt(vote.targetIsNight, () => {
+            syncService.respondDayNight(true, vote.targetIsNight);
+          }, () => {
+            syncService.respondDayNight(false, vote.targetIsNight);
+          });
+        }
+      }
+    };
 
     this.tictactoeGame = new TicTacToeGame(uiLayer, syncService, roomService);
     this.outfitGame = new OutfitGame(uiLayer, syncService, roomService, (uid, outfit) => {
@@ -197,11 +265,19 @@ class App {
             }
             if (roomService.roomId && roomService.user?.uid) syncService.setPartnerOutfit(roomService.user.uid, acceptedLook);
             const pos = this.toScreenPosition(this.myChar.group.position);
-            this.emojiSystem.spawnFloatingEmoji('✨', pos.x, pos.y - 60);
+            this.emojiSystem.spawnFloatingReaction('✨', pos.x, pos.y - 60);
           }, () => this.outfitGame.open());
         }
       }
     };
+  }
+
+  applyDayNightState(isNight) {
+    if (this.engine) this.engine.setDayNight(isNight);
+    if (this.town) this.town.setStreetLampsNight(isNight);
+    if (this.hud) this.hud.setDayNightState(isNight);
+    if (this.myChar) this.myChar.setNightTorch(isNight);
+    if (this.partnerChar) this.partnerChar.setNightTorch(isNight);
   }
 
   toScreenPosition(worldPos) {
@@ -220,19 +296,30 @@ class App {
         btn.disabled = true;
         this.landingError.textContent = 'Creating room...';
         soundEngine.playPop();
-        const res = await roomService.createRoom(document.getElementById('landing-nickname')?.value?.trim() || '');
+
+        // Pass the chosen gender from UI to character
+        const genderInput = document.getElementById('landing-gender');
+        const selectedGender = genderInput ? genderInput.value : 'boy';
+
+        const res = await roomService.createRoom(document.getElementById('landing-nickname')?.value?.trim() || '', selectedGender);
         this.onRoomReady(res.roomId, 1);
       } catch (err) { this.landingError.textContent = err.message; document.getElementById('btn-create-room').disabled = false; }
     });
+
     document.getElementById('btn-join-room')?.addEventListener('click', async () => {
       try {
-        const code = document.getElementById('landing-room-code')?.value?.trim().toUpperCase();
-        if (!code || code.length !== 5) return this.landingError.textContent = 'Enter a 5-letter code.';
+        const code = document.getElementById('landing-room-code')?.value?.trim();
+        if (!code || code.length !== 4 || !/^\d{4}$/.test(code)) return this.landingError.textContent = 'Enter a strict 4-digit code.';
+
         const btn = document.getElementById('btn-join-room');
         btn.disabled = true;
         this.landingError.textContent = 'Joining...';
         soundEngine.playPop();
-        const res = await roomService.joinRoom(code, document.getElementById('landing-nickname')?.value?.trim() || '');
+
+        const genderInput = document.getElementById('landing-gender');
+        const selectedGender = genderInput ? genderInput.value : 'boy';
+
+        const res = await roomService.joinRoom(code, document.getElementById('landing-nickname')?.value?.trim() || '', selectedGender);
         this.onRoomReady(res.roomId, res.slot);
       } catch (err) { this.landingError.textContent = err.message; document.getElementById('btn-join-room').disabled = false; }
     });
@@ -241,8 +328,11 @@ class App {
   onRoomReady(roomId, slot) {
     this.screenLanding.classList.add('hidden');
     this.hud.setRoomCode(roomId);
-    this.myChar = new Character(slot, roomService.nickname, this.engine.scene);
+
+    // Inject Gender on Spawn
+    this.myChar = new Character(slot, roomService.nickname, this.engine.scene, roomService.gender);
     this.myChar.isLocal = true;
+
     if (slot === 1) {
       this.myChar.setPosition(-0.8, 4.5, Math.PI / 2);
       this.waitingRoomCode.textContent = roomId;
@@ -271,8 +361,10 @@ class App {
       soundEngine.playCheer();
     }
     if (!this.partnerChar) {
-      this.partnerChar = new Character(partnerData.slot, partnerData.nick, this.engine.scene);
+      // Inject Partner Gender on Spawn
+      this.partnerChar = new Character(partnerData.slot, partnerData.nick, this.engine.scene, partnerData.gender || 'boy');
       this.partnerChar.setPosition(partnerData.slot === 1 ? -0.8 : 0.8, 4.5, partnerData.slot === 1 ? Math.PI / 2 : -Math.PI / 2, 0);
+      if (this.engine.isNight) this.partnerChar.setNightTorch(true);
       syncService.init(roomService.roomId, roomService.user.uid, roomService.partnerUid);
     }
     if (partnerData.outfit) this.partnerChar.applyOutfit(partnerData.outfit);
@@ -302,7 +394,6 @@ class App {
 
       const houseX = this.coupleHouse.position.x;
       const houseZ = this.coupleHouse.position.z;
-      // Floor height constraint based on where they jumped from (House 2nd floor area)
       const isOverHouse = (myPos && myPos.x > houseX - 5 && myPos.x < houseX + 5 && myPos.z > houseZ - 5 && myPos.z < houseZ + 5);
       const floorLevel = (isOverHouse && this.playerY >= 2.8) ? 2.8 : 0;
 
@@ -329,11 +420,7 @@ class App {
       this.myChar.anim = 'idle';
       this.myChar.update(delta);
       syncService.sendState(this.elevatorRide.x, this.elevatorRide.z, this.myChar.group.rotation.y, 'idle', false, this.playerY);
-      syncService.updateSpotExtra('coupleHouse', {
-        isLightOn: this.coupleHouse.isLightOn,
-        elevatorY: this.playerY + 0.25,
-        elevatorMoving: t < 1
-      });
+      syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: this.playerY + 0.25, elevatorMoving: t < 1 });
 
       if (t >= 1) {
         this.playerY = this.elevatorRide.targetY;
@@ -375,12 +462,16 @@ class App {
     }
 
     this.swing.update(delta);
+    this.canopySwing.update(delta, Boolean(syncService.spotsData?.canopySwing?.occupants?.seat1 || syncService.spotsData?.canopySwing?.occupants?.seat2));
     this.teaStall.update(delta);
     this.helicopter.update(delta, this.currentSpot === 'heli_pilot');
     this.coupleHouse.update(delta, this.currentSpot === 'bed_left' || this.currentSpot === 'bed_right');
     this.playground.update(delta);
     this.treeChopping.update(delta);
     this.farming.update(delta);
+    if (this.petSystem) {
+      this.petSystem.update(delta, this.myChar, this.partnerChar, roomService.user?.uid, roomService.partnerUid);
+    }
     this.hud.setWoodCount(this.treeChopping.woodInventory);
     this.hud.setCropCount(this.farming.cropInventory);
 
@@ -425,6 +516,26 @@ class App {
       this.myChar.anim = 'passenger';
       this.myChar.update(delta);
       syncService.sendState(seat.x, seat.z, this.bike.group.rotation.y, 'passenger', false, seat.y - 0.28);
+    } else if (this.currentSpot === 'buggy_driver') {
+      this.buggy.updateMovement(move.x, move.z, delta);
+      const seat = this.buggy.getDriverSeatWorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.buggy.group.rotation.y, seat.y - 0.24);
+      this.myChar.anim = 'ride';
+      this.myChar.update(delta);
+      syncService.updateSpotExtra('buggy', { x: this.buggy.group.position.x, z: this.buggy.group.position.z, rotY: this.buggy.group.rotation.y });
+      syncService.sendState(seat.x, seat.z, this.buggy.group.rotation.y, 'ride', false, seat.y - 0.24);
+    } else if (this.currentSpot === 'buggy_passenger') {
+      const seat = this.buggy.getPassengerSeatWorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.buggy.group.rotation.y, seat.y - 0.24);
+      this.myChar.anim = 'passenger';
+      this.myChar.update(delta);
+      syncService.sendState(seat.x, seat.z, this.buggy.group.rotation.y, 'passenger', false, seat.y - 0.24);
+    } else if (this.currentSpot === 'canopy_seat1' || this.currentSpot === 'canopy_seat2') {
+      const seat = this.currentSpot === 'canopy_seat1' ? this.canopySwing.getSeat1WorldPos() : this.canopySwing.getSeat2WorldPos();
+      this.myChar.setPosition(seat.x, seat.z, this.canopySwing.rotationY, seat.y - 0.05);
+      this.myChar.anim = 'swing';
+      this.myChar.update(delta);
+      syncService.sendState(seat.x, seat.z, this.canopySwing.rotationY, 'swing', false, seat.y - 0.05);
     } else if (this.currentSpot === 'swing_1' || this.currentSpot === 'swing_2') {
       const seat = this.currentSpot === 'swing_1' ? this.swing.getSeat1WorldPos() : this.swing.getSeat2WorldPos();
       this.myChar.setPosition(seat.x, seat.z, this.swing.rotationY, seat.y + 0.08);
@@ -474,6 +585,11 @@ class App {
       if (bx.x !== undefined && bx.z !== undefined) this.bike.setTransform(bx.x, bx.z, bx.rotY || 0);
     }
 
+    if (this.currentSpot !== 'buggy_driver' && syncService.spotsData?.buggy?.extra) {
+      const bg = syncService.spotsData.buggy.extra;
+      if (bg.x !== undefined && bg.z !== undefined) this.buggy.setTransform(bg.x, bg.z, bg.rotY || 0);
+    }
+
     if (syncService.spotsData?.coupleHouse?.extra) {
       const houseExtra = syncService.spotsData.coupleHouse.extra;
       if (houseExtra.isLightOn !== undefined && houseExtra.isLightOn !== this.coupleHouse.isLightOn) {
@@ -512,7 +628,7 @@ class App {
     soundEngine.playHugChime();
     if (this.myChar) {
       const pos = this.toScreenPosition(this.myChar.group.position);
-      for (let i = 0; i < 3; i++) setTimeout(() => this.emojiSystem.spawnFloatingEmoji('💖', pos.x + (Math.random() - 0.5) * 50, pos.y - 60 - i * 18), i * 200);
+      for (let i = 0; i < 3; i++) setTimeout(() => this.emojiSystem.spawnFloatingReaction('💖', pos.x + (Math.random() - 0.5) * 50, pos.y - 60 - i * 18), i * 200);
     }
   }
 
@@ -526,71 +642,125 @@ class App {
       let icon = '🚪', label = 'Leave Spot';
       if (this.currentSpot === 'heli_pilot' || this.currentSpot === 'heli_passenger') { icon = '🚁'; label = 'Exit Helicopter'; }
       else if (this.currentSpot === 'bike_driver' || this.currentSpot === 'bike_passenger') { icon = '🛵'; label = 'Dismount Scooter'; }
+      else if (this.currentSpot === 'buggy_driver' || this.currentSpot === 'buggy_passenger') { icon = '🚙'; label = 'Exit Buggy'; }
+      else if (this.currentSpot.startsWith('canopy_')) { icon = '🌸'; label = 'Leave Canopy Swing'; }
       else if (this.currentSpot.startsWith('swing')) { icon = '🎠'; label = 'Get Off Swing'; }
       else if (this.currentSpot.startsWith('bench')) { icon = '🧍'; label = 'Stand Up'; }
       else if (this.currentSpot.startsWith('bed_')) { icon = '☀️'; label = 'Wake Up'; }
       this.hud.setInteractAction({ type: 'exit_spot', icon, label });
+      this.hud.setSecondaryInteractAction(null);
       return;
     }
 
     if (this.elevatorRide) {
       this.hud.setInteractAction({ type: 'riding_elevator', icon: '🛗', label: 'Elevator Moving...' });
+      this.hud.setSecondaryInteractAction(null);
       return;
     }
 
-    // 1. HOUSE INTERACTIONS (Light Switch, Elevator & Bed)
     const switchPos = this.coupleHouse.getLightSwitchWorldPos();
     if (Math.hypot(myPos.x - switchPos.x, myPos.z - switchPos.z) < 2.2) {
-      this.hud.setInteractAction({ type: 'toggle_light', icon: '💡', label: 'Toggle Lights' }); return;
+      this.hud.setInteractAction({ type: 'toggle_light', icon: '💡', label: 'Toggle Lights' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
     }
     const elevatorBotPos = this.coupleHouse.getElevatorBottomWorldPos();
     if (Math.hypot(myPos.x - elevatorBotPos.x, myPos.z - elevatorBotPos.z) < 2.0 && this.playerY < 1) {
-      this.hud.setInteractAction({ type: 'elevator_up', icon: '🛗', label: 'Take Elevator Up' }); return;
+      this.hud.setInteractAction({ type: 'elevator_up', icon: '🛗', label: 'Take Elevator Up' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
     }
     const elevatorTopPos = this.coupleHouse.getElevatorTopWorldPos();
     if (Math.hypot(myPos.x - elevatorTopPos.x, myPos.z - elevatorTopPos.z) < 2.0 && this.playerY > 2) {
-      this.hud.setInteractAction({ type: 'elevator_down', icon: '🛗', label: 'Take Elevator Down' }); return;
+      this.hud.setInteractAction({ type: 'elevator_down', icon: '🛗', label: 'Take Elevator Down' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
     }
 
     const bedLPos = this.coupleHouse.getBedWorldPosition('left');
     const bedRPos = this.coupleHouse.getBedWorldPosition('right');
-    if (Math.hypot(myPos.x - bedLPos.x, myPos.z - bedLPos.z) < 2.0) { this.hud.setInteractAction({ type: 'sleep_bed_left', icon: '💤', label: 'Sleep in Bed' }); return; }
-    else if (Math.hypot(myPos.x - bedRPos.x, myPos.z - bedRPos.z) < 2.0) { this.hud.setInteractAction({ type: 'sleep_bed_right', icon: '💤', label: 'Sleep in Bed' }); return; }
+    if (Math.hypot(myPos.x - bedLPos.x, myPos.z - bedLPos.z) < 2.0) {
+      this.hud.setInteractAction({ type: 'sleep_bed_left', icon: '💤', label: 'Sleep in Bed' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    } else if (Math.hypot(myPos.x - bedRPos.x, myPos.z - bedRPos.z) < 2.0) {
+      this.hud.setInteractAction({ type: 'sleep_bed_right', icon: '💤', label: 'Sleep in Bed' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
 
-    // 2. HELICOPTER (Dual seats: Pilot & Passenger)
     const heliDist = Math.hypot(myPos.x - this.helicopter.group.position.x, myPos.z - this.helicopter.group.position.z);
     if (heliDist < 3.8) {
       const occ = syncService.spotsData?.helicopter?.occupants || {};
       if (!occ.driver) {
-        this.hud.setInteractAction({ type: 'heli_pilot', icon: '🚁', label: 'Fly Helicopter' }); return;
+        this.hud.setInteractAction({ type: 'heli_pilot', icon: '🚁', label: 'Fly Helicopter' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
       } else if (!occ.passenger) {
-        this.hud.setInteractAction({ type: 'heli_passenger', icon: '🚁', label: 'Ride as Passenger' }); return;
+        this.hud.setInteractAction({ type: 'heli_passenger', icon: '🚁', label: 'Ride as Passenger' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
       }
     }
 
-    // 3. RETRO MOTORBIKE / SCOOTER
     const bikeDist = Math.hypot(myPos.x - this.bike.group.position.x, myPos.z - this.bike.group.position.z);
     if (bikeDist < 3.2) {
       const occ = syncService.spotsData?.bike?.occupants || {};
       if (!occ.driver) {
-        this.hud.setInteractAction({ type: 'bike_drive', icon: '🛵', label: 'Drive Scooter' }); return;
+        this.hud.setInteractAction({ type: 'bike_drive', icon: '🛵', label: 'Drive Scooter' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
       } else if (!occ.passenger) {
-        this.hud.setInteractAction({ type: 'bike_passenger', icon: '🛵', label: 'Ride Behind Partner' }); return;
+        this.hud.setInteractAction({ type: 'bike_passenger', icon: '🛵', label: 'Ride Behind Partner' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
       }
     }
 
-    // 4. ROMANTIC SWINGS
+    // Buggy Vehicle Spot (2 Seats)
+    const buggyDist = Math.hypot(myPos.x - this.buggy.group.position.x, myPos.z - this.buggy.group.position.z);
+    if (buggyDist < 3.2) {
+      const occ = syncService.spotsData?.buggy?.occupants || {};
+      if (!occ.driver) {
+        this.hud.setInteractAction({ type: 'buggy_drive', icon: '🚙', label: 'Drive Buggy' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      } else if (!occ.passenger) {
+        this.hud.setInteractAction({ type: 'buggy_passenger', icon: '🚙', label: 'Ride with Partner 💕' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      }
+    }
+
+    // Canopy Romantic Swing Spot (2 Seats)
+    const canopyDist = Math.hypot(myPos.x - this.canopySwing.position.x, myPos.z - this.canopySwing.position.z);
+    if (canopyDist < 3.0) {
+      const occ = syncService.spotsData?.canopySwing?.occupants || {};
+      if (!occ.seat1) {
+        this.hud.setInteractAction({ type: 'canopy_1', icon: '🌸', label: 'Sit on Canopy Swing' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      } else if (!occ.seat2) {
+        this.hud.setInteractAction({ type: 'canopy_2', icon: '🌸', label: 'Sit with Partner 💕' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      }
+    }
+
     const swingDist = Math.hypot(myPos.x - this.swing.position.x, myPos.z - this.swing.position.z);
     if (swingDist < 2.8) {
       const occ = syncService.spotsData?.swing?.occupants || {};
       if (!occ.seat1) {
-        this.hud.setInteractAction({ type: 'swing_1', icon: '🎠', label: 'Ride Swing' }); return;
+        this.hud.setInteractAction({ type: 'swing_1', icon: '🎠', label: 'Ride Swing' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
       } else if (!occ.seat2) {
-        this.hud.setInteractAction({ type: 'swing_2', icon: '🎠', label: 'Ride Swing' }); return;
+        this.hud.setInteractAction({ type: 'swing_2', icon: '🎠', label: 'Ride Swing' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
       }
     }
 
-    // 5. PARK BENCHES / CHAIRS (Sit side-by-side as a couple!)
     const nearBench = this.chairSystem.getNearestBench(myPos, 2.4);
     if (nearBench) {
       const occ = syncService.spotsData?.[nearBench.id]?.occupants || {};
@@ -600,21 +770,26 @@ class App {
       if (!leftOccupied && !rightOccupied) {
         const myPreferredSide = (roomService.slot === 2) ? 'right' : 'left';
         this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, side: myPreferredSide, icon: '🪑', label: 'Sit on Bench' });
+        this.hud.setSecondaryInteractAction(null);
         return;
       } else if (leftOccupied && !rightOccupied) {
         this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, side: 'right', icon: '🪑', label: 'Sit Beside Partner 💕' });
+        this.hud.setSecondaryInteractAction(null);
         return;
       } else if (!leftOccupied && rightOccupied) {
         this.hud.setInteractAction({ type: 'sit_bench', bench: nearBench, side: 'left', icon: '🪑', label: 'Sit Beside Partner 💕' });
+        this.hud.setSecondaryInteractAction(null);
         return;
       }
     }
 
-    // 6. PLAYGROUND SLIDE
     const slideDist = Math.hypot(myPos.x - (this.playground.position.x - 4.0), myPos.z - this.playground.position.z);
-    if (slideDist < 3.2) { this.hud.setInteractAction({ type: 'playground_slide', icon: '🛝', label: 'Slide Down!' }); return; }
+    if (slideDist < 3.2) {
+      this.hud.setInteractAction({ type: 'playground_slide', icon: '🛝', label: 'Slide Down!' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
 
-    // 7. FARM PLOTS (Till, Plant, Water, Harvest)
     const farmPlot = this.farming.getNearestPlot(myPos, 2.5);
     if (farmPlot) {
       let icon = '🌱', label = 'Till Soil';
@@ -622,20 +797,45 @@ class App {
       else if (farmPlot.state === 'seeded') { icon = '💧'; label = 'Water Crop'; }
       else if (farmPlot.state === 'ready') { icon = '✨'; label = 'Harvest Crop!'; }
       else if (farmPlot.state === 'growing') { icon = '⏳'; label = 'Growing...'; }
-      this.hud.setInteractAction({ type: 'farm_plot', plot: farmPlot, icon, label }); return;
+      this.hud.setInteractAction({ type: 'farm_plot', plot: farmPlot, icon, label });
+      this.hud.setSecondaryInteractAction(null);
+      return;
     }
 
-    // 8. CHOPPABLE TREES (Any tree across town)
     const nTree = this.treeChopping.getNearestTree(myPos, 2.5);
-    if (nTree) { this.hud.setInteractAction({ type: 'chop_tree', tree: nTree, icon: '🪓', label: `Chop Tree (${nTree.health}/3)` }); return; }
+    if (nTree) {
+      this.hud.setInteractAction({ type: 'chop_tree', tree: nTree, icon: '🪓', label: `Chop Tree (${nTree.health}/3)` });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
 
-    // 9. TEA STALL
+    // 8.5 CUTE PET TAMING & PETTING
+    const nPet = this.petSystem.getNearestPet(myPos, 2.4);
+    if (nPet) {
+      if (!nPet.tamedBy) {
+        this.hud.setInteractAction({ type: 'tame_pet', pet: nPet, icon: '🐾', label: `Tame ${nPet.name}!` });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      } else if (nPet.tamedBy === roomService.user?.uid) {
+        this.hud.setInteractAction({ type: 'pet_animal', pet: nPet, icon: '💖', label: `Pet ${nPet.name} 🥰` });
+        this.hud.setSecondaryInteractAction({ type: 'untame_pet', pet: nPet, icon: '🔓', label: `Untame ${nPet.name}` });
+        return;
+      } else {
+        this.hud.setInteractAction({ type: 'pet_animal', pet: nPet, icon: '👋', label: `Say Hi to ${nPet.name}` });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      }
+    }
+
     const stallDist = Math.hypot(myPos.x - this.teaStall.position.x, myPos.z - this.teaStall.position.z);
     if (stallDist < 2.6) {
-      this.hud.setInteractAction({ type: 'tea_cup', icon: '🍵', label: this.myChar.isHoldingCup ? 'Finish Tea' : 'Drink Warm Chai' }); return;
+      this.hud.setInteractAction({ type: 'tea_cup', icon: '🍵', label: this.myChar.isHoldingCup ? 'Finish Tea' : 'Drink Warm Chai' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
     }
 
     this.hud.setInteractAction(null);
+    this.hud.setSecondaryInteractAction(null);
   }
 
   async handleInteraction(action) {
@@ -653,83 +853,52 @@ class App {
     else if (action.type === 'elevator_up') {
       if (this.elevatorRide) return;
       const botPos = this.coupleHouse.getElevatorBottomWorldPos();
-      this.elevatorRide = {
-        startY: 0,
-        targetY: 2.9,
-        duration: 1.2,
-        elapsed: 0,
-        x: botPos.x,
-        z: botPos.z
-      };
+      this.elevatorRide = { startY: 0, targetY: 2.9, duration: 1.2, elapsed: 0, x: botPos.x, z: botPos.z };
       this.myChar.setPosition(botPos.x, botPos.z, undefined, this.playerY);
       soundEngine.playElevator(true);
-      syncService.updateSpotExtra('coupleHouse', {
-        isLightOn: this.coupleHouse.isLightOn,
-        elevatorY: 0.25,
-        elevatorMoving: true
-      });
+      syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 0.25, elevatorMoving: true });
     }
     else if (action.type === 'elevator_down') {
       if (this.elevatorRide) return;
       const topPos = this.coupleHouse.getElevatorTopWorldPos();
-      this.elevatorRide = {
-        startY: 2.9,
-        targetY: 0,
-        duration: 1.2,
-        elapsed: 0,
-        x: topPos.x,
-        z: topPos.z
-      };
+      this.elevatorRide = { startY: 2.9, targetY: 0, duration: 1.2, elapsed: 0, x: topPos.x, z: topPos.z };
       this.myChar.setPosition(topPos.x, topPos.z, undefined, this.playerY);
       soundEngine.playElevator(false);
-      syncService.updateSpotExtra('coupleHouse', {
-        isLightOn: this.coupleHouse.isLightOn,
-        elevatorY: 3.2,
-        elevatorMoving: true
-      });
+      syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 3.2, elevatorMoving: true });
     }
     else if (action.type === 'heli_pilot') {
-      if (await syncService.claimSeat('helicopter', 'driver')) {
-        this.currentSpot = 'heli_pilot';
-        soundEngine.playHelicopter();
-      }
+      if (await syncService.claimSeat('helicopter', 'driver')) { this.currentSpot = 'heli_pilot'; soundEngine.playHelicopter(); }
     }
     else if (action.type === 'heli_passenger') {
-      if (await syncService.claimSeat('helicopter', 'passenger')) {
-        this.currentSpot = 'heli_passenger';
-        soundEngine.playHelicopter();
-      }
+      if (await syncService.claimSeat('helicopter', 'passenger')) { this.currentSpot = 'heli_passenger'; soundEngine.playHelicopter(); }
     }
     else if (action.type === 'bike_drive') {
-      if (await syncService.claimSeat('bike', 'driver')) {
-        this.currentSpot = 'bike_driver';
-        soundEngine.playBell();
-      }
+      if (await syncService.claimSeat('bike', 'driver')) { this.currentSpot = 'bike_driver'; soundEngine.playBell(); }
     }
     else if (action.type === 'bike_passenger') {
-      if (await syncService.claimSeat('bike', 'passenger')) {
-        this.currentSpot = 'bike_passenger';
-        soundEngine.playPop();
-      }
+      if (await syncService.claimSeat('bike', 'passenger')) { this.currentSpot = 'bike_passenger'; soundEngine.playPop(); }
+    }
+    else if (action.type === 'buggy_drive') {
+      if (await syncService.claimSeat('buggy', 'driver')) { this.currentSpot = 'buggy_driver'; soundEngine.playPop(); }
+    }
+    else if (action.type === 'buggy_passenger') {
+      if (await syncService.claimSeat('buggy', 'passenger')) { this.currentSpot = 'buggy_passenger'; soundEngine.playPop(); }
+    }
+    else if (action.type === 'canopy_1') {
+      if (await syncService.claimSeat('canopySwing', 'seat1')) { this.currentSpot = 'canopy_seat1'; soundEngine.playPop(); }
+    }
+    else if (action.type === 'canopy_2') {
+      if (await syncService.claimSeat('canopySwing', 'seat2')) { this.currentSpot = 'canopy_seat2'; soundEngine.playPop(); }
     }
     else if (action.type === 'swing_1') {
-      if (await syncService.claimSeat('swing', 'seat1')) {
-        this.currentSpot = 'swing_1';
-        soundEngine.playPop();
-      }
+      if (await syncService.claimSeat('swing', 'seat1')) { this.currentSpot = 'swing_1'; soundEngine.playPop(); }
     }
     else if (action.type === 'swing_2') {
-      if (await syncService.claimSeat('swing', 'seat2')) {
-        this.currentSpot = 'swing_2';
-        soundEngine.playPop();
-      }
+      if (await syncService.claimSeat('swing', 'seat2')) { this.currentSpot = 'swing_2'; soundEngine.playPop(); }
     }
     else if (action.type === 'sit_bench') {
       const side = action.side || (roomService.slot === 2 ? 'right' : 'left');
-      if (await syncService.claimSeat(action.bench.id, side)) {
-        this.currentSpot = `bench_${action.bench.id}_${side}`;
-        soundEngine.playPop();
-      }
+      if (await syncService.claimSeat(action.bench.id, side)) { this.currentSpot = `bench_${action.bench.id}_${side}`; soundEngine.playPop(); }
     }
     else if (action.type === 'sleep_bed_left') { this.currentSpot = 'bed_left'; soundEngine.playSleep(); }
     else if (action.type === 'sleep_bed_right') { this.currentSpot = 'bed_right'; soundEngine.playSleep(); }
@@ -753,6 +922,28 @@ class App {
       if (this.myChar.isHoldingCup) soundEngine.playSip();
       else soundEngine.playPop();
     }
+    else if (action.type === 'tame_pet') {
+      this.myChar.anim = 'cheer';
+      this.petSystem.tamePet(action.pet, roomService.user?.uid, roomService.nickname);
+      syncService.tamePetSync(action.pet.id, roomService.nickname);
+      const pos = this.toScreenPosition(this.myChar.group.position);
+      this.emojiSystem.spawnFloatingReaction('💖', pos.x, pos.y - 60);
+      setTimeout(() => { if (this.myChar) this.myChar.anim = 'idle'; }, 1500);
+    }
+    else if (action.type === 'pet_animal') {
+      this.myChar.anim = 'cheer';
+      soundEngine.playPop();
+      const pos = this.toScreenPosition(action.pet.group.position);
+      this.emojiSystem.spawnFloatingReaction('✨', pos.x, pos.y - 40);
+      setTimeout(() => { if (this.myChar) this.myChar.anim = 'idle'; }, 1200);
+    }
+    else if (action.type === 'untame_pet') {
+      this.petSystem.untamePet(action.pet);
+      syncService.untamePetSync(action.pet.id);
+      const pos = this.toScreenPosition(action.pet.group.position);
+      this.emojiSystem.spawnFloatingReaction('💨 Bye!', pos.x, pos.y - 40);
+      if (this.hud) this.hud.setSecondaryInteractAction(null);
+    }
   }
 
   async exitSpot() {
@@ -764,6 +955,10 @@ class App {
     else if (prev === 'heli_passenger') { await syncService.releaseSeat('helicopter', 'passenger'); }
     else if (prev === 'bike_driver') { await syncService.releaseSeat('bike', 'driver'); }
     else if (prev === 'bike_passenger') { await syncService.releaseSeat('bike', 'passenger'); }
+    else if (prev === 'buggy_driver') { await syncService.releaseSeat('buggy', 'driver'); }
+    else if (prev === 'buggy_passenger') { await syncService.releaseSeat('buggy', 'passenger'); }
+    else if (prev === 'canopy_seat1') { await syncService.releaseSeat('canopySwing', 'seat1'); }
+    else if (prev === 'canopy_seat2') { await syncService.releaseSeat('canopySwing', 'seat2'); }
     else if (prev === 'swing_1') { await syncService.releaseSeat('swing', 'seat1'); }
     else if (prev === 'swing_2') { await syncService.releaseSeat('swing', 'seat2'); }
 
@@ -780,6 +975,12 @@ class App {
         this.myChar.setPosition(this.bike.group.position.x - 1.0, this.bike.group.position.z, this.bike.group.rotation.y, 0);
       } else if (prev === 'bike_passenger') {
         this.myChar.setPosition(this.bike.group.position.x + 1.0, this.bike.group.position.z, this.bike.group.rotation.y, 0);
+      } else if (prev === 'buggy_driver') {
+        this.myChar.setPosition(this.buggy.group.position.x - 1.5, this.buggy.group.position.z, this.buggy.group.rotation.y, 0);
+      } else if (prev === 'buggy_passenger') {
+        this.myChar.setPosition(this.buggy.group.position.x + 1.5, this.buggy.group.position.z, this.buggy.group.rotation.y, 0);
+      } else if (prev === 'canopy_seat1' || prev === 'canopy_seat2') {
+        this.myChar.setPosition(this.canopySwing.position.x + 1.6, this.canopySwing.position.z + 1.6, this.canopySwing.rotationY, 0);
       } else if (prev === 'swing_1') {
         this.myChar.setPosition(this.swing.position.x - 1.2, this.swing.position.z + 1.2, this.swing.rotationY, 0);
       } else if (prev === 'swing_2') {

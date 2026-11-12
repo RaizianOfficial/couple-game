@@ -221,7 +221,7 @@ export class BikeSpot {
       this.group.rotation.z = Math.max(-0.25, Math.min(0.25, this.tiltAngle));
 
       // Fast, exciting motorbike speed for driving around town
-      const bikeSpeed = 13.5;
+      const bikeSpeed = 17.5;
       const forwardX = Math.sin(this.group.rotation.y) * bikeSpeed * delta;
       const forwardZ = Math.cos(this.group.rotation.y) * bikeSpeed * delta;
 

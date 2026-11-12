@@ -1,6 +1,6 @@
 // Interactive Cute Low-Poly Pets System: Dogs, Cats, and Rabbits (Taming & Following)
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getGLTFLoader } from './loader.js';
 import { soundEngine } from '../audio.js';
 
 export class PetSystem {
@@ -89,17 +89,19 @@ export class PetSystem {
   }
 
   loadGLBModels() {
-    const loader = new GLTFLoader();
+    const loader = getGLTFLoader();
+    const baseUrl = import.meta.env?.BASE_URL || '/';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
     const modelMap = {
-      dog: encodeURI('./GLBs/ANIMALS (1).glb'),
-      cat: encodeURI('./GLBs/ANIMALS (2).glb'),
-      rabbit: encodeURI('./GLBs/ANIMALS (3).glb')
+      dog: `${cleanBase}GLBs/${encodeURIComponent('ANIMALS (1).glb')}`,
+      cat: `${cleanBase}GLBs/${encodeURIComponent('ANIMALS (2).glb')}`,
+      rabbit: `${cleanBase}GLBs/${encodeURIComponent('ANIMALS (3).glb')}`
     };
 
     const targetHeights = {
-      dog: 1.45,
-      cat: 1.30,
-      rabbit: 1.10
+      dog: 2.1,
+      cat: 1.85,
+      rabbit: 1.55
     };
 
     Object.entries(modelMap).forEach(([type, url]) => {
@@ -539,13 +541,13 @@ export class PetSystem {
           const dist = Math.hypot(dx, dz);
 
           if (dist < 0.6) {
-            // Reached destination! Sniff the grass & take a break
+            // Reached destination! Keep moving continuously so animals aren't idle
             pet.isWalking = false;
-            pet.wanderWait = 2.0 + Math.random() * 3.5;
+            pet.wanderWait = 0.15 + Math.random() * 0.3;
             pet.group.position.y = 0;
           } else {
             // Walk toward wander target
-            const moveSpeed = (pet.type === 'rabbit') ? 1.4 : 1.1;
+            const moveSpeed = (pet.type === 'rabbit') ? 1.6 : 1.35;
             const angle = Math.atan2(dx, dz);
 
             const nextX = curPos.x + Math.sin(angle) * moveSpeed * delta;
@@ -555,8 +557,8 @@ export class PetSystem {
               curPos.x = nextX;
               curPos.z = nextZ;
             } else {
-              // Obstacle reached, stop and re-pick path
-              pet.wanderWait = 1.0;
+              // Obstacle reached, quickly re-pick path
+              pet.wanderWait = 0.1;
             }
 
             // Smoothly rotate toward travel direction

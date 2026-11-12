@@ -175,6 +175,9 @@ export class CoupleHouseSpot {
     this.group.add(this.lightSwitch);
 
     this.scene.add(this.group);
+    if (this.town && this.town.engine) {
+      this.town.engine.registerWallObstacle(this.group);
+    }
 
     if (this.town && this.town.colliders) {
       // Solid Left Wall

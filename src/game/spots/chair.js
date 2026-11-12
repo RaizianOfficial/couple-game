@@ -1,6 +1,6 @@
 // Interactive Chairs & Park Benches System for Couples
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getGLTFLoader } from '../loader.js';
 
 export class ChairSpotSystem {
   constructor(scene, town) {
@@ -13,8 +13,10 @@ export class ChairSpotSystem {
   }
 
   loadBenchGLB() {
-    const loader = new GLTFLoader();
-    loader.load('./GLBs/assets/bench-01.glb', (gltf) => {
+    const loader = getGLTFLoader();
+    const baseUrl = import.meta.env?.BASE_URL || '/';
+    const benchUrl = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}GLBs/assets/bench-01.glb`;
+    loader.load(benchUrl, (gltf) => {
       this.benches.forEach(b => {
         while (b.group.children.length > 0) {
           b.group.remove(b.group.children[0]);

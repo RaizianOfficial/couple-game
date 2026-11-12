@@ -202,8 +202,24 @@ export class SyncService {
   // Partner interpolation update in game loop
   updatePartnerInterpolation(delta) {
     if (!this.hasPartnerState) return this.partnerTarget;
-    // Smooth exponential lerp
-    const t = Math.min(1, delta * 12);
+
+    const dist = Math.hypot(
+      this.partnerTarget.x - this.partnerCurrent.x,
+      this.partnerTarget.z - this.partnerCurrent.z
+    );
+
+    // If teleported or first spawn, snap directly
+    if (dist > 8.0) {
+      this.partnerCurrent.x = this.partnerTarget.x;
+      this.partnerCurrent.y = this.partnerTarget.y || 0;
+      this.partnerCurrent.z = this.partnerTarget.z;
+      this.partnerCurrent.rotY = this.partnerTarget.rotY;
+      this.partnerCurrent.anim = this.partnerTarget.anim;
+      return this.partnerCurrent;
+    }
+
+    // Critically damped exponential lerp for zero-jitter smooth interpolation
+    const t = 1 - Math.exp(-14 * delta);
     this.partnerCurrent.x += (this.partnerTarget.x - this.partnerCurrent.x) * t;
     this.partnerCurrent.y += ((this.partnerTarget.y || 0) - (this.partnerCurrent.y || 0)) * t;
     this.partnerCurrent.z += (this.partnerTarget.z - this.partnerCurrent.z) * t;

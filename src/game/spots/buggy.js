@@ -143,7 +143,7 @@ export class BuggySpot {
 
   updateMovement(moveX, moveZ, delta) {
     const isMoving = Math.hypot(moveX, moveZ) > 0.1;
-    const targetSpeed = isMoving ? 17.0 : 0;
+    const targetSpeed = isMoving ? 22.0 : 0;
     this.speed += (targetSpeed - this.speed) * Math.min(1, delta * 7.5);
 
     if (this.speed > 0.05) {

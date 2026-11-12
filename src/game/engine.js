@@ -20,8 +20,10 @@ export class GameEngine {
     this.targetPitch = 0.35;
     this.cameraDistance = 5.2;
     this.targetDistance = 5.2;
+    this.actualCameraDistance = 5.2;
 
     this.raycaster = new THREE.Raycaster(); // For wall collision
+    this.raycaster.near = 0.05;
     this.wallObstacles = []; // Registered solid obstacles for clean raycast collision
 
     this.initScene();
@@ -64,7 +66,7 @@ export class GameEngine {
   initCamera() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(56, w / h, 0.1, 350);
+    this.camera = new THREE.PerspectiveCamera(56, w / h, 0.05, 350);
     this.updateCameraPosition();
   }
 
@@ -259,39 +261,59 @@ export class GameEngine {
     const idealEyeX = this.currentCameraTarget.x - (sinYaw * cosPitch * this.cameraDistance);
     const idealEyeY = this.currentCameraTarget.y + (sinPitch * this.cameraDistance);
     const idealEyeZ = this.currentCameraTarget.z - (cosYaw * cosPitch * this.cameraDistance);
-    const idealEye = new THREE.Vector3(idealEyeX, Math.max(1.1, idealEyeY), idealEyeZ);
+    const idealEye = new THREE.Vector3(idealEyeX, Math.max(0.6, idealEyeY), idealEyeZ);
 
     // Camera Collision & Glitch Prevention (Smooth Zoom-in without head/ground clipping)
-    const dir = new THREE.Vector3().subVectors(idealEye, this.currentCameraTarget).normalize();
-    const dist = this.currentCameraTarget.distanceTo(idealEye);
+    const rayOrigin = this.currentCameraTarget.clone();
+    rayOrigin.y += 0.15; // Slightly elevated to prevent clipping through character shoulders
+    const dir = new THREE.Vector3().subVectors(idealEye, rayOrigin).normalize();
+    const dist = rayOrigin.distanceTo(idealEye);
 
     this.raycaster.camera = this.camera;
-    this.raycaster.set(this.currentCameraTarget, dir);
+    this.raycaster.set(rayOrigin, dir);
 
-    let finalDistance = dist;
+    let targetDistance = dist;
     try {
       if (this.wallObstacles && this.wallObstacles.length > 0) {
         const intersects = this.raycaster.intersectObjects(this.wallObstacles, false);
         if (intersects.length > 0 && intersects[0].distance < dist) {
-          finalDistance = Math.max(3.0, intersects[0].distance - 0.35);
+          // Smoothly clamp camera before intersecting the wall (0.28m safety margin)
+          targetDistance = Math.max(1.15, intersects[0].distance - 0.28);
         }
       }
     } catch (_) {}
 
-    const finalEyeX = this.currentCameraTarget.x + dir.x * finalDistance;
-    const finalEyeY = Math.max(1.1, this.currentCameraTarget.y + dir.y * finalDistance);
-    const finalEyeZ = this.currentCameraTarget.z + dir.z * finalDistance;
+    // Smooth lerp to prevent jarring camera cuts
+    this.actualCameraDistance = THREE.MathUtils.lerp(this.actualCameraDistance || dist, targetDistance, 0.32);
+
+    // Dynamic pitch lift when zoomed in tight spaces so camera doesn't bury in player's head
+    const zoomTightness = Math.max(0, 1 - (this.actualCameraDistance / 3.0));
+    const eyeHeightLift = zoomTightness * 0.42;
+
+    const finalEyeX = this.currentCameraTarget.x + dir.x * this.actualCameraDistance;
+    const finalEyeY = Math.max(0.75, this.currentCameraTarget.y + dir.y * this.actualCameraDistance + eyeHeightLift);
+    const finalEyeZ = this.currentCameraTarget.z + dir.z * this.actualCameraDistance;
 
     this.camera.position.set(finalEyeX, finalEyeY, finalEyeZ);
-    this.camera.lookAt(this.currentCameraTarget.x, this.currentCameraTarget.y, this.currentCameraTarget.z);
+
+    // Look slightly above character origin for natural cinematic perspective
+    const lookTargetY = this.currentCameraTarget.y + (zoomTightness * 0.15);
+    this.camera.lookAt(this.currentCameraTarget.x, lookTargetY, this.currentCameraTarget.z);
 
     if (this.sunLight) this.sunLight.target.position.copy(this.currentCameraTarget);
     if (this.skyDome) this.skyDome.position.copy(this.currentCameraTarget);
   }
 
-  registerWallObstacle(mesh) {
-    if (mesh && mesh.isMesh && !this.wallObstacles.includes(mesh)) {
-      this.wallObstacles.push(mesh);
+  registerWallObstacle(obj) {
+    if (!obj) return;
+    if (obj.isMesh && !this.wallObstacles.includes(obj)) {
+      this.wallObstacles.push(obj);
+    } else if (obj.traverse) {
+      obj.traverse((child) => {
+        if (child.isMesh && !this.wallObstacles.includes(child)) {
+          this.wallObstacles.push(child);
+        }
+      });
     }
   }
 

@@ -342,6 +342,7 @@ export class FarmingSpot {
         if (plot.growTimer >= plot.growDuration) {
           plot.state = 'ready';
           this.rebuildPlotMesh(plot);
+          if (this.onPlotChanged) this.onPlotChanged(plot.id, plot.state, plot.cropType, plot.growDuration);
         }
       }
     }

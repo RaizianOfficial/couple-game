@@ -1,6 +1,6 @@
 // Procedural Low-Poly Dreamy Pastel Expanded Town (strictly matching Town Layout Map)
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getGLTFLoader } from './loader.js';
 
 export class Town {
   constructor(scene, engine = null) {
@@ -91,6 +91,7 @@ export class Town {
       w.castShadow = true;
       w.receiveShadow = true;
       this.scene.add(w);
+      if (this.engine) this.engine.registerWallObstacle(w);
       this.colliders.push({ type: 'box', minX: -75, maxX: 75, minZ: z - thickness / 2, maxZ: z + thickness / 2 });
     });
 
@@ -101,6 +102,7 @@ export class Town {
       w.castShadow = true;
       w.receiveShadow = true;
       this.scene.add(w);
+      if (this.engine) this.engine.registerWallObstacle(w);
       this.colliders.push({ type: 'box', minX: x - thickness / 2, maxX: x + thickness / 2, minZ: -75, maxZ: 75 });
     });
   }
@@ -219,15 +221,61 @@ export class Town {
     });
   }
 
-  buildGLBAssets() {
-    const loader = new GLTFLoader();
+  addHouseWallColliders(x, z, width, depth, rotY = 0, doorWidth = 1.6) {
+    // Solid perimeter walls with front entrance left open for Hide & Seek gameplay!
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    const wallThick = 0.35;
 
-    // 1. Modular 3D Roads & Corners using user's GLBs
-    loader.load('./GLBs/assets/road-straight-accessible-01.glb', (straightGltf) => {
-      loader.load('./GLBs/assets/road-corner-accessible-01.glb', (cornerGltf) => {
+    // Normalize rotation angle
+    let normRot = rotY % (Math.PI * 2);
+    if (normRot < 0) normRot += Math.PI * 2;
+
+    if (Math.abs(normRot - Math.PI / 2) < 0.2) {
+      // Facing East (+X): Doorway opens on +X front
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW }); // North wall
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick }); // South wall
+      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z + halfW }); // Back West wall
+      // Front East wall pillars
+      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z - doorWidth / 2 });
+      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z + doorWidth / 2, maxZ: z + halfW });
+    } else if (Math.abs(normRot - 3 * Math.PI / 2) < 0.2) {
+      // Facing West (-X): Doorway opens on -X front
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW });
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick });
+      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z + halfW });
+      // Front West wall pillars
+      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z - doorWidth / 2 });
+      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z + doorWidth / 2, maxZ: z + halfW });
+    } else if (Math.abs(normRot - Math.PI) < 0.2) {
+      // Facing South (+Z): Doorway opens on +Z front
+      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
+      // Front South wall pillars
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z + halfD, maxZ: z + halfD + wallThick });
+      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
+    } else {
+      // Facing North (-Z): Doorway opens on -Z front
+      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
+      // Front North wall pillars
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z - halfD - wallThick, maxZ: z - halfD });
+      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
+    }
+  }
+
+  buildGLBAssets() {
+    const loader = getGLTFLoader();
+    const baseUrl = import.meta.env?.BASE_URL || '/';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+
+    // 1. Modular 3D Roads & Corner turns using user's GLB pieces
+    loader.load(`${cleanBase}GLBs/assets/road-straight-accessible-01.glb`, (straightGltf) => {
+      loader.load(`${cleanBase}GLBs/assets/road-corner-accessible-01.glb`, (cornerGltf) => {
         const roadGroup = new THREE.Group();
 
-        // Prepare straight base template (no shadow casting to keep 60 FPS on mobile)
         const straightBase = straightGltf.scene;
         straightBase.traverse((c) => {
           if (c.isMesh) {
@@ -284,16 +332,16 @@ export class Town {
         }
 
         this.scene.add(roadGroup);
-      });
-    });
+      }, undefined, (err) => console.error('[Town] Road corner GLB failed:', err));
+    }, undefined, (err) => console.error('[Town] Road straight GLB failed:', err));
 
     // 2. Hide & Seek Town Houses (Apartment Blocks & Cozy Cottages)
     // A. Multi-Story Apartment Blocks (South-East, South-West, and West Boundary)
-    loader.load('./GLBs/assets/apartment-block-01.glb', (gltf) => {
+    loader.load(`${cleanBase}GLBs/assets/apartment-block-01.glb`, (gltf) => {
       const apartmentConfigs = [
-        { x: 38, z: 44, rotY: 0, minX: 33, maxX: 43, minZ: 40, maxZ: 48 },
-        { x: -38, z: 44, rotY: 0, minX: -43, maxX: -33, minZ: 40, maxZ: 48 },
-        { x: -44, z: 18, rotY: Math.PI / 2, minX: -48, maxX: -40, minZ: 13, maxZ: 23 }
+        { x: 38, z: 44, rotY: 0, w: 7.6, d: 6.8 },
+        { x: -38, z: 44, rotY: 0, w: 7.6, d: 6.8 },
+        { x: -44, z: 18, rotY: Math.PI / 2, w: 7.6, d: 6.8 }
       ];
 
       apartmentConfigs.forEach((cfg) => {
@@ -308,23 +356,24 @@ export class Town {
           }
         });
         this.scene.add(apt);
-        this.colliders.push({ type: 'box', minX: cfg.minX, maxX: cfg.maxX, minZ: cfg.minZ, maxZ: cfg.maxZ });
+        // Wall colliders only: entrance remains walkable for hide and seek!
+        this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 2.0);
       });
-    });
+    }, undefined, (err) => console.error('[Town] Apartment block GLB failed:', err));
 
     // B. Cozy Cottages & Hideout Houses for Hide & Seek (General Store model)
-    loader.load('./GLBs/assets/bld-general-store-01.glb', (gltf) => {
+    loader.load(`${cleanBase}GLBs/assets/bld-general-store-01.glb`, (gltf) => {
       const houseConfigs = [
         // Backyard Shed & Pantry
-        { x: -24, z: -14, rotY: Math.PI / 2, minX: -27.5, maxX: -20.5, minZ: -17.5, maxZ: -10.5 },
+        { x: -24, z: -14, rotY: Math.PI / 2, w: 3.4, d: 3.8 },
         // Parkside Tea Cottage
-        { x: 24, z: -22, rotY: -Math.PI / 2, minX: 20.5, maxX: 27.5, minZ: -25.5, maxZ: -18.5 },
+        { x: 24, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
         // South Street Cafe
-        { x: 20, z: 32, rotY: Math.PI, minX: 17, maxX: 23, minZ: 29, maxZ: 35 },
+        { x: 20, z: 32, rotY: Math.PI, w: 3.4, d: 3.8 },
         // South Street Flower Boutique
-        { x: -20, z: 32, rotY: Math.PI, minX: -23, maxX: -17, minZ: 29, maxZ: 35 },
+        { x: -20, z: 32, rotY: Math.PI, w: 3.4, d: 3.8 },
         // Secret Forest Hideout Cabin (Deep in North Forest for Hide & Seek!)
-        { x: 0, z: -58, rotY: 0, minX: -3.5, maxX: 3.5, minZ: -61.5, maxZ: -54.5 }
+        { x: 0, z: -58, rotY: 0, w: 3.4, d: 3.8 }
       ];
 
       houseConfigs.forEach((cfg) => {
@@ -339,12 +388,13 @@ export class Town {
           }
         });
         this.scene.add(house);
-        this.colliders.push({ type: 'box', minX: cfg.minX, maxX: cfg.maxX, minZ: cfg.minZ, maxZ: cfg.maxZ });
+        // Wall colliders only: front doorway open so partners can hide inside!
+        this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 1.4);
       });
-    });
+    }, undefined, (err) => console.error('[Town] General store GLB failed:', err));
 
     // 3. Stepping Stones at scenic creek crossing in Pets Zone (-28, 0, -32)
-    loader.load('./GLBs/assets/creek-stepping-stones.glb', (gltf) => {
+    loader.load(`${cleanBase}GLBs/assets/creek-stepping-stones.glb`, (gltf) => {
       const stones = gltf.scene;
       stones.position.set(-28, 0, -32);
       stones.scale.setScalar(1.0);
@@ -354,7 +404,7 @@ export class Town {
         }
       });
       this.scene.add(stones);
-    });
+    }, undefined, (err) => console.error('[Town] Stepping stones GLB failed:', err));
   }
 
   buildTrees() {

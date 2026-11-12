@@ -48,17 +48,20 @@ export class GameEngine {
   initRenderer() {
     this.isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.isMobile,
+      antialias: true,
       powerPreference: 'high-performance',
-      precision: this.isMobile ? 'mediump' : 'highp'
+      precision: 'highp',
+      stencil: false,
+      depth: true
     });
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h);
-    const maxDPR = this.isMobile ? 1.25 : 1.75;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDPR));
+    // High-resolution Retina rendering on mobile and desktop alike
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    this.renderer.setPixelRatio(dpr);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
   }
@@ -66,7 +69,7 @@ export class GameEngine {
   initCamera() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(56, w / h, 0.05, 350);
+    this.camera = new THREE.PerspectiveCamera(54, w / h, 0.1, 400);
     this.updateCameraPosition();
   }
 
@@ -338,13 +341,16 @@ export class GameEngine {
   }
 
   trackFps(frameDuration) {
+    if (this._bootTimer === undefined) this._bootTimer = performance.now();
+    // Allow 12s grace period for models & Draco decoding before tracking FPS
+    if (performance.now() - this._bootTimer < 12000) return;
     const currentFps = 1000 / Math.max(frameDuration, 1);
     this.fpsHistory.push(currentFps);
-    if (this.fpsHistory.length > 120) {
+    if (this.fpsHistory.length > 180) {
       this.fpsHistory.shift();
       if (this.quality === 'high') {
         const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
-        if (avgFps < 28) this.setQuality('low');
+        if (avgFps < 20) this.setQuality('low');
       }
     }
   }

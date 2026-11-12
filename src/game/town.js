@@ -16,6 +16,7 @@ export class Town {
     this.buildMainYard();
     this.buildEastPlayPark();
     this.buildSouthStreet();
+    this.buildHideAndSeekProps();
     this.buildGLBAssets();
     this.buildStreetlamps();
   }
@@ -432,7 +433,6 @@ export class Town {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
-          if (this.engine) this.engine.registerWallObstacle(child);
         }
       });
 
@@ -484,7 +484,6 @@ export class Town {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
-          if (this.engine) this.engine.registerWallObstacle(child);
         }
       });
 
@@ -546,6 +545,279 @@ export class Town {
       });
       this.scene.add(stones);
     }, undefined, (err) => console.error('[Town] Stepping stones GLB error:', err));
+
+    // 6. Historic Grand Red Barns (Ranch & North Meadow) for Hide & Seek!
+    loader.load(`${cleanBase}GLBs/assets/big-red-barn.glb`, (gltf) => {
+      const baseScene = gltf.scene;
+      baseScene.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      const box = new THREE.Box3().setFromObject(baseScene);
+      const offsetY = -box.min.y; // Exactly +2.70m so barn foundation sits 100% on ground
+      const offsetX = -(box.min.x + box.max.x) / 2;
+      const offsetZ = -(box.min.z + box.max.z) / 2;
+
+      const barnConfigs = [
+        // Grand Farmstead Barn in West Ranch Zone (x = -44, z = 4)
+        { x: -44, z: 4, rotY: Math.PI / 2, w: 8.9, d: 7.8 },
+        // Scenic Meadow Barn in North-East Zone (x = 22, z = -52)
+        { x: 22, z: -52, rotY: 0, w: 8.9, d: 7.8 }
+      ];
+
+      barnConfigs.forEach((cfg) => {
+        const wrapper = new THREE.Group();
+        wrapper.position.set(cfg.x, 0, cfg.z);
+        wrapper.rotation.y = cfg.rotY;
+
+        const barn = baseScene.clone();
+        barn.position.set(offsetX, offsetY, offsetZ);
+        wrapper.add(barn);
+
+        this.scene.add(wrapper);
+        // Wall colliders: double front door open (3.2m doorway) so players can run inside!
+        this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 3.2);
+      });
+    }, undefined, (err) => console.error('[Town] Big Red Barn GLB error:', err));
+  }
+
+  buildHideAndSeekProps() {
+    // 1. Central Plaza Romantic Fountain at (0, 0, 22)
+    const fountainGrp = new THREE.Group();
+    fountainGrp.position.set(0, 0, 22);
+
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0, flatShading: true });
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0xb45309 });
+    const goldHayMat = new THREE.MeshLambertMaterial({ color: 0xfbbf24 });
+    const crateMat = new THREE.MeshLambertMaterial({ color: 0xa16207 });
+    const barrelMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
+    const hedgeMat = new THREE.MeshLambertMaterial({ color: 0x16a34a, flatShading: true });
+    const flowerPinkMat = new THREE.MeshLambertMaterial({ color: 0xf43f5e });
+
+    // Fountain Outer Basin
+    const poolRing = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.5, 0.5, 16), stoneMat);
+    poolRing.position.y = 0.25;
+    poolRing.receiveShadow = true;
+    fountainGrp.add(poolRing);
+
+    // Glowing Pool Water
+    const poolWater = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.45, 16), this.materials.fountainWater);
+    poolWater.position.y = 0.28;
+    fountainGrp.add(poolWater);
+
+    // Center Pedestal & Upper Tier
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 1.4, 12), stoneMat);
+    pedestal.position.y = 0.9;
+    fountainGrp.add(pedestal);
+
+    const upperBasin = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.4, 0.35, 12), stoneMat);
+    upperBasin.position.y = 1.6;
+    fountainGrp.add(upperBasin);
+
+    const upperWater = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.3, 12), this.materials.fountainWater);
+    upperWater.position.y = 1.7;
+    fountainGrp.add(upperWater);
+
+    // Center Water Spout Ornament
+    const spout = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), this.materials.fountainWater);
+    spout.position.y = 1.95;
+    fountainGrp.add(spout);
+
+    // 4 Curved Plaza Stone Benches surrounding fountain
+    [
+      { x: -3.8, z: 0, rotY: Math.PI / 2 },
+      { x: 3.8, z: 0, rotY: -Math.PI / 2 },
+      { x: 0, z: -3.8, rotY: 0 },
+      { x: 0, z: 3.8, rotY: Math.PI }
+    ].forEach(b => {
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.38, 0.55), stoneMat);
+      bench.position.set(b.x, 0.2, b.z);
+      bench.rotation.y = b.rotY;
+      bench.castShadow = true;
+      fountainGrp.add(bench);
+    });
+
+    this.scene.add(fountainGrp);
+    this.colliders.push({ type: 'circle', x: 0, z: 22, r: 2.6 });
+
+    // 2. Romantic Wooden Gazebo with Seating at (x: 18, z: 8)
+    const gazeboGrp = new THREE.Group();
+    gazeboGrp.position.set(18, 0, 8);
+
+    const gazBase = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.5, 0.25, 8), woodMat);
+    gazBase.position.y = 0.125;
+    gazBase.receiveShadow = true;
+    gazeboGrp.add(gazBase);
+
+    // 6 Gazebo Pillars
+    for (let a = 0; a < 6; a++) {
+      const angle = (a * Math.PI) / 3;
+      const px = Math.cos(angle) * 2.0;
+      const pz = Math.sin(angle) * 2.0;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.8, 0.18), woodMat);
+      post.position.set(px, 1.4, pz);
+      post.castShadow = true;
+      gazeboGrp.add(post);
+    }
+
+    // Gazebo Conical Shingle Roof
+    const gazRoof = new THREE.Mesh(new THREE.ConeGeometry(2.8, 1.4, 8), new THREE.MeshLambertMaterial({ color: 0x475569, flatShading: true }));
+    gazRoof.position.y = 3.5;
+    gazRoof.castShadow = true;
+    gazeboGrp.add(gazRoof);
+
+    // Inside Couple Bench
+    const gazBench = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.36, 0.5), new THREE.MeshLambertMaterial({ color: 0xf472b6 }));
+    gazBench.position.set(0, 0.3, -0.6);
+    gazeboGrp.add(gazBench);
+
+    this.scene.add(gazeboGrp);
+    this.colliders.push({ type: 'circle', x: 18, z: 8, r: 2.4 });
+
+    // 3. Hay Bale Stacks for Tactical Hide-and-Seek Cover
+    const hayBaleConfigs = [
+      // Cluster A: West Farm Edge
+      { x: -26, z: 6, rotY: 0.2 },
+      { x: -27.2, z: 6.8, rotY: -0.4 },
+      { x: -26.5, z: 6.3, rotY: 0, y: 0.65 },
+      // Cluster B: Near Central Avenue & Plaza
+      { x: 10, z: 28, rotY: -0.2 },
+      { x: 11.2, z: 27.4, rotY: 0.3 },
+      { x: 10.6, z: 27.7, rotY: 0, y: 0.65 },
+      // Cluster C: North Meadow Path
+      { x: -8, z: -32, rotY: 0.4 },
+      { x: -9.2, z: -32.6, rotY: -0.1 },
+      { x: -8.6, z: -32.2, rotY: 0, y: 0.65 },
+      // Cluster D: South-East Lawn
+      { x: 26, z: 32, rotY: 0.1 },
+      { x: 27.3, z: 32.5, rotY: -0.3 }
+    ];
+
+    hayBaleConfigs.forEach(hb => {
+      const bale = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.65, 0.85), goldHayMat);
+      bale.position.set(hb.x, (hb.y || 0) + 0.325, hb.z);
+      bale.rotation.y = hb.rotY;
+      bale.castShadow = true;
+      bale.receiveShadow = true;
+      this.scene.add(bale);
+    });
+
+    // Solid Colliders for Hay Stacks
+    this.colliders.push({ type: 'box', minX: -28, maxX: -25, minZ: 5.2, maxZ: 7.8 });
+    this.colliders.push({ type: 'box', minX: 9.2, maxX: 12.2, minZ: 26.5, maxZ: 29.0 });
+    this.colliders.push({ type: 'box', minX: -10.2, maxX: -7.2, minZ: -33.5, maxZ: -31.0 });
+    this.colliders.push({ type: 'box', minX: 25.2, maxX: 28.2, minZ: 31.0, maxZ: 33.5 });
+
+    // 4. Wooden Cargo Crates & Vintage Barrels (Awesome Crouch Cover)
+    const crateBarrelSpots = [
+      { cx: -8, cz: 32, r: 1.4 },
+      { cx: 8, cz: 32, r: 1.4 },
+      { cx: -34, cz: -8, r: 1.5 },
+      { cx: -18, cz: 18, r: 1.5 }
+    ];
+
+    crateBarrelSpots.forEach(s => {
+      // 2 Stacked Crates
+      const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.85), crateMat);
+      c1.position.set(s.cx, 0.425, s.cz);
+      c1.castShadow = true;
+      this.scene.add(c1);
+
+      const c2 = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.75, 0.75), crateMat);
+      c2.position.set(s.cx + 0.1, 1.225, s.cz - 0.05);
+      c2.rotation.y = 0.25;
+      c2.castShadow = true;
+      this.scene.add(c2);
+
+      // Vintage Wine/Apple Barrels
+      const b1 = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 0.9, 12), barrelMat);
+      b1.position.set(s.cx + 0.9, 0.45, s.cz + 0.2);
+      b1.castShadow = true;
+      this.scene.add(b1);
+
+      const b2 = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 0.85, 12), barrelMat);
+      b2.position.set(s.cx - 0.75, 0.425, s.cz - 0.2);
+      b2.castShadow = true;
+      this.scene.add(b2);
+
+      this.colliders.push({ type: 'circle', x: s.cx, z: s.cz, r: s.r });
+    });
+
+    // 5. Lush Manicured Flower Hedges (Full Visual Cover for Hide-and-Seek)
+    const hedgeConfigs = [
+      // Flanking Central Avenue
+      { x: -5.5, z: 14, w: 0.8, d: 5.6 },
+      { x: -5.5, z: 28, w: 0.8, d: 5.6 },
+      { x: 5.5, z: 14, w: 0.8, d: 5.6 },
+      { x: 5.5, z: 28, w: 0.8, d: 5.6 },
+      // East Park Boundary Hedges
+      { x: 26, z: 2, w: 0.8, d: 7.2 },
+      { x: 26, z: 16, w: 0.8, d: 7.2 },
+      // West Farm Boundary Hedges
+      { x: -24, z: -2, w: 0.8, d: 6.4 },
+      { x: -24, z: 26, w: 0.8, d: 6.4 }
+    ];
+
+    hedgeConfigs.forEach(h => {
+      const hedge = new THREE.Mesh(new THREE.BoxGeometry(h.w, 1.25, h.d), hedgeMat);
+      hedge.position.set(h.x, 0.625, h.z);
+      hedge.castShadow = true;
+      hedge.receiveShadow = true;
+      this.scene.add(hedge);
+
+      // Cute pink flower buds on top of hedges
+      for (let f = -h.d / 2 + 0.6; f < h.d / 2; f += 1.4) {
+        const blossom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), flowerPinkMat);
+        blossom.position.set(h.x, 1.3, h.z + f);
+        this.scene.add(blossom);
+      }
+
+      this.colliders.push({
+        type: 'box',
+        minX: h.x - h.w / 2,
+        maxX: h.x + h.w / 2,
+        minZ: h.z - h.d / 2,
+        maxZ: h.z + h.d / 2
+      });
+    });
+
+    // 6. Charming Street Flower & Pastry Market Stalls with Striped Pastel Awnings
+    [
+      { x: -14, z: 22, rotY: 0, colorA: 0xfbcfe8, colorB: 0xffffff, title: 'Flowers' },
+      { x: 14, z: 22, rotY: 0, colorA: 0xfed7aa, colorB: 0xffedd5, title: 'Bakery' }
+    ].forEach(st => {
+      const stallGrp = new THREE.Group();
+      stallGrp.position.set(st.x, 0, st.z);
+      stallGrp.rotation.y = st.rotY;
+
+      // Table Counter
+      const table = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 1.1), woodMat);
+      table.position.set(0, 0.425, 0);
+      table.castShadow = true;
+      stallGrp.add(table);
+
+      // 4 Canopy Awning Posts
+      [-0.95, 0.95].forEach(cx => {
+        [-0.45, 0.45].forEach(cz => {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.1, 6), woodMat);
+          post.position.set(cx, 1.05, cz);
+          stallGrp.add(post);
+        });
+      });
+
+      // Striped Curved Awning
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.15, 1.4), new THREE.MeshLambertMaterial({ color: st.colorA }));
+      awning.position.set(0, 2.15, 0);
+      awning.rotation.x = -0.15;
+      awning.castShadow = true;
+      stallGrp.add(awning);
+
+      this.scene.add(stallGrp);
+      this.colliders.push({ type: 'box', minX: st.x - 1.2, maxX: st.x + 1.2, minZ: st.z - 0.7, maxZ: st.z + 0.7 });
+    });
   }
 
   buildTrees() {

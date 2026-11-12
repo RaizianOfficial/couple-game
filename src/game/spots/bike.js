@@ -12,6 +12,7 @@ export class BikeSpot {
     this.position = new THREE.Vector3(8, 0, 6);
     this.rotationY = 0;
     this.speed = 0;
+    this.speedMode = 'normal'; // 'normal' (smooth cruising) or 'fast' (turbo)
     this.wheelRotation = 0;
     this.tiltAngle = 0;
 
@@ -199,6 +200,11 @@ export class BikeSpot {
     return v.add(this.group.position);
   }
 
+  toggleSpeedMode() {
+    this.speedMode = this.speedMode === 'normal' ? 'fast' : 'normal';
+    return this.speedMode;
+  }
+
   updateMovement(driveInputX, driveInputZ, delta) {
     const isAccelerating = Math.abs(driveInputX) > 0.05 || Math.abs(driveInputZ) > 0.05;
 
@@ -220,8 +226,8 @@ export class BikeSpot {
       this.tiltAngle += (targetTilt - this.tiltAngle) * 0.15;
       this.group.rotation.z = Math.max(-0.25, Math.min(0.25, this.tiltAngle));
 
-      // Fast, exciting motorbike speed for driving around town
-      const bikeSpeed = 17.5;
+      // Dual speed mode: Normal (9.5 m/s) for relaxed cruising, Fast (16.5 m/s) for speed
+      const bikeSpeed = this.speedMode === 'fast' ? 16.5 : 9.5;
       const forwardX = Math.sin(this.group.rotation.y) * bikeSpeed * delta;
       const forwardZ = Math.cos(this.group.rotation.y) * bikeSpeed * delta;
 

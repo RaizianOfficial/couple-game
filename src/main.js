@@ -134,6 +134,7 @@ class App {
       onDescendStart: () => { this.heliDescending = true; },
       onDescendEnd: () => { this.heliDescending = false; },
       onInteract: (action) => this.handleInteraction(action),
+      onToggleSpeed: () => this.handleToggleVehicleSpeed(),
       onToggleEmoji: () => this.emojiSystem.toggle(),
       onOpenGames: (gameType) => {
         if (gameType === 'tictactoe') this.tictactoeGame.open();
@@ -168,6 +169,9 @@ class App {
         else if (!this.currentSpot) this.handleJump();
       } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyC') {
         if (this.currentSpot === 'heli_pilot') this.heliDescending = true;
+        else if (this.currentSpot === 'bike_driver' || this.currentSpot === 'buggy_driver') this.handleToggleVehicleSpeed();
+      } else if (e.code === 'KeyF') {
+        if (this.currentSpot === 'bike_driver' || this.currentSpot === 'buggy_driver') this.handleToggleVehicleSpeed();
       } else if (e.code === 'KeyE') {
         if (this.hud && this.hud.interactAction) this.handleInteraction(this.hud.interactAction);
       }
@@ -270,6 +274,23 @@ class App {
         }
       }
     };
+  }
+
+  handleToggleVehicleSpeed() {
+    let mode = 'normal';
+    if (this.currentSpot === 'bike_driver') {
+      mode = this.bike.toggleSpeedMode();
+      this.hud.showSpeedButton(true, mode);
+      soundEngine.playPop();
+      const pos = this.toScreenPosition(this.bike.group.position);
+      this.emojiSystem.spawnFloatingReaction(mode === 'fast' ? '🚀 Turbo Fast!' : '⚡ Normal Speed', pos.x, pos.y - 70);
+    } else if (this.currentSpot === 'buggy_driver') {
+      mode = this.buggy.toggleSpeedMode();
+      this.hud.showSpeedButton(true, mode);
+      soundEngine.playPop();
+      const pos = this.toScreenPosition(this.buggy.group.position);
+      this.emojiSystem.spawnFloatingReaction(mode === 'fast' ? '🚀 Turbo Fast!' : '⚡ Normal Speed', pos.x, pos.y - 70);
+    }
   }
 
   applyDayNightState(isNight) {
@@ -916,13 +937,21 @@ class App {
       if (await syncService.claimSeat('helicopter', 'passenger')) { this.currentSpot = 'heli_passenger'; soundEngine.playHelicopter(); }
     }
     else if (action.type === 'bike_drive') {
-      if (await syncService.claimSeat('bike', 'driver')) { this.currentSpot = 'bike_driver'; soundEngine.playBell(); }
+      if (await syncService.claimSeat('bike', 'driver')) {
+        this.currentSpot = 'bike_driver';
+        this.hud.showSpeedButton(true, this.bike.speedMode);
+        soundEngine.playBell();
+      }
     }
     else if (action.type === 'bike_passenger') {
       if (await syncService.claimSeat('bike', 'passenger')) { this.currentSpot = 'bike_passenger'; soundEngine.playPop(); }
     }
     else if (action.type === 'buggy_drive') {
-      if (await syncService.claimSeat('buggy', 'driver')) { this.currentSpot = 'buggy_driver'; soundEngine.playPop(); }
+      if (await syncService.claimSeat('buggy', 'driver')) {
+        this.currentSpot = 'buggy_driver';
+        this.hud.showSpeedButton(true, this.buggy.speedMode);
+        soundEngine.playPop();
+      }
     }
     else if (action.type === 'buggy_passenger') {
       if (await syncService.claimSeat('buggy', 'passenger')) { this.currentSpot = 'buggy_passenger'; soundEngine.playPop(); }
@@ -1006,6 +1035,7 @@ class App {
     else if (prev === 'swing_2') { await syncService.releaseSeat('swing', 'seat2'); }
 
     this.currentSpot = null;
+    this.hud.showSpeedButton(false);
     if (this.myChar) {
       this.myChar.anim = 'idle';
       this.myChar.modelRoot.position.y = 0;

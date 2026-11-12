@@ -124,6 +124,12 @@ export class GameHUD {
           <button class="action-btn flight-btn" id="hud-descend-btn">⬇️ Descend</button>
         </div>
 
+        <!-- Vehicle Speed Toggle Button (Bike & Buggy) -->
+        <button class="action-btn speed-btn hidden" id="hud-speed-btn">
+          <span class="btn-icon" id="hud-speed-icon">⚡</span>
+          <span class="btn-label" id="hud-speed-label">Speed: Normal</span>
+        </button>
+
         <button class="action-btn jump-btn" id="hud-jump-btn">🦘 Jump</button>
         <button class="action-btn hug-btn hidden" id="hud-hug-btn">🫂 Hug ❤️</button>
         <button class="action-btn hold-hands-btn hidden" id="hud-hold-hands-btn">
@@ -197,6 +203,9 @@ export class GameHUD {
     this.secondaryInteractBtn = this.hudEl.querySelector('#hud-secondary-interact-btn');
     this.secondaryInteractIcon = this.hudEl.querySelector('#hud-secondary-interact-icon');
     this.secondaryInteractLabel = this.hudEl.querySelector('#hud-secondary-interact-label');
+    this.speedBtn = this.hudEl.querySelector('#hud-speed-btn');
+    this.speedIcon = this.hudEl.querySelector('#hud-speed-icon');
+    this.speedLabel = this.hudEl.querySelector('#hud-speed-label');
     this.jumpBtn = this.hudEl.querySelector('#hud-jump-btn');
     this.hugBtn = this.hudEl.querySelector('#hud-hug-btn');
     this.flightControls = this.hudEl.querySelector('#hud-flight-controls');
@@ -268,6 +277,14 @@ export class GameHUD {
       }
     });
 
+    if (this.speedBtn) {
+      this.speedBtn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        soundEngine.playPop();
+        if (this.callbacks.onToggleSpeed) this.callbacks.onToggleSpeed();
+      });
+    }
+
     this.emojiBtn.addEventListener('click', () => {
       if (this.callbacks.onToggleEmoji) this.callbacks.onToggleEmoji();
     });
@@ -313,6 +330,23 @@ export class GameHUD {
   showHoldHandsButton(visible) { this.holdHandsBtn.classList.toggle('hidden', !visible); }
   showHugButton(visible) { this.hugBtn.classList.toggle('hidden', !visible); }
   showFlightControls(visible) { this.flightControls.classList.toggle('hidden', !visible); }
+  showSpeedButton(visible, currentMode = 'normal') {
+    if (!this.speedBtn) return;
+    if (visible) {
+      this.speedBtn.classList.remove('hidden');
+      if (currentMode === 'fast') {
+        this.speedBtn.classList.add('turbo');
+        if (this.speedIcon) this.speedIcon.textContent = '🚀';
+        if (this.speedLabel) this.speedLabel.textContent = 'Speed: Fast';
+      } else {
+        this.speedBtn.classList.remove('turbo');
+        if (this.speedIcon) this.speedIcon.textContent = '⚡';
+        if (this.speedLabel) this.speedLabel.textContent = 'Speed: Normal';
+      }
+    } else {
+      this.speedBtn.classList.add('hidden');
+    }
+  }
   setWoodCount(count) { if (this.woodVal) this.woodVal.textContent = count; }
   setCropCount(count) { if (this.cropVal) this.cropVal.textContent = count; }
 

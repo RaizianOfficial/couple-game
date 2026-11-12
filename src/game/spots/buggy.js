@@ -13,6 +13,7 @@ export class BuggySpot {
     this.position = new THREE.Vector3(2, 0, 42);
     this.rotationY = 0;
     this.speed = 0;
+    this.speedMode = 'normal'; // 'normal' (smooth cruising) or 'fast' (turbo)
     this.wheelRotation = 0;
     this.steerAngle = 0;
 
@@ -141,9 +142,16 @@ export class BuggySpot {
     return local;
   }
 
+  toggleSpeedMode() {
+    this.speedMode = this.speedMode === 'normal' ? 'fast' : 'normal';
+    return this.speedMode;
+  }
+
   updateMovement(moveX, moveZ, delta) {
     const isMoving = Math.hypot(moveX, moveZ) > 0.1;
-    const targetSpeed = isMoving ? 22.0 : 0;
+    // Dual speed mode: Normal (10.5 m/s) for relaxed driving, Fast (18.0 m/s) for turbo speed
+    const maxDriveSpeed = this.speedMode === 'fast' ? 18.0 : 10.5;
+    const targetSpeed = isMoving ? maxDriveSpeed : 0;
     this.speed += (targetSpeed - this.speed) * Math.min(1, delta * 7.5);
 
     if (this.speed > 0.05) {

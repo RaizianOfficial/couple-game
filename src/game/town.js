@@ -197,22 +197,6 @@ export class Town {
   }
 
   buildSouthStreet() {
-    // The Main Street asphalt roadway (looping along South z: 34 to 48)
-    const asphaltMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-    const roadMain = new THREE.Mesh(new THREE.BoxGeometry(82, 0.05, 8.4), asphaltMat);
-    roadMain.position.set(0, 0.025, 42);
-    roadMain.receiveShadow = true;
-    this.scene.add(roadMain);
-
-    // Yellow dashed center road markings
-    const stripeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-    for (let x = -36; x <= 36; x += 4.5) {
-      const stripe = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.22), stripeMat);
-      stripe.rotation.x = -Math.PI / 2;
-      stripe.position.set(x, 0.052, 42);
-      this.scene.add(stripe);
-    }
-
     // Curbs & Sidewalks along south side
     const sidewalkMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
     const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(84, 0.14, 4.2), sidewalkMat);
@@ -238,38 +222,125 @@ export class Town {
   buildGLBAssets() {
     const loader = new GLTFLoader();
 
-    // 1. Apartment Block on South Main Street (38, 0, 44)
-    loader.load('./GLBs/assets/apartment-block-01.glb', (gltf) => {
-      const model = gltf.scene;
-      model.position.set(38, 0, 44);
-      model.rotation.y = 0;
-      model.scale.setScalar(1.0);
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (this.engine) this.engine.registerWallObstacle(child);
+    // 1. Modular 3D Roads & Corners using user's GLBs
+    loader.load('./GLBs/assets/road-straight-accessible-01.glb', (straightGltf) => {
+      loader.load('./GLBs/assets/road-corner-accessible-01.glb', (cornerGltf) => {
+        const roadGroup = new THREE.Group();
+
+        // Prepare straight base template (no shadow casting to keep 60 FPS on mobile)
+        const straightBase = straightGltf.scene;
+        straightBase.traverse((c) => {
+          if (c.isMesh) {
+            c.castShadow = false;
+            c.receiveShadow = true;
+          }
+        });
+
+        const cornerBase = cornerGltf.scene;
+        cornerBase.traverse((c) => {
+          if (c.isMesh) {
+            c.castShadow = false;
+            c.receiveShadow = true;
+          }
+        });
+
+        // A. Horizontal South Main Street (z = 42, step = 4m from x = -28 to +28)
+        for (let x = -28; x <= 28; x += 4) {
+          const tile = straightBase.clone();
+          tile.position.set(x, 0, 42);
+          tile.rotation.y = Math.PI / 2;
+          roadGroup.add(tile);
         }
+
+        // B. Corner Turns at East and West ends of Main Street
+        // West Corner (x = -32, z = 42) turning North
+        const westCorner = cornerBase.clone();
+        westCorner.position.set(-32, 0, 42);
+        westCorner.rotation.y = Math.PI / 2;
+        roadGroup.add(westCorner);
+
+        // East Corner (x = 32, z = 42) turning North
+        const eastCorner = cornerBase.clone();
+        eastCorner.position.set(32, 0, 42);
+        eastCorner.rotation.y = 0;
+        roadGroup.add(eastCorner);
+
+        // C. Northward road extensions from corners
+        for (let z = 38; z >= 26; z -= 4) {
+          const westTurnTile = straightBase.clone();
+          westTurnTile.position.set(-32, 0, z);
+          roadGroup.add(westTurnTile);
+
+          const eastTurnTile = straightBase.clone();
+          eastTurnTile.position.set(32, 0, z);
+          roadGroup.add(eastTurnTile);
+        }
+
+        // D. Central Avenue connecting South Main Street to Couple House (x = 0, z = 38 down to 10)
+        for (let z = 38; z >= 10; z -= 4) {
+          const centerTile = straightBase.clone();
+          centerTile.position.set(0, 0, z);
+          roadGroup.add(centerTile);
+        }
+
+        this.scene.add(roadGroup);
       });
-      this.scene.add(model);
-      this.colliders.push({ type: 'box', minX: 32.5, maxX: 43.5, minZ: 40.0, maxZ: 48.0 });
     });
 
-    // 2. Cozy General Store / Shed in West Backyard (-24, 0, -14)
-    loader.load('./GLBs/assets/bld-general-store-01.glb', (gltf) => {
-      const model = gltf.scene;
-      model.position.set(-24, 0, -14);
-      model.rotation.y = Math.PI / 2;
-      model.scale.setScalar(1.0);
-      model.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (this.engine) this.engine.registerWallObstacle(child);
-        }
+    // 2. Hide & Seek Town Houses (Apartment Blocks & Cozy Cottages)
+    // A. Multi-Story Apartment Blocks (South-East, South-West, and West Boundary)
+    loader.load('./GLBs/assets/apartment-block-01.glb', (gltf) => {
+      const apartmentConfigs = [
+        { x: 38, z: 44, rotY: 0, minX: 33, maxX: 43, minZ: 40, maxZ: 48 },
+        { x: -38, z: 44, rotY: 0, minX: -43, maxX: -33, minZ: 40, maxZ: 48 },
+        { x: -44, z: 18, rotY: Math.PI / 2, minX: -48, maxX: -40, minZ: 13, maxZ: 23 }
+      ];
+
+      apartmentConfigs.forEach((cfg) => {
+        const apt = gltf.scene.clone();
+        apt.position.set(cfg.x, 0, cfg.z);
+        apt.rotation.y = cfg.rotY;
+        apt.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (this.engine) this.engine.registerWallObstacle(child);
+          }
+        });
+        this.scene.add(apt);
+        this.colliders.push({ type: 'box', minX: cfg.minX, maxX: cfg.maxX, minZ: cfg.minZ, maxZ: cfg.maxZ });
       });
-      this.scene.add(model);
-      this.colliders.push({ type: 'box', minX: -27.5, maxX: -20.5, minZ: -17.5, maxZ: -10.5 });
+    });
+
+    // B. Cozy Cottages & Hideout Houses for Hide & Seek (General Store model)
+    loader.load('./GLBs/assets/bld-general-store-01.glb', (gltf) => {
+      const houseConfigs = [
+        // Backyard Shed & Pantry
+        { x: -24, z: -14, rotY: Math.PI / 2, minX: -27.5, maxX: -20.5, minZ: -17.5, maxZ: -10.5 },
+        // Parkside Tea Cottage
+        { x: 24, z: -22, rotY: -Math.PI / 2, minX: 20.5, maxX: 27.5, minZ: -25.5, maxZ: -18.5 },
+        // South Street Cafe
+        { x: 20, z: 32, rotY: Math.PI, minX: 17, maxX: 23, minZ: 29, maxZ: 35 },
+        // South Street Flower Boutique
+        { x: -20, z: 32, rotY: Math.PI, minX: -23, maxX: -17, minZ: 29, maxZ: 35 },
+        // Secret Forest Hideout Cabin (Deep in North Forest for Hide & Seek!)
+        { x: 0, z: -58, rotY: 0, minX: -3.5, maxX: 3.5, minZ: -61.5, maxZ: -54.5 }
+      ];
+
+      houseConfigs.forEach((cfg) => {
+        const house = gltf.scene.clone();
+        house.position.set(cfg.x, 0, cfg.z);
+        house.rotation.y = cfg.rotY;
+        house.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (this.engine) this.engine.registerWallObstacle(child);
+          }
+        });
+        this.scene.add(house);
+        this.colliders.push({ type: 'box', minX: cfg.minX, maxX: cfg.maxX, minZ: cfg.minZ, maxZ: cfg.maxZ });
+      });
     });
 
     // 3. Stepping Stones at scenic creek crossing in Pets Zone (-28, 0, -32)
@@ -290,35 +361,19 @@ export class Town {
     // Choppable trees organized in North Forest Zone by TreeChoppingSystem
   }
 
-  createTree(x, z, type, scale) {
-    const grp = new THREE.Group();
-    grp.position.set(x, 0, z);
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * scale, 0.3 * scale, 2 * scale, 8), this.materials.woodDark);
-    trunk.position.y = 1 * scale;
-    grp.add(trunk);
-    const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(1.4 * scale, 1), this.materials[type]);
-    crown.position.y = 2.8 * scale;
-    grp.add(crown);
-    this.scene.add(grp);
-    this.colliders.push({ type: 'circle', x, z, r: 0.5 * scale });
-  }
-
   buildStreetlamps() {
     this.streetLamps = [];
-    // Placement along major plaza perimeter, riverfront & park paths
     const lampCoords = [
-      { x: -10, z: -10 }, { x: 10, z: -10 },
-      { x: -10, z: 10 }, { x: 10, z: 10 },
-      { x: -24, z: 0 }, { x: 24, z: 0 },
-      { x: 0, z: 22 }, { x: 0, z: -22 },
-      { x: -35, z: 18 }, { x: -35, z: -18 },
-      { x: 35, z: 18 }, { x: 35, z: -18 }
+      { x: -8, z: -10 }, { x: 8, z: -10 },
+      { x: -8, z: 10 }, { x: 8, z: 10 },
+      { x: -20, z: 42 }, { x: 20, z: 42 },
+      { x: 0, z: 24 }, { x: 0, z: -24 }
     ];
 
     const poleMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-    const glassMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // Warm golden glow
+    const glassMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // Warm glow with 0 GPU light cost
 
-    lampCoords.forEach((lc, idx) => {
+    lampCoords.forEach((lc) => {
       const lampGrp = new THREE.Group();
       lampGrp.position.set(lc.x, 0, lc.z);
 
@@ -327,10 +382,9 @@ export class Town {
       base.position.y = 0.175;
       lampGrp.add(base);
 
-      // Pole (height 3.2m)
+      // Pole
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 3.0, 8), poleMat);
       pole.position.y = 1.65;
-      pole.castShadow = true;
       lampGrp.add(pole);
 
       // Curved lantern arm
@@ -338,23 +392,15 @@ export class Town {
       arm.position.set(0.18, 3.15, 0);
       lampGrp.add(arm);
 
-      // Glowing Lantern head
+      // Glowing Lantern head (emissive basic material)
       const lantern = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24, 0), glassMat);
       lantern.position.set(0.38, 3.05, 0);
       lampGrp.add(lantern);
 
-      // Optional PointLight for night ambiance on alternating lamps to maintain 60 FPS
-      let light = null;
-      if (idx % 2 === 0) {
-        light = new THREE.PointLight(0xfef08a, 0, 14, 1.8);
-        light.position.set(0.38, 3.0, 0);
-        lampGrp.add(light);
-      }
-
       this.scene.add(lampGrp);
       this.colliders.push({ type: 'circle', x: lc.x, z: lc.z, r: 0.35 });
 
-      this.streetLamps.push({ group: lampGrp, lantern, light });
+      this.streetLamps.push({ group: lampGrp, lantern });
     });
   }
 
@@ -362,10 +408,7 @@ export class Town {
     if (!this.streetLamps) return;
     this.streetLamps.forEach(lamp => {
       if (lamp.lantern) {
-        lamp.lantern.material.color.setHex(isNight ? 0xfff08a : 0xe2e8f0);
-      }
-      if (lamp.light) {
-        lamp.light.intensity = isNight ? 1.6 : 0;
+        lamp.lantern.material.color.setHex(isNight ? 0xfff08a : 0x94a3b8);
       }
     });
   }

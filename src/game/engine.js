@@ -44,13 +44,19 @@ export class GameEngine {
   }
 
   initRenderer() {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window);
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: !this.isMobile,
+      powerPreference: 'high-performance',
+      precision: this.isMobile ? 'mediump' : 'highp'
+    });
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const maxDPR = this.isMobile ? 1.25 : 1.75;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDPR));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
   }
@@ -92,8 +98,9 @@ export class GameEngine {
     this.sunLight = new THREE.DirectionalLight(0xfef08a, 1.15);
     this.sunLight.position.set(24, 38, 18);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 1024;
-    this.sunLight.shadow.mapSize.height = 1024;
+    const shadowRes = this.isMobile ? 512 : 1024;
+    this.sunLight.shadow.mapSize.width = shadowRes;
+    this.sunLight.shadow.mapSize.height = shadowRes;
     this.sunLight.shadow.camera.near = 10;
     this.sunLight.shadow.camera.far = 90;
     const d = 22;
@@ -161,7 +168,7 @@ export class GameEngine {
   }
 
   initParticles() {
-    const count = 130;
+    const count = this.isMobile ? 40 : 110;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);

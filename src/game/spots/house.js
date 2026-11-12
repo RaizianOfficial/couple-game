@@ -177,10 +177,15 @@ export class CoupleHouseSpot {
     this.scene.add(this.group);
 
     if (this.town && this.town.colliders) {
-      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x + 4.6, minZ: this.position.z + 3.5, maxZ: this.position.z + 4.1 });
-      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x + 4.6, minZ: this.position.z - 4.1, maxZ: this.position.z - 3.5 });
-      this.town.colliders.push({ type: 'box', minX: this.position.x + 4.2, maxX: this.position.x + 4.8, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
+      // Solid Left Wall
       this.town.colliders.push({ type: 'box', minX: this.position.x - 4.8, maxX: this.position.x - 4.2, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
+      // Solid Right Wall
+      this.town.colliders.push({ type: 'box', minX: this.position.x + 4.2, maxX: this.position.x + 4.8, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
+      // Solid Back Wall
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x + 4.6, minZ: this.position.z - 4.1, maxZ: this.position.z - 3.5 });
+      // Front Pillars (Leaves the central 4m grand entrance wide open so players can freely walk inside!)
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x - 2.2, minZ: this.position.z + 3.7, maxZ: this.position.z + 4.2 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x + 2.2, maxX: this.position.x + 4.6, minZ: this.position.z + 3.7, maxZ: this.position.z + 4.2 });
     }
   }
 

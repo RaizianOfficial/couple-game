@@ -48,9 +48,9 @@ export class GameEngine {
   initRenderer() {
     this.isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.isMobile, // Disable MSAA on mobile GPUs to prevent WebGL context lost & thermal lag
+      antialias: true, // Crisp anti-aliased geometry on mobile & PC
       powerPreference: 'high-performance',
-      precision: this.isMobile ? 'mediump' : 'highp',
+      precision: 'highp', // Crystal clear shaders
       stencil: false,
       depth: true,
       failIfMajorPerformanceCaveat: false
@@ -58,11 +58,11 @@ export class GameEngine {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h);
-    // Smooth DPR: 1.5 max on mobile, 2.0 max on desktop
-    const dpr = this.isMobile ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2.0);
+    // Full HD / Retina sharp resolution (up to 2.0x device pixel ratio)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
     this.renderer.setPixelRatio(dpr);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Ultra-smooth soft shadows
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
@@ -114,7 +114,7 @@ export class GameEngine {
     this.sunLight = new THREE.DirectionalLight(0xfef08a, 1.15);
     this.sunLight.position.set(24, 38, 18);
     this.sunLight.castShadow = true;
-    const shadowRes = this.isMobile ? 512 : 1024;
+    const shadowRes = 1024;
     this.sunLight.shadow.mapSize.width = shadowRes;
     this.sunLight.shadow.mapSize.height = shadowRes;
     this.sunLight.shadow.camera.near = 10;
@@ -352,18 +352,7 @@ export class GameEngine {
   }
 
   trackFps(frameDuration) {
-    if (this._bootTimer === undefined) this._bootTimer = performance.now();
-    // Allow 12s grace period for models & Draco decoding before tracking FPS
-    if (performance.now() - this._bootTimer < 12000) return;
-    const currentFps = 1000 / Math.max(frameDuration, 1);
-    this.fpsHistory.push(currentFps);
-    if (this.fpsHistory.length > 180) {
-      this.fpsHistory.shift();
-      if (this.quality === 'high') {
-        const avgFps = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
-        if (avgFps < 20) this.setQuality('low');
-      }
-    }
+    // Keep Ultra High Quality locked - do not auto-downgrade resolution or shadowmaps
   }
 
   resize() {

@@ -271,77 +271,92 @@ export class Town {
     const baseUrl = import.meta.env?.BASE_URL || '/';
     const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
 
-    // 1. Modular 3D Roads & Corner turns using user's GLB pieces
-    loader.load(`${cleanBase}GLBs/assets/road-straight-accessible-01.glb`, (straightGltf) => {
-      loader.load(`${cleanBase}GLBs/assets/road-corner-accessible-01.glb`, (cornerGltf) => {
-        const roadGroup = new THREE.Group();
+    // 1. Modular 3D Roads & Corner Turns using user's GLB pieces
+    let straightBase = null;
+    let cornerBase = null;
 
-        const straightBase = straightGltf.scene;
-        straightBase.traverse((c) => {
-          if (c.isMesh) {
-            c.castShadow = false;
-            c.receiveShadow = true;
-          }
-        });
+    const tryBuildRoads = () => {
+      if (!straightBase || !cornerBase) return;
+      const roadGroup = new THREE.Group();
 
-        const cornerBase = cornerGltf.scene;
-        cornerBase.traverse((c) => {
-          if (c.isMesh) {
-            c.castShadow = false;
-            c.receiveShadow = true;
-          }
-        });
+      // A. Horizontal South Main Street (z = 42, step = 4m from x = -28 to +28)
+      for (let x = -28; x <= 28; x += 4) {
+        const tile = straightBase.clone();
+        tile.position.set(x, 0, 42);
+        tile.rotation.y = Math.PI / 2;
+        roadGroup.add(tile);
+      }
 
-        // A. Horizontal South Main Street (z = 42, step = 4m from x = -28 to +28)
-        for (let x = -28; x <= 28; x += 4) {
-          const tile = straightBase.clone();
-          tile.position.set(x, 0, 42);
-          tile.rotation.y = Math.PI / 2;
-          roadGroup.add(tile);
-        }
+      // B. Corner Turns at East and West ends of Main Street
+      // West Corner (x = -32, z = 42) turning North
+      const westCorner = cornerBase.clone();
+      westCorner.position.set(-32, 0, 42);
+      westCorner.rotation.y = Math.PI / 2;
+      roadGroup.add(westCorner);
 
-        // B. Corner Turns at East and West ends of Main Street
-        // West Corner (x = -32, z = 42) turning North
-        const westCorner = cornerBase.clone();
-        westCorner.position.set(-32, 0, 42);
-        westCorner.rotation.y = Math.PI / 2;
-        roadGroup.add(westCorner);
+      // East Corner (x = 32, z = 42) turning North
+      const eastCorner = cornerBase.clone();
+      eastCorner.position.set(32, 0, 42);
+      eastCorner.rotation.y = 0;
+      roadGroup.add(eastCorner);
 
-        // East Corner (x = 32, z = 42) turning North
-        const eastCorner = cornerBase.clone();
-        eastCorner.position.set(32, 0, 42);
-        eastCorner.rotation.y = 0;
-        roadGroup.add(eastCorner);
+      // C. Northward road extensions from corners
+      for (let z = 38; z >= 26; z -= 4) {
+        const westTurnTile = straightBase.clone();
+        westTurnTile.position.set(-32, 0, z);
+        roadGroup.add(westTurnTile);
 
-        // C. Northward road extensions from corners
-        for (let z = 38; z >= 26; z -= 4) {
-          const westTurnTile = straightBase.clone();
-          westTurnTile.position.set(-32, 0, z);
-          roadGroup.add(westTurnTile);
+        const eastTurnTile = straightBase.clone();
+        eastTurnTile.position.set(32, 0, z);
+        roadGroup.add(eastTurnTile);
+      }
 
-          const eastTurnTile = straightBase.clone();
-          eastTurnTile.position.set(32, 0, z);
-          roadGroup.add(eastTurnTile);
-        }
+      // D. Central Avenue connecting South Main Street to Couple House (x = 0, z = 38 down to 10)
+      for (let z = 38; z >= 10; z -= 4) {
+        const centerTile = straightBase.clone();
+        centerTile.position.set(0, 0, z);
+        roadGroup.add(centerTile);
+      }
 
-        // D. Central Avenue connecting South Main Street to Couple House (x = 0, z = 38 down to 10)
-        for (let z = 38; z >= 10; z -= 4) {
-          const centerTile = straightBase.clone();
-          centerTile.position.set(0, 0, z);
-          roadGroup.add(centerTile);
-        }
+      this.scene.add(roadGroup);
+    };
 
-        this.scene.add(roadGroup);
-      }, undefined, (err) => console.error('[Town] Road corner GLB failed:', err));
-    }, undefined, (err) => console.error('[Town] Road straight GLB failed:', err));
+    loader.load(`${cleanBase}GLBs/assets/road-straight-accessible-01.glb`, (gltf) => {
+      straightBase = gltf.scene;
+      straightBase.traverse((c) => {
+        if (c.isMesh) { c.castShadow = false; c.receiveShadow = true; }
+      });
+      tryBuildRoads();
+    }, undefined, (err) => console.error('[Town] Road straight GLB error:', err));
 
-    // 2. Hide & Seek Town Houses (Apartment Blocks & Cozy Cottages)
-    // A. Multi-Story Apartment Blocks (South-East, South-West, and West Boundary)
+    loader.load(`${cleanBase}GLBs/assets/road-corner-accessible-01.glb`, (gltf) => {
+      cornerBase = gltf.scene;
+      cornerBase.traverse((c) => {
+        if (c.isMesh) { c.castShadow = false; c.receiveShadow = true; }
+      });
+      tryBuildRoads();
+    }, undefined, (err) => console.error('[Town] Road corner GLB error:', err));
+
+    // 2. Full Lively City: Multi-Story Apartment Complexes (Downtown & Suburbs)
     loader.load(`${cleanBase}GLBs/assets/apartment-block-01.glb`, (gltf) => {
       const apartmentConfigs = [
-        { x: 38, z: 44, rotY: 0, w: 7.6, d: 6.8 },
-        { x: -38, z: 44, rotY: 0, w: 7.6, d: 6.8 },
-        { x: -44, z: 18, rotY: Math.PI / 2, w: 7.6, d: 6.8 }
+        // South-West Downtown Residential Block
+        { x: -38, z: 46, rotY: 0, w: 7.6, d: 6.8 },
+        { x: -48, z: 46, rotY: 0, w: 7.6, d: 6.8 },
+        { x: -44, z: 58, rotY: Math.PI, w: 7.6, d: 6.8 },
+        // South-East Downtown Residential Block
+        { x: 38, z: 46, rotY: 0, w: 7.6, d: 6.8 },
+        { x: 48, z: 46, rotY: 0, w: 7.6, d: 6.8 },
+        { x: 44, z: 58, rotY: Math.PI, w: 7.6, d: 6.8 },
+        // West Boulevard Neighborhood
+        { x: -56, z: 12, rotY: Math.PI / 2, w: 7.6, d: 6.8 },
+        { x: -56, z: 26, rotY: Math.PI / 2, w: 7.6, d: 6.8 },
+        // East City District (Behind Play Park)
+        { x: 58, z: -4, rotY: -Math.PI / 2, w: 7.6, d: 6.8 },
+        { x: 58, z: 12, rotY: -Math.PI / 2, w: 7.6, d: 6.8 },
+        { x: 58, z: 26, rotY: -Math.PI / 2, w: 7.6, d: 6.8 },
+        // North-East Skyline Towers
+        { x: 58, z: -32, rotY: -Math.PI / 2, w: 7.6, d: 6.8 }
       ];
 
       apartmentConfigs.forEach((cfg) => {
@@ -356,24 +371,38 @@ export class Town {
           }
         });
         this.scene.add(apt);
-        // Wall colliders only: entrance remains walkable for hide and seek!
+        // Wall colliders only: entrance remains completely open for hide-and-seek!
         this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 2.0);
       });
-    }, undefined, (err) => console.error('[Town] Apartment block GLB failed:', err));
+    }, undefined, (err) => console.error('[Town] Apartment block GLB error:', err));
 
-    // B. Cozy Cottages & Hideout Houses for Hide & Seek (General Store model)
+    // 3. Full Lively City: General Stores, Cafes, Boutiques, Bakeries & Hideout Cottages
     loader.load(`${cleanBase}GLBs/assets/bld-general-store-01.glb`, (gltf) => {
       const houseConfigs = [
-        // Backyard Shed & Pantry
+        // South Main Street North Shops & Cafes
+        { x: -22, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
+        { x: -14, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
+        { x: 14, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
+        { x: 22, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
+        // South Main Street South Sidewalk Boutiques
+        { x: -26, z: 52, rotY: 0, w: 3.4, d: 3.8 },
+        { x: -16, z: 52, rotY: 0, w: 3.4, d: 3.8 },
+        { x: 16, z: 52, rotY: 0, w: 3.4, d: 3.8 },
+        { x: 26, z: 52, rotY: 0, w: 3.4, d: 3.8 },
+        // West Farm Lane Sheds & Cozy Cottages
         { x: -24, z: -14, rotY: Math.PI / 2, w: 3.4, d: 3.8 },
-        // Parkside Tea Cottage
-        { x: 24, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
-        // South Street Cafe
-        { x: 20, z: 32, rotY: Math.PI, w: 3.4, d: 3.8 },
-        // South Street Flower Boutique
-        { x: -20, z: 32, rotY: Math.PI, w: 3.4, d: 3.8 },
-        // Secret Forest Hideout Cabin (Deep in North Forest for Hide & Seek!)
-        { x: 0, z: -58, rotY: 0, w: 3.4, d: 3.8 }
+        { x: -24, z: 14, rotY: Math.PI / 2, w: 3.4, d: 3.8 },
+        { x: -44, z: -18, rotY: 0, w: 3.4, d: 3.8 },
+        // Parkside Tea Cottages & Sweet Shops
+        { x: 22, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
+        { x: 32, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
+        { x: 42, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
+        // Secret Forest Hideout Cabins (Deep in North Forest for Hide & Seek!)
+        { x: -16, z: -58, rotY: 0, w: 3.4, d: 3.8 },
+        { x: 0, z: -58, rotY: 0, w: 3.4, d: 3.8 },
+        { x: 16, z: -58, rotY: 0, w: 3.4, d: 3.8 },
+        // Main Yard Garden Boutique
+        { x: 18, z: 12, rotY: -Math.PI / 2, w: 3.4, d: 3.8 }
       ];
 
       houseConfigs.forEach((cfg) => {
@@ -391,20 +420,18 @@ export class Town {
         // Wall colliders only: front doorway open so partners can hide inside!
         this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 1.4);
       });
-    }, undefined, (err) => console.error('[Town] General store GLB failed:', err));
+    }, undefined, (err) => console.error('[Town] General store GLB error:', err));
 
-    // 3. Stepping Stones at scenic creek crossing in Pets Zone (-28, 0, -32)
+    // 4. Stepping Stones at scenic creek crossing in Pets Zone (-28, 0, -32)
     loader.load(`${cleanBase}GLBs/assets/creek-stepping-stones.glb`, (gltf) => {
       const stones = gltf.scene;
       stones.position.set(-28, 0, -32);
       stones.scale.setScalar(1.0);
       stones.traverse((child) => {
-        if (child.isMesh) {
-          child.receiveShadow = true;
-        }
+        if (child.isMesh) { child.receiveShadow = true; }
       });
       this.scene.add(stones);
-    }, undefined, (err) => console.error('[Town] Stepping stones GLB failed:', err));
+    }, undefined, (err) => console.error('[Town] Stepping stones GLB error:', err));
   }
 
   buildTrees() {

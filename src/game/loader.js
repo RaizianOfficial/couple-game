@@ -10,10 +10,8 @@ export function getGLTFLoader() {
     gltfLoader = new GLTFLoader();
     
     dracoLoader = new DRACOLoader();
-    // Resolve draco decoder files from public/draco/
-    const baseUrl = import.meta.env?.BASE_URL || '/';
-    const decoderPath = baseUrl.endsWith('/') ? `${baseUrl}draco/` : `${baseUrl}/draco/`;
-    dracoLoader.setDecoderPath(decoderPath);
+    // Official globally cached Google Draco decoder (works across all browsers, mobile & production builds)
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
     
     gltfLoader.setDRACOLoader(dracoLoader);
   }
@@ -34,3 +32,4 @@ export function loadGLTF(url) {
     );
   });
 }
+

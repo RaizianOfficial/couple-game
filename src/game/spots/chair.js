@@ -22,6 +22,8 @@ export class ChairSpotSystem {
           b.group.remove(b.group.children[0]);
         }
         const model = gltf.scene.clone();
+        // Lift model so legs rest perfectly on ground level (y = 0), preventing ground sinking
+        model.position.y = 0.4633;
         model.traverse(c => {
           if (c.isMesh) {
             c.castShadow = true;
@@ -106,7 +108,8 @@ export class ChairSpotSystem {
 
   getSeatWorldPos(bench, isLeft = true) {
     const localX = isLeft ? -0.42 : 0.42;
-    const local = new THREE.Vector3(localX, 0.42, 0.05);
+    // Bench seat surface is at y = 0.45; character sitting hip offset is 0.42, so sitting root at y = 0.04
+    const local = new THREE.Vector3(localX, 0.05, 0.05);
     bench.group.localToWorld(local);
     return local;
   }

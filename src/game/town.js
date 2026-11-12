@@ -108,19 +108,7 @@ export class Town {
   }
 
   buildRoadsAndPaths() {
-    // 1. Central Cross Paths connecting Couple House to all 4 quadrants
-    this.createRoadSegment(0, -18, 3.6, 24); // North path to Forest Zone
-    this.createRoadSegment(0, 18, 3.6, 24);  // South path to The Main Street
-    this.createRoadSegment(18, 0, 24, 3.6);  // East path to Play Park
-    this.createRoadSegment(-18, 0, 24, 3.6); // West path to Cozy Backyard
-
-    // 2. North Forest Walking Aisles
-    this.createRoadSegment(0, -46, 2.6, 32);  // North center aisle
-    this.createRoadSegment(0, -46, 52, 2.6);  // Forest cross aisle
-
-    // 3. Play Park Walkways
-    this.createRoadSegment(40, -4, 2.8, 28);
-    this.createRoadSegment(40, 10, 24, 2.8);
+    // Procedural cream road removed so user's 3D GLB road pieces (black asphalt & markings) are 100% visible
   }
 
   createRoadSegment(x, z, width, length) {
@@ -279,10 +267,13 @@ export class Town {
       if (!straightBase || !cornerBase) return;
       const roadGroup = new THREE.Group();
 
+      // Lift road slightly (y = 0.08) so real black asphalt, white lane markings & kerbs are 100% visible
+      const roadY = 0.08;
+
       // A. Horizontal South Main Street (z = 42, step = 4m from x = -28 to +28)
       for (let x = -28; x <= 28; x += 4) {
         const tile = straightBase.clone();
-        tile.position.set(x, 0, 42);
+        tile.position.set(x, roadY, 42);
         tile.rotation.y = Math.PI / 2;
         roadGroup.add(tile);
       }
@@ -290,31 +281,31 @@ export class Town {
       // B. Corner Turns at East and West ends of Main Street
       // West Corner (x = -32, z = 42) turning North
       const westCorner = cornerBase.clone();
-      westCorner.position.set(-32, 0, 42);
+      westCorner.position.set(-32, roadY, 42);
       westCorner.rotation.y = Math.PI / 2;
       roadGroup.add(westCorner);
 
       // East Corner (x = 32, z = 42) turning North
       const eastCorner = cornerBase.clone();
-      eastCorner.position.set(32, 0, 42);
+      eastCorner.position.set(32, roadY, 42);
       eastCorner.rotation.y = 0;
       roadGroup.add(eastCorner);
 
-      // C. Northward road extensions from corners
-      for (let z = 38; z >= 26; z -= 4) {
+      // C. Northward road extensions from corners (wrapping around town)
+      for (let z = 38; z >= 18; z -= 4) {
         const westTurnTile = straightBase.clone();
-        westTurnTile.position.set(-32, 0, z);
+        westTurnTile.position.set(-32, roadY, z);
         roadGroup.add(westTurnTile);
 
         const eastTurnTile = straightBase.clone();
-        eastTurnTile.position.set(32, 0, z);
+        eastTurnTile.position.set(32, roadY, z);
         roadGroup.add(eastTurnTile);
       }
 
-      // D. Central Avenue connecting South Main Street to Couple House (x = 0, z = 38 down to 10)
-      for (let z = 38; z >= 10; z -= 4) {
+      // D. Central Avenue connecting South Main Street directly to Couple House porch (z = 38 down to 6)
+      for (let z = 38; z >= 6; z -= 4) {
         const centerTile = straightBase.clone();
-        centerTile.position.set(0, 0, z);
+        centerTile.position.set(0, roadY, z);
         roadGroup.add(centerTile);
       }
 
@@ -336,6 +327,103 @@ export class Town {
       });
       tryBuildRoads();
     }, undefined, (err) => console.error('[Town] Road corner GLB error:', err));
+
+    // 2. Base Flagstone Paving Tiles (Agora Flagstone Tiles on paths, plazas, and courtyards)
+    loader.load(`${cleanBase}GLBs/assets/agora-flagstone-tile.glb`, (gltf) => {
+      const tileGroup = new THREE.Group();
+      const baseTile = gltf.scene;
+      baseTile.traverse((c) => {
+        if (c.isMesh) { c.castShadow = false; c.receiveShadow = true; }
+      });
+
+      const tileY = 0.05;
+
+      // North Path to Forest Zone
+      for (let z = -10; z >= -34; z -= 4) {
+        const t = baseTile.clone();
+        t.position.set(0, tileY, z);
+        tileGroup.add(t);
+      }
+
+      // East Path to Play Park
+      for (let x = 10; x <= 30; x += 4) {
+        const t = baseTile.clone();
+        t.position.set(x, tileY, 0);
+        tileGroup.add(t);
+      }
+
+      // West Path to Farm Backyard
+      for (let x = -10; x >= -30; x -= 4) {
+        const t = baseTile.clone();
+        t.position.set(x, tileY, 0);
+        tileGroup.add(t);
+      }
+
+      // Main Yard & Porch Terrace Paving
+      for (let x = -4; x <= 4; x += 4) {
+        const t = baseTile.clone();
+        t.position.set(x, tileY, 4.8);
+        tileGroup.add(t);
+      }
+      for (let x = 6; x <= 14; x += 4) {
+        for (let z = -2; z <= 2; z += 4) {
+          const t = baseTile.clone();
+          t.position.set(x, tileY, z);
+          tileGroup.add(t);
+        }
+      }
+
+      // Play Park Central Walkway
+      for (let z = -12; z <= 16; z += 4) {
+        const t = baseTile.clone();
+        t.position.set(40, tileY, z);
+        tileGroup.add(t);
+      }
+
+      this.scene.add(tileGroup);
+    }, undefined, (err) => console.error('[Town] Agora flagstone tile GLB error:', err));
+
+    // 3. Base Grass Tiles (Airfield Grass 3D textured tiles for central park and meadow areas)
+    loader.load(`${cleanBase}GLBs/assets/airfield-grass-tile.glb`, (gltf) => {
+      const grassGroup = new THREE.Group();
+      const baseGrass = gltf.scene;
+      baseGrass.traverse((c) => {
+        if (c.isMesh) { c.castShadow = false; c.receiveShadow = true; }
+      });
+
+      const grassY = 0.02;
+
+      // Play Park Grass Field
+      for (let x = 32; x <= 48; x += 4) {
+        for (let z = -14; z <= 18; z += 4) {
+          if (x === 40 && z >= -12 && z <= 16) continue; // Keep flagstone path clear
+          const g = baseGrass.clone();
+          g.position.set(x, grassY, z);
+          grassGroup.add(g);
+        }
+      }
+
+      // North Forest Soft Meadow Floor
+      for (let x = -24; x <= 24; x += 8) {
+        for (let z = -36; z >= -60; z -= 8) {
+          const g = baseGrass.clone();
+          g.position.set(x, grassY, z);
+          g.scale.setScalar(2.0); // Scaled tile for scenic large meadow
+          grassGroup.add(g);
+        }
+      }
+
+      // Pets Zone Green Lawn
+      for (let x = -16; x >= -32; x -= 4) {
+        for (let z = -20; z >= -36; z -= 4) {
+          const g = baseGrass.clone();
+          g.position.set(x, grassY, z);
+          grassGroup.add(g);
+        }
+      }
+
+      this.scene.add(grassGroup);
+    }, undefined, (err) => console.error('[Town] Airfield grass tile GLB error:', err));
 
     // 2. Full Lively City: Multi-Story Apartment Complexes (Downtown & Suburbs)
     loader.load(`${cleanBase}GLBs/assets/apartment-block-01.glb`, (gltf) => {

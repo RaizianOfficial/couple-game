@@ -2,7 +2,7 @@
 import { soundEngine } from '../audio.js';
 
 // Strict Emoji List & Custom Text Messages defined in requirements
-export const SWEET_EMOJIS = ['😭', '👍🏻', '🥺', '😘', '😍', '💗', '😏', '😡'];
+export const SWEET_EMOJIS = ['😭', '😂', '👍🏻', '🥺', '😘', '😍', '💗', '😏', '😡'];
 export const CUSTOM_MSGS = ['I LOVE YOU', 'I HATE YOU', 'COME HERE', 'GO', 'HIDE', 'SORRY', 'SLEEP TIME'];
 export const MEME_SOUNDS = [
   { id: 'meme_aayein', label: 'Aayein 🍆', key: 'aayein' },

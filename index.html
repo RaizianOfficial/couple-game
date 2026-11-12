@@ -117,9 +117,13 @@
       line-height: 1.4;
     }
 
-    /* Show portrait overlay when height > width on mobile/tablet */
+    /* Show portrait overlay when height > width on mobile/tablet during active 3D gameplay */
+    #rotate-overlay {
+      display: none !important;
+    }
+
     @media (orientation: portrait) {
-      #rotate-overlay {
+      body.in-game #rotate-overlay {
         display: flex !important;
       }
     }
@@ -138,8 +142,11 @@
       z-index: 50;
       background: linear-gradient(135deg, rgba(254, 215, 170, 0.94) 0%, rgba(251, 207, 232, 0.94) 50%, rgba(221, 214, 254, 0.94) 100%);
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       transition: opacity 0.3s ease, visibility 0.3s ease;
       padding: 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     #screen-landing {
@@ -196,7 +203,7 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-radius: 36px;
-      padding: 28px 24px 22px;
+      padding: 24px 22px 20px;
       box-shadow: 0 24px 50px rgba(244, 63, 94, 0.16), 0 6px 18px rgba(251, 146, 60, 0.1), 0 0 0 2px #ffffff inset;
       border: 3px solid #ffe4e6;
       max-width: 390px;
@@ -205,8 +212,25 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 13px;
+      gap: 12px;
+      margin: auto;
       transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    }
+
+    .landing-header {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .landing-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
     }
 
     .game-badge {
@@ -286,6 +310,13 @@
       display: flex;
       gap: 12px;
       width: 100%;
+    }
+
+    .button-stack .btn-primary,
+    .button-stack .btn-secondary {
+      flex: 1;
+      width: auto;
+      min-width: 0;
     }
 
     .btn-primary {
@@ -1436,6 +1467,216 @@
       gap: 6px;
     }
 
+    /* Mobile Responsive Optimizations for Phones (Portrait & Landscape) */
+    @media (max-width: 480px) {
+      .glass-card {
+        padding: 18px 16px 14px;
+        border-radius: 28px;
+        gap: 10px;
+        max-width: 360px;
+      }
+      .landing-header {
+        gap: 6px;
+      }
+      .landing-actions {
+        gap: 8px;
+      }
+      .game-badge {
+        padding: 4px 12px;
+        font-size: 10px;
+      }
+      .game-logo {
+        font-size: 26px;
+      }
+      .game-subtitle {
+        font-size: 12px;
+      }
+      .avatar-selector-grid {
+        gap: 8px;
+      }
+      .avatar-card {
+        padding: 8px 10px;
+        border-radius: 16px;
+      }
+      .avatar-visual {
+        width: 36px;
+        height: 36px;
+        font-size: 22px;
+      }
+      .avatar-title {
+        font-size: 14px;
+      }
+      .avatar-role {
+        font-size: 10px;
+      }
+      .input-field {
+        height: 46px;
+        font-size: 15px;
+        border-radius: 16px;
+      }
+      .btn-primary {
+        height: 48px;
+        font-size: 15px;
+        border-radius: 16px;
+      }
+      .join-box .input-field {
+        height: 46px;
+        font-size: 17px;
+      }
+      .join-box .btn-secondary {
+        height: 46px;
+        flex: 0 0 95px;
+        font-size: 15px;
+        border-radius: 16px;
+      }
+      .join-divider {
+        font-size: 11px;
+        margin: 2px 0;
+      }
+    }
+
+    /* Landscape Mode on Phones (short viewport height <= 540px) */
+    @media (orientation: landscape) and (max-height: 540px) {
+      .screen {
+        padding: 8px 12px;
+        justify-content: center;
+      }
+      #screen-landing .glass-card {
+        max-width: 620px;
+        width: 96%;
+        padding: 14px 20px 12px;
+        border-radius: 24px;
+        display: grid;
+        grid-template-columns: 1fr 1.05fr;
+        gap: 16px;
+        align-items: center;
+        margin: auto;
+      }
+      .landing-header {
+        gap: 4px;
+      }
+      .landing-header .game-badge {
+        padding: 3px 10px;
+        font-size: 9px;
+      }
+      .landing-header .game-logo {
+        font-size: 20px;
+        margin: 0;
+      }
+      .landing-header .game-subtitle {
+        font-size: 10px;
+        margin: 0;
+      }
+      .avatar-selector-grid {
+        gap: 8px;
+        margin: 4px 0 0;
+      }
+      .avatar-card {
+        padding: 6px 8px;
+        border-radius: 12px;
+      }
+      .avatar-visual {
+        width: 30px;
+        height: 30px;
+        font-size: 18px;
+        border-radius: 10px;
+      }
+      .avatar-title {
+        font-size: 12px;
+      }
+      .avatar-role {
+        font-size: 9px;
+      }
+      .avatar-check {
+        width: 16px;
+        height: 16px;
+        font-size: 9px;
+      }
+      .landing-actions {
+        gap: 6px;
+      }
+      .landing-actions .input-field {
+        height: 38px;
+        font-size: 13px;
+        border-radius: 12px;
+        padding: 0 12px;
+      }
+      .landing-actions .btn-primary {
+        height: 38px;
+        font-size: 13px;
+        border-radius: 12px;
+        box-shadow: 0 3px 0 #be123c, 0 4px 10px rgba(244, 63, 94, 0.2);
+      }
+      .landing-actions .join-divider {
+        font-size: 10px;
+        margin: 0;
+        gap: 8px;
+      }
+      .landing-actions .join-box {
+        gap: 6px;
+      }
+      .landing-actions .join-box .input-field {
+        height: 38px;
+        font-size: 15px;
+      }
+      .landing-actions .join-box .btn-secondary {
+        height: 38px;
+        flex: 0 0 80px;
+        font-size: 13px;
+        border-radius: 12px;
+        box-shadow: 0 3px 0 #c2410c, 0 4px 10px rgba(251, 146, 60, 0.2);
+      }
+      .landing-actions .error-msg {
+        font-size: 11px;
+        min-height: 14px;
+      }
+      .landing-actions .footer-links {
+        margin: 0;
+        font-size: 11px;
+      }
+      #screen-waiting .glass-card {
+        max-width: 460px;
+        padding: 14px 18px;
+        gap: 8px;
+        border-radius: 22px;
+      }
+      #screen-waiting .pulse-heart {
+        font-size: 32px;
+      }
+      #screen-waiting .game-logo {
+        font-size: 20px;
+      }
+      #screen-waiting .game-subtitle {
+        font-size: 11px;
+      }
+      #screen-waiting .room-code-display {
+        font-size: 28px;
+        padding: 6px 14px;
+        letter-spacing: 6px;
+      }
+      #screen-waiting .button-stack .btn-primary,
+      #screen-waiting .button-stack .btn-secondary {
+        height: 38px;
+        font-size: 13px;
+        border-radius: 12px;
+      }
+      #screen-waiting .btn-cancel {
+        padding: 4px;
+        font-size: 11px;
+      }
+    }
+
+    /* Ultra compact fallback when mobile keyboard opens (height < 300px) */
+    @media (max-height: 300px) {
+      .screen {
+        justify-content: flex-start;
+        padding: 4px 8px;
+      }
+      .glass-card {
+        margin: 4px auto;
+      }
+    }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -1479,54 +1720,58 @@
     <div class="screen" id="screen-landing">
       <div class="cinematic-particles" id="landing-particles"></div>
       <div class="glass-card">
-        <div class="game-badge">✨ 2-Player Cozy World ✨</div>
-        <div class="game-logo">Our <span class="logo-accent">Little Town</span></div>
-        <p class="game-subtitle">A sweet, dreamy, real-time couple adventure</p>
+        <div class="landing-header">
+          <div class="game-badge">✨ 2-Player Cozy World ✨</div>
+          <div class="game-logo">Our <span class="logo-accent">Little Town</span></div>
+          <p class="game-subtitle">A sweet, dreamy, real-time couple adventure</p>
 
-        <!-- Immersive Avatar Selector Cards -->
-        <div class="avatar-selector-grid">
-          <input type="hidden" id="landing-gender" value="boy" />
-          
-          <button class="avatar-card active" id="btn-select-boy" type="button" aria-label="Select Boy Avatar">
-            <div class="avatar-card-inner">
-              <div class="avatar-visual boy-visual">👦🏻</div>
-              <div class="avatar-meta">
-                <span class="avatar-title">Boy</span>
-                <span class="avatar-role">Player 1</span>
+          <!-- Immersive Avatar Selector Cards -->
+          <div class="avatar-selector-grid">
+            <input type="hidden" id="landing-gender" value="boy" />
+            
+            <button class="avatar-card active" id="btn-select-boy" type="button" aria-label="Select Boy Avatar">
+              <div class="avatar-card-inner">
+                <div class="avatar-visual boy-visual">👦🏻</div>
+                <div class="avatar-meta">
+                  <span class="avatar-title">Boy</span>
+                  <span class="avatar-role">Player 1</span>
+                </div>
+                <div class="avatar-check">✓</div>
               </div>
-              <div class="avatar-check">✓</div>
-            </div>
-          </button>
+            </button>
 
-          <button class="avatar-card" id="btn-select-girl" type="button" aria-label="Select Girl Avatar">
-            <div class="avatar-card-inner">
-              <div class="avatar-visual girl-visual">👧🏻</div>
-              <div class="avatar-meta">
-                <span class="avatar-title">Girl</span>
-                <span class="avatar-role">Player 2</span>
+            <button class="avatar-card" id="btn-select-girl" type="button" aria-label="Select Girl Avatar">
+              <div class="avatar-card-inner">
+                <div class="avatar-visual girl-visual">👧🏻</div>
+                <div class="avatar-meta">
+                  <span class="avatar-title">Girl</span>
+                  <span class="avatar-role">Player 2</span>
+                </div>
+                <div class="avatar-check">✓</div>
               </div>
-              <div class="avatar-check">✓</div>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
 
-        <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname 🌸" maxlength="12" />
+        <div class="landing-actions">
+          <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname 🌸" maxlength="12" />
 
-        <div class="button-stack">
-          <button class="btn-primary" id="btn-create-room">✨ Create Room ✨</button>
-        </div>
+          <div class="button-stack">
+            <button class="btn-primary" id="btn-create-room">✨ Create Room ✨</button>
+          </div>
 
-        <div class="join-divider"><span>or enter 4-digit code</span></div>
+          <div class="join-divider"><span>or enter 4-digit code</span></div>
 
-        <div class="join-box">
-          <input type="tel" pattern="[0-9]*" class="input-field" id="landing-room-code" placeholder="1234" maxlength="4" />
-          <button class="btn-secondary" id="btn-join-room">Join 🚀</button>
-        </div>
+          <div class="join-box">
+            <input type="tel" pattern="[0-9]*" class="input-field" id="landing-room-code" placeholder="1234" maxlength="4" />
+            <button class="btn-secondary" id="btn-join-room">Join 🚀</button>
+          </div>
 
-        <div class="error-msg" id="landing-error"></div>
+          <div class="error-msg" id="landing-error"></div>
 
-        <div class="footer-links">
-          <button id="btn-open-privacy">Privacy & Safety</button>
+          <div class="footer-links">
+            <button id="btn-open-privacy">Privacy & Safety</button>
+          </div>
         </div>
       </div>
     </div>

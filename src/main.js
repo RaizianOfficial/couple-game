@@ -383,6 +383,7 @@ class App {
       this.myChar.setPosition(0.8, 4.5, -Math.PI / 2);
       this.screenWaiting.classList.add('hidden');
       this.hud.setPresence('online');
+      document.body.classList.add('in-game');
     }
     roomService.onRoomUpdated = (r, p) => this.handleRoomUpdate(r, p);
     this.engine.render((delta) => this.onTick(delta));
@@ -399,6 +400,7 @@ class App {
     if (this.partnerChar) this.partnerChar.group.visible = isOnline;
     if (!this.screenWaiting.classList.contains('hidden')) {
       this.screenWaiting.classList.add('hidden');
+      document.body.classList.add('in-game');
       soundEngine.playCheer();
     }
     if (!this.partnerChar) {

@@ -11,6 +11,11 @@
   <link rel="icon" type="image/svg+xml" href="./icon.svg" />
   <link rel="apple-touch-icon" href="./icon.svg" />
 
+  <!-- Cute Game Rounded Fonts (Fredoka & Quicksand) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     /* Reset & Mobile PWA Locks */
     *, *::before, *::after {
@@ -20,6 +25,7 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+      font-family: 'Fredoka', 'Quicksand', -apple-system, sans-serif;
     }
 
     html, body {
@@ -27,7 +33,7 @@
       height: 100%;
       overflow: hidden;
       background-color: #fed7aa;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: 'Fredoka', 'Quicksand', -apple-system, sans-serif;
       touch-action: none;
       overscroll-behavior: none;
       position: fixed;
@@ -136,6 +142,47 @@
       padding: 16px;
     }
 
+    #screen-landing {
+      background:
+        radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.95) 0%, rgba(254, 215, 170, 0.5) 40%, rgba(251, 207, 232, 0.8) 75%, rgba(244, 114, 182, 0.6) 100%),
+        linear-gradient(145deg, #fff5f5 0%, #ffe4e6 30%, #ffedd5 65%, #fed7aa 100%);
+      overflow: hidden;
+      perspective: 1000px;
+    }
+
+    .cinematic-particles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .magical-particle {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(251, 113, 133, 0.55) 55%, transparent 100%);
+      pointer-events: none;
+      animation: driftFloat linear infinite;
+    }
+
+    @keyframes driftFloat {
+      0% {
+        transform: translateY(105vh) translateX(0) scale(0.6);
+        opacity: 0;
+      }
+      15% {
+        opacity: 0.85;
+      }
+      85% {
+        opacity: 0.85;
+      }
+      100% {
+        transform: translateY(-10vh) translateX(var(--drift-x, 25px)) scale(1.1);
+        opacity: 0;
+      }
+    }
+
     .screen.hidden {
       opacity: 0;
       visibility: hidden;
@@ -143,55 +190,96 @@
     }
 
     .glass-card {
-      background: rgba(255, 255, 255, 0.82);
-      border-radius: 24px;
-      padding: 24px 32px;
-      box-shadow: 0 12px 36px rgba(131, 24, 67, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04);
-      border: 1.5px solid rgba(255, 255, 255, 0.8);
-      max-width: 440px;
-      width: 90%;
+      position: relative;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 36px;
+      padding: 28px 24px 22px;
+      box-shadow: 0 24px 50px rgba(244, 63, 94, 0.16), 0 6px 18px rgba(251, 146, 60, 0.1), 0 0 0 2px #ffffff inset;
+      border: 3px solid #ffe4e6;
+      max-width: 390px;
+      width: 92%;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 13px;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+    }
+
+    .game-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      background: #fff1f2;
+      border: 1.5px solid #fecdd3;
+      color: #e11d48;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 6px rgba(225, 29, 72, 0.08);
     }
 
     .game-logo {
       font-size: 32px;
-      font-weight: 800;
-      color: #db2777;
+      font-weight: 700;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
       letter-spacing: -0.5px;
+      color: #1e293b;
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
+      line-height: 1.1;
+      margin-top: -2px;
+    }
+
+    .game-logo .logo-accent {
+      color: #fb7185;
+      background: linear-gradient(135deg, #fb7185 0%, #f43f5e 50%, #fb923c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .game-subtitle {
-      font-size: 14px;
-      color: #64748b;
+      font-size: 13px;
+      color: #94a3b8;
       margin-top: -6px;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
+      font-weight: 600;
     }
 
     .input-field {
       width: 100%;
-      height: 48px;
-      border-radius: 14px;
-      border: 1.5px solid #fbcfe8;
-      background: #fff;
-      padding: 0 16px;
-      font-size: 15px;
-      color: #1e293b;
+      height: 52px;
+      border-radius: 20px;
+      border: 2px solid #fecdd3;
+      background: #ffffff;
+      padding: 0 18px;
+      font-size: 16px;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      color: #334155;
       outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: all 0.2s ease;
       text-align: center;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(254, 205, 211, 0.2) inset;
+    }
+
+    .input-field::placeholder {
+      color: #cbd5e1;
       font-weight: 500;
     }
 
     .input-field:focus {
-      border-color: #ec4899;
-      box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.2);
+      border-color: #fb7185;
+      box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.16);
+      background: #fffafb;
     }
 
     .button-stack {
@@ -201,61 +289,136 @@
     }
 
     .btn-primary {
-      flex: 1;
-      height: 48px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+      width: 100%;
+      height: 52px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #fb7185 0%, #f43f5e 100%);
       color: #fff;
-      font-size: 15px;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 14px rgba(219, 39, 119, 0.35);
-      transition: transform 0.1s ease, filter 0.2s ease;
+      box-shadow: 0 5px 0 #be123c, 0 8px 18px rgba(244, 63, 94, 0.28);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .btn-secondary {
-      flex: 1;
-      height: 48px;
-      border-radius: 14px;
-      background: #ffffff;
-      color: #db2777;
-      font-size: 15px;
+    .btn-primary:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #be123c, 0 3px 8px rgba(244, 63, 94, 0.2);
+    }
+
+    .join-divider {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      gap: 12px;
+      color: #cbd5e1;
+      font-size: 12px;
       font-weight: 600;
-      border: 1.5px solid #fbcfe8;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      transition: transform 0.1s ease, background 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+      margin: 1px 0;
     }
-
-    .btn-primary:active, .btn-secondary:active {
-      transform: scale(0.97);
+    .join-divider::before, .join-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #fecdd3;
+      opacity: 0.6;
     }
 
     .join-box {
       width: 100%;
       display: flex;
-      gap: 8px;
+      gap: 10px;
+      align-items: center;
     }
 
-    .join-box input {
-      letter-spacing: 2px;
-      text-transform: uppercase;
+    .join-box .input-field {
+      flex: 1;
+      min-width: 0;
+      height: 52px;
+      letter-spacing: 3px;
+      text-align: center;
+      font-size: 18px;
       font-weight: 700;
+    }
+
+    .join-box .btn-secondary {
+      flex: 0 0 100px;
+      height: 52px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #fdba74 0%, #fb923c 100%);
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #c2410c, 0 6px 14px rgba(251, 146, 60, 0.28);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .join-box .btn-secondary:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #c2410c;
+    }
+
+    /* Global Game Secondary & Cancel Buttons */
+    .btn-secondary {
+      flex: 1;
+      height: 52px;
+      border-radius: 20px;
+      background: #ffffff;
+      color: #fb7185;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      border: 2px solid #fecdd3;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #fecdd3, 0 6px 14px rgba(254, 205, 211, 0.25);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-secondary:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #fecdd3;
+    }
+
+    .btn-cancel {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      cursor: pointer;
+      border-radius: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-cancel:hover {
+      background: #fff1f2;
+      color: #f43f5e;
     }
 
     .error-msg {
       color: #e11d48;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       min-height: 18px;
     }
 
@@ -264,7 +427,7 @@
       gap: 16px;
       font-size: 12px;
       color: #94a3b8;
-      margin-top: 4px;
+      margin-top: 2px;
     }
 
     .footer-links a, .footer-links button {
@@ -278,19 +441,24 @@
 
     /* Waiting Screen */
     .room-code-display {
-      font-size: 38px;
-      font-weight: 800;
-      letter-spacing: 6px;
-      color: #ec4899;
-      background: #fdf2f8;
-      padding: 8px 24px;
-      border-radius: 16px;
-      border: 2px dashed #f472b6;
+      font-size: 42px;
+      font-weight: 700;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      letter-spacing: 8px;
+      color: #f43f5e;
+      background: #fff5f7;
+      padding: 12px 24px;
+      border-radius: 24px;
+      border: 2.5px dashed #fbcfe8;
+      box-shadow: 0 4px 0 #ffe4e6, 0 4px 12px rgba(254, 205, 211, 0.3) inset;
+      width: 100%;
+      text-align: center;
     }
 
     .pulse-heart {
-      font-size: 42px;
+      font-size: 46px;
       animation: pulse 1.4s infinite ease-in-out;
+      filter: drop-shadow(0 4px 8px rgba(244, 63, 94, 0.25));
     }
 
     @keyframes pulse {
@@ -705,40 +873,132 @@
       background: rgba(245, 158, 11, 0.5);
     }
 
-    /* Gender Selector */
-    .gender-toggle {
-      display: flex;
+    /* Immersive Avatar Selector Cards (Tactile Cute Cozy Game Style) */
+    .avatar-selector-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
       width: 100%;
-      background: #f1f5f9;
-      border-radius: 12px;
-      padding: 4px;
-      gap: 4px;
-      margin-bottom: 4px;
+      margin: 2px 0 2px;
     }
 
-    .gender-btn {
-      flex: 1;
-      padding: 8px;
-      border-radius: 10px;
-      border: none;
-      background: transparent;
-      color: #64748b;
-      font-weight: 600;
-      font-size: 14px;
+    .avatar-card {
+      border: 2px solid #fed7aa;
+      background: #fffaf5;
+      border-radius: 20px;
+      padding: 10px 12px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      text-align: left;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.2s ease;
+      box-shadow: 0 4px 0 #fed7aa;
+      position: relative;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .gender-btn.active.boy {
-      background: #38bdf8;
-      color: #fff;
-      box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+    .avatar-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 #fed7aa;
     }
 
-    .gender-btn.active.girl {
-      background: #f472b6;
+    .avatar-card:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #fed7aa;
+    }
+
+    .avatar-card-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar-visual {
+      font-size: 26px;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    .avatar-meta {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .avatar-title {
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Fredoka', 'Quicksand', sans-serif;
+      color: #334155;
+      line-height: 1.2;
+    }
+
+    .avatar-role {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .avatar-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e2e8f0;
       color: #fff;
-      box-shadow: 0 2px 8px rgba(244, 114, 182, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      opacity: 0;
+      transform: scale(0.6);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Active Boy (Cute Sky Blue / Pastel) */
+    .avatar-card.active#btn-select-boy {
+      border-color: #38bdf8;
+      background: #f0f9ff;
+      box-shadow: 0 4px 0 #0284c7;
+    }
+    .avatar-card.active#btn-select-boy .avatar-visual {
+      background: #e0f2fe;
+      transform: scale(1.08);
+    }
+    .avatar-card.active#btn-select-boy .avatar-title {
+      color: #0284c7;
+    }
+    .avatar-card.active#btn-select-boy .avatar-check {
+      opacity: 1;
+      transform: scale(1);
+      background: #0284c7;
+    }
+
+    /* Active Girl (Cute Rose Pink / Pastel) */
+    .avatar-card.active#btn-select-girl {
+      border-color: #fb7185;
+      background: #fff1f2;
+      box-shadow: 0 4px 0 #e11d48;
+    }
+    .avatar-card.active#btn-select-girl .avatar-visual {
+      background: #ffe4e6;
+      transform: scale(1.08);
+    }
+    .avatar-card.active#btn-select-girl .avatar-title {
+      color: #e11d48;
+    }
+    .avatar-card.active#btn-select-girl .avatar-check {
+      opacity: 1;
+      transform: scale(1);
+      background: #e11d48;
     }
 
     /* Floating Reactions World/Screen Layer */
@@ -1217,26 +1477,50 @@
 
     <!-- Landing Screen -->
     <div class="screen" id="screen-landing">
+      <div class="cinematic-particles" id="landing-particles"></div>
       <div class="glass-card">
-        <div class="game-logo">🌸 Our Little Town 🌸</div>
-        <p class="game-subtitle">A sweet, dreamy, real-time two-player couple game</p>
+        <div class="game-badge">✨ 2-Player Cozy World ✨</div>
+        <div class="game-logo">Our <span class="logo-accent">Little Town</span></div>
+        <p class="game-subtitle">A sweet, dreamy, real-time couple adventure</p>
 
-        <!-- Gender Selector UI -->
-        <div class="gender-toggle">
+        <!-- Immersive Avatar Selector Cards -->
+        <div class="avatar-selector-grid">
           <input type="hidden" id="landing-gender" value="boy" />
-          <button class="gender-btn active boy" id="btn-select-boy" type="button">👦 Boy</button>
-          <button class="gender-btn girl" id="btn-select-girl" type="button">👧 Girl</button>
+          
+          <button class="avatar-card active" id="btn-select-boy" type="button" aria-label="Select Boy Avatar">
+            <div class="avatar-card-inner">
+              <div class="avatar-visual boy-visual">👦🏻</div>
+              <div class="avatar-meta">
+                <span class="avatar-title">Boy</span>
+                <span class="avatar-role">Player 1</span>
+              </div>
+              <div class="avatar-check">✓</div>
+            </div>
+          </button>
+
+          <button class="avatar-card" id="btn-select-girl" type="button" aria-label="Select Girl Avatar">
+            <div class="avatar-card-inner">
+              <div class="avatar-visual girl-visual">👧🏻</div>
+              <div class="avatar-meta">
+                <span class="avatar-title">Girl</span>
+                <span class="avatar-role">Player 2</span>
+              </div>
+              <div class="avatar-check">✓</div>
+            </div>
+          </button>
         </div>
 
-        <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname" maxlength="12" />
+        <input type="text" class="input-field" id="landing-nickname" placeholder="Your Nickname 🌸" maxlength="12" />
 
         <div class="button-stack">
-          <button class="btn-primary" id="btn-create-room">Create Room</button>
+          <button class="btn-primary" id="btn-create-room">✨ Create Room ✨</button>
         </div>
+
+        <div class="join-divider"><span>or enter 4-digit code</span></div>
 
         <div class="join-box">
           <input type="tel" pattern="[0-9]*" class="input-field" id="landing-room-code" placeholder="1234" maxlength="4" />
-          <button class="btn-secondary" id="btn-join-room" style="flex:0.8;">Join</button>
+          <button class="btn-secondary" id="btn-join-room">Join 🚀</button>
         </div>
 
         <div class="error-msg" id="landing-error"></div>
@@ -1251,17 +1535,17 @@
     <div class="screen hidden" id="screen-waiting">
       <div class="glass-card">
         <div class="pulse-heart">💖</div>
-        <div class="game-logo" style="font-size:24px;">Waiting for your partner...</div>
-        <p class="game-subtitle">Share this room code with your partner to join!</p>
+        <div class="game-logo" style="font-size:26px;">Waiting for partner...</div>
+        <p class="game-subtitle">Share this room code with your partner to play together! 💕</p>
 
         <div class="room-code-display" id="waiting-room-code">1234</div>
 
         <div class="button-stack">
-          <button class="btn-primary" id="waiting-copy-btn">Copy Code</button>
-          <button class="btn-secondary" id="waiting-share-btn">Share Link</button>
+          <button class="btn-primary" id="waiting-copy-btn">📋 Copy Code</button>
+          <button class="btn-secondary" id="waiting-share-btn">🔗 Share Link</button>
         </div>
 
-        <button class="btn-secondary" id="waiting-cancel-btn" style="width:100%; border-color:transparent; color:#64748b;">Cancel & Leave</button>
+        <button class="btn-cancel" id="waiting-cancel-btn">✕ Cancel & Leave</button>
       </div>
     </div>
 
@@ -1283,6 +1567,29 @@
   </div>
 
   <script>
+    // Spawn ambient magical particles drifting across cinematic backdrop
+    (() => {
+      const pContainer = document.getElementById('landing-particles');
+      if (!pContainer) return;
+      const count = 22;
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('span');
+        p.className = 'magical-particle';
+        const size = Math.random() * 5 + 3; // 3px to 8px
+        const left = Math.random() * 100;
+        const dur = Math.random() * 10 + 12; // 12s to 22s slow drift
+        const delay = Math.random() * -20;
+        const driftX = (Math.random() - 0.5) * 80;
+        p.style.width = `${size}px`;
+        p.style.height = `${size}px`;
+        p.style.left = `${left}%`;
+        p.style.setProperty('--drift-x', `${driftX}px`);
+        p.style.animationDuration = `${dur}s`;
+        p.style.animationDelay = `${delay}s`;
+        pContainer.appendChild(p);
+      }
+    })();
+
     document.getElementById('btn-select-boy')?.addEventListener('click', () => {
       const g = document.getElementById('landing-gender');
       if (g) g.value = 'boy';

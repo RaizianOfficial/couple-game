@@ -1,5 +1,6 @@
 // Interactive Chairs & Park Benches System for Couples
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class ChairSpotSystem {
   constructor(scene, town) {
@@ -8,19 +9,36 @@ export class ChairSpotSystem {
     this.benches = [];
 
     this.buildInteractiveBenches();
+    this.loadBenchGLB();
+  }
+
+  loadBenchGLB() {
+    const loader = new GLTFLoader();
+    loader.load('./GLBs/assets/bench-01.glb', (gltf) => {
+      this.benches.forEach(b => {
+        while (b.group.children.length > 0) {
+          b.group.remove(b.group.children[0]);
+        }
+        const model = gltf.scene.clone();
+        model.traverse(c => {
+          if (c.isMesh) {
+            c.castShadow = true;
+            c.receiveShadow = true;
+          }
+        });
+        b.group.add(model);
+      });
+    });
   }
 
   buildInteractiveBenches() {
-    // 8 Beautiful romantic couple benches across the town
+    // Couple benches positioned strictly matching the Town Layout Map
     const benchLocations = [
-      { id: 'bench_plaza_left', x: -6.0, z: -5.0, rot: Math.PI / 4 },
-      { id: 'bench_plaza_right', x: 6.0, z: -5.0, rot: -Math.PI / 4 },
-      { id: 'bench_plaza_south', x: 0.0, z: 7.5, rot: Math.PI },
-      { id: 'bench_riverfront', x: -19.5, z: 10.0, rot: -Math.PI / 2 },
-      { id: 'bench_park_trail', x: -35.0, z: 35.0, rot: 0.2 },
-      { id: 'bench_playground', x: -44.0, z: 50.0, rot: -0.4 },
-      { id: 'bench_gazebo', x: 20.0, z: 36.0, rot: -Math.PI / 3 },
-      { id: 'bench_villa_garden', x: 34.0, z: -32.0, rot: 0 }
+      { id: 'bench_park_1', x: 36.0, z: 16.0, rot: 0 },
+      { id: 'bench_park_2', x: 44.0, z: 16.0, rot: 0 },
+      { id: 'bench_street', x: 18.0, z: 42.0, rot: Math.PI },
+      { id: 'bench_yard', x: 10.5, z: -1.2, rot: -Math.PI / 2 },
+      { id: 'bench_forest_view', x: 0.0, z: -28.0, rot: 0 }
     ];
 
     const woodMat = new THREE.MeshLambertMaterial({ color: 0x92400e });

@@ -8,8 +8,8 @@ export class HelicopterSpot {
     this.town = town;
     this.id = 'helicopter';
 
-    // Positioned on the open eastern scenic plateau near mountains
-    this.padPosition = new THREE.Vector3(42, 0, 38);
+    // Positioned on the North-East Helipad
+    this.padPosition = new THREE.Vector3(36, 0, -42);
     this.position = this.padPosition.clone();
     this.rotationY = Math.PI / 4;
 

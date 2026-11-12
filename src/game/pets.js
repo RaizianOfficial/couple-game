@@ -1,5 +1,6 @@
 // Interactive Cute Low-Poly Pets System: Dogs, Cats, and Rabbits (Taming & Following)
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { soundEngine } from '../audio.js';
 
 export class PetSystem {
@@ -10,6 +11,7 @@ export class PetSystem {
 
     this.initPalette();
     this.spawnPets();
+    this.loadGLBModels();
   }
 
   initPalette() {
@@ -30,14 +32,14 @@ export class PetSystem {
   }
 
   spawnPets() {
-    // 2 Dogs, 2 Cats, 2 Rabbits
+    // 2 Dogs, 2 Cats, 2 Rabbits positioned in the designated Pets Zones (no collisions with buildings)
     const petDefs = [
-      { id: 'dog_1', type: 'dog', name: 'Buddy 🐶', color: 'dogBrown', x: -4, z: 2, scale: 0.95 },
-      { id: 'dog_2', type: 'dog', name: 'Milo 🐕', color: 'dogGolden', x: 8, z: -6, scale: 0.9 },
-      { id: 'cat_1', type: 'cat', name: 'Luna 🐱', color: 'catWhite', x: 25, z: 32, scale: 0.8 },
-      { id: 'cat_2', type: 'cat', name: 'Mochi 🐈', color: 'catGinger', x: -18, z: 8, scale: 0.8 },
-      { id: 'rabbit_1', type: 'rabbit', name: 'Bunbun 🐰', color: 'rabbitWhite', x: -28, z: -28, scale: 0.75 },
-      { id: 'rabbit_2', type: 'rabbit', name: 'Coco 🐇', color: 'rabbitBrown', x: -48, z: 46, scale: 0.75 }
+      { id: 'dog_1', type: 'dog', name: 'Buddy 🐶', color: 'dogBrown', x: -36, z: -42, scale: 1.0 },
+      { id: 'dog_2', type: 'dog', name: 'Milo 🐕', color: 'dogGolden', x: 14, z: -22, scale: 1.0 },
+      { id: 'cat_1', type: 'cat', name: 'Luna 🐱', color: 'catWhite', x: 32, z: 8, scale: 1.0 },
+      { id: 'cat_2', type: 'cat', name: 'Mochi 🐈', color: 'catGinger', x: -18, z: 8, scale: 1.0 },
+      { id: 'rabbit_1', type: 'rabbit', name: 'Bunbun 🐰', color: 'rabbitWhite', x: -28, z: -30, scale: 1.0 },
+      { id: 'rabbit_2', type: 'rabbit', name: 'Coco 🐇', color: 'rabbitBrown', x: -12, z: 24, scale: 1.0 }
     ];
 
     petDefs.forEach((def) => {
@@ -58,7 +60,7 @@ export class PetSystem {
 
       // Name & Tamed Tag Canvas Billboard
       const tag = this.createPetTag(def.name);
-      tag.position.set(0, 1.1, 0);
+      tag.position.set(0, 1.45, 0);
       group.add(tag);
 
       this.scene.add(group);
@@ -73,11 +75,99 @@ export class PetSystem {
         tamedBy: null, // uid of player who tamed it
         ownerNick: '',
         targetPos: new THREE.Vector3(def.x, 0, def.z),
+        homeX: def.x,
+        homeZ: def.z,
+        wanderRadius: 14,
+        wanderTarget: new THREE.Vector3(def.x, 0, def.z),
+        wanderWait: Math.random() * 2,
+        isWalking: false,
         animTime: Math.random() * 10,
         hopTimer: 0,
         barkTimer: 0
       });
     });
+  }
+
+  loadGLBModels() {
+    const loader = new GLTFLoader();
+    const modelMap = {
+      dog: encodeURI('./GLBs/ANIMALS (1).glb'),
+      cat: encodeURI('./GLBs/ANIMALS (2).glb'),
+      rabbit: encodeURI('./GLBs/ANIMALS (3).glb')
+    };
+
+    const targetHeights = {
+      dog: 1.45,
+      cat: 1.30,
+      rabbit: 1.10
+    };
+
+    Object.entries(modelMap).forEach(([type, url]) => {
+      loader.load(url, (gltf) => {
+        const baseScene = gltf.scene;
+
+        baseScene.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        // Compute model dimensions
+        const box = new THREE.Box3().setFromObject(baseScene);
+        const size = box.getSize(new THREE.Vector3());
+        const targetHeight = targetHeights[type] || 1.25;
+        const scaleFactor = targetHeight / Math.max(0.1, size.y);
+
+        this.pets.forEach((pet) => {
+          if (pet.type === type) {
+            const petModel = baseScene.clone(true);
+            petModel.scale.setScalar(scaleFactor);
+
+            const scaledBox = new THREE.Box3().setFromObject(petModel);
+            petModel.position.x = - (scaledBox.min.x + scaledBox.max.x) / 2;
+            petModel.position.y = - scaledBox.min.y;
+            petModel.position.z = - (scaledBox.min.z + scaledBox.max.z) / 2;
+
+            // Remove procedural fallback mesh
+            if (pet.parts && pet.parts.root && pet.parts.root.parent) {
+              pet.group.remove(pet.parts.root);
+            }
+
+            const modelHolder = new THREE.Group();
+            modelHolder.name = 'glbModel';
+            modelHolder.add(petModel);
+            pet.group.add(modelHolder);
+            pet.glbModel = petModel;
+
+            // Position tag billboard properly above the larger model
+            if (pet.tagMesh) {
+              pet.tagMesh.position.set(0, targetHeight + 0.35, 0);
+            }
+          }
+        });
+      }, undefined, (err) => {
+        console.warn(`[PetSystem] GLB model failed for ${type}, keeping procedural fallback:`, err);
+      });
+    });
+  }
+
+  pickNewWanderTarget(pet) {
+    // Pick a smooth random waypoint within home territory radius
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 3.0 + Math.random() * (pet.wanderRadius - 3.0);
+    const tx = pet.homeX + Math.cos(angle) * dist;
+    const tz = pet.homeZ + Math.sin(angle) * dist;
+
+    // Boundary check so pets don't wander off-map or into river/walls
+    if (!this.town.checkCollision(tx, tz, 0.5)) {
+      pet.wanderTarget.set(tx, 0, tz);
+      pet.isWalking = true;
+      pet.wanderWait = 0;
+    } else {
+      pet.wanderWait = 1.2;
+      pet.isWalking = false;
+    }
   }
 
   buildDogMesh(colorKey) {
@@ -332,7 +422,8 @@ export class PetSystem {
     if (!pet) return false;
     pet.tamedBy = uid;
     pet.ownerNick = nick || 'Partner';
-    if (pet.parts.collar) pet.parts.collar.visible = true;
+    if (pet.parts && pet.parts.collar) pet.parts.collar.visible = true;
+    if (pet.collar) pet.collar.visible = true;
     this.updatePetTag(pet);
     soundEngine.playCheer();
     return true;
@@ -342,7 +433,11 @@ export class PetSystem {
     if (!pet) return false;
     pet.tamedBy = null;
     pet.ownerNick = '';
-    if (pet.parts.collar) pet.parts.collar.visible = false;
+    if (pet.parts && pet.parts.collar) pet.parts.collar.visible = false;
+    if (pet.collar) pet.collar.visible = false;
+    pet.homeX = pet.group.position.x;
+    pet.homeZ = pet.group.position.z;
+    this.pickNewWanderTarget(pet);
     this.updatePetTag(pet);
     soundEngine.playPop();
     return true;
@@ -357,7 +452,13 @@ export class PetSystem {
         if (pState.tamedBy !== pet.tamedBy) {
           pet.tamedBy = pState.tamedBy;
           pet.ownerNick = pState.ownerNick || '';
-          if (pet.parts.collar) pet.parts.collar.visible = Boolean(pet.tamedBy);
+          if (pet.parts && pet.parts.collar) pet.parts.collar.visible = Boolean(pet.tamedBy);
+          if (pet.collar) pet.collar.visible = Boolean(pet.tamedBy);
+          if (!pet.tamedBy) {
+            pet.homeX = pet.group.position.x;
+            pet.homeZ = pet.group.position.z;
+            this.pickNewWanderTarget(pet);
+          }
           this.updatePetTag(pet);
         }
       }
@@ -420,10 +521,64 @@ export class PetSystem {
           }
         }
       } else {
-        // Wild gentle wander / idle
-        pet.group.position.y = (pet.type === 'rabbit') ? Math.abs(Math.sin(pet.animTime * 4)) * 0.1 : 0;
-        if (pet.parts.tailPivot) {
-          pet.parts.tailPivot.rotation.y = Math.sin(pet.animTime * 4) * 0.2;
+        // 🐾 Autonomous Roaming & Wandering around Town!
+        if (pet.wanderWait > 0) {
+          pet.wanderWait -= delta;
+          if (pet.wanderWait <= 0) {
+            this.pickNewWanderTarget(pet);
+          }
+          // Idle resting / sniffing
+          pet.group.position.y = 0;
+          if (pet.parts && pet.parts.tailPivot) {
+            pet.parts.tailPivot.rotation.y = Math.sin(pet.animTime * 6) * 0.25;
+          }
+        } else {
+          const curPos = pet.group.position;
+          const dx = pet.wanderTarget.x - curPos.x;
+          const dz = pet.wanderTarget.z - curPos.z;
+          const dist = Math.hypot(dx, dz);
+
+          if (dist < 0.6) {
+            // Reached destination! Sniff the grass & take a break
+            pet.isWalking = false;
+            pet.wanderWait = 2.0 + Math.random() * 3.5;
+            pet.group.position.y = 0;
+          } else {
+            // Walk toward wander target
+            const moveSpeed = (pet.type === 'rabbit') ? 1.4 : 1.1;
+            const angle = Math.atan2(dx, dz);
+
+            const nextX = curPos.x + Math.sin(angle) * moveSpeed * delta;
+            const nextZ = curPos.z + Math.cos(angle) * moveSpeed * delta;
+
+            if (!this.town.checkCollision(nextX, nextZ, 0.45)) {
+              curPos.x = nextX;
+              curPos.z = nextZ;
+            } else {
+              // Obstacle reached, stop and re-pick path
+              pet.wanderWait = 1.0;
+            }
+
+            // Smoothly rotate toward travel direction
+            let diff = angle - pet.group.rotation.y;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            pet.group.rotation.y += diff * Math.min(1, delta * 5.0);
+
+            // Bouncy walk / hopping animation
+            if (pet.type === 'rabbit') {
+              pet.group.position.y = Math.abs(Math.sin(pet.animTime * 9)) * 0.18;
+            } else {
+              pet.group.position.y = Math.abs(Math.sin(pet.animTime * 7)) * 0.06;
+              if (pet.parts && pet.parts.legs && pet.parts.legs.length === 4) {
+                const legSwing = Math.sin(pet.animTime * 7) * 0.25;
+                pet.parts.legs[0].rotation.x = legSwing;
+                pet.parts.legs[1].rotation.x = -legSwing;
+                pet.parts.legs[2].rotation.x = -legSwing;
+                pet.parts.legs[3].rotation.x = legSwing;
+              }
+            }
+          }
         }
       }
     }

@@ -9,7 +9,7 @@ export class BikeSpot {
     this.driverUid = null;
     this.passengerUid = null;
 
-    this.position = new THREE.Vector3(8, 0, 4);
+    this.position = new THREE.Vector3(8, 0, 6);
     this.rotationY = 0;
     this.speed = 0;
     this.wheelRotation = 0;
@@ -220,8 +220,8 @@ export class BikeSpot {
       this.tiltAngle += (targetTilt - this.tiltAngle) * 0.15;
       this.group.rotation.z = Math.max(-0.25, Math.min(0.25, this.tiltAngle));
 
-      // Fast, fun motorbike speed for driving around town
-      const bikeSpeed = 5.2;
+      // Fast, exciting motorbike speed for driving around town
+      const bikeSpeed = 13.5;
       const forwardX = Math.sin(this.group.rotation.y) * bikeSpeed * delta;
       const forwardZ = Math.cos(this.group.rotation.y) * bikeSpeed * delta;
 

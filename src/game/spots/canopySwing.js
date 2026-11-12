@@ -7,9 +7,9 @@ export class ParkCanopySwingSpot {
     this.town = town;
     this.id = 'canopySwing';
 
-    // Positioned near riverfront / gazebo scenic park
-    this.position = new THREE.Vector3(28, 0, 18);
-    this.rotationY = -Math.PI / 4;
+    // Positioned in the East Play Park (Top-Left)
+    this.position = new THREE.Vector3(34, 0, -10);
+    this.rotationY = 0;
 
     this.seat1Uid = null;
     this.seat2Uid = null;
@@ -111,6 +111,10 @@ export class ParkCanopySwingSpot {
     this.group.add(this.swingPivot);
 
     this.scene.add(this.group);
+
+    if (this.town && this.town.colliders) {
+      this.town.colliders.push({ type: 'circle', x: this.position.x, z: this.position.z, r: 1.6 });
+    }
   }
 
   getSeat1WorldPos() {

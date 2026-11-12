@@ -1,9 +1,11 @@
-// Procedural Low-Poly Dreamy Pastel Expanded Town (150x150 map, No external textures)
+// Procedural Low-Poly Dreamy Pastel Expanded Town (strictly matching Town Layout Map)
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export class Town {
-  constructor(scene) {
+  constructor(scene, engine = null) {
     this.scene = scene;
+    this.engine = engine;
     this.colliders = [];
     this.interactiveSpots = {};
 
@@ -11,12 +13,10 @@ export class Town {
     this.buildGround();
     this.buildBoundaryWalls();
     this.buildRoadsAndPaths();
-    this.buildCentralFountainPlaza();
-    this.buildRiverAndBridge();
-    this.buildBuildings();
-    this.buildRomanticGazebo();
-    this.buildExpandedPark();
-    this.buildTrees();
+    this.buildMainYard();
+    this.buildEastPlayPark();
+    this.buildSouthStreet();
+    this.buildGLBAssets();
     this.buildStreetlamps();
   }
 
@@ -106,12 +106,19 @@ export class Town {
   }
 
   buildRoadsAndPaths() {
-    this.createRoadSegment(0, 0, 120, 4.2);
-    this.createRoadSegment(0, 0, 4.2, 120);
-    this.createRoadSegment(0, -45, 110, 3.6);
-    this.createRoadSegment(0, 45, 110, 3.6);
-    this.createRoadSegment(45, 0, 3.6, 90);
-    this.createRoadSegment(-45, 0, 3.6, 90);
+    // 1. Central Cross Paths connecting Couple House to all 4 quadrants
+    this.createRoadSegment(0, -18, 3.6, 24); // North path to Forest Zone
+    this.createRoadSegment(0, 18, 3.6, 24);  // South path to The Main Street
+    this.createRoadSegment(18, 0, 24, 3.6);  // East path to Play Park
+    this.createRoadSegment(-18, 0, 24, 3.6); // West path to Cozy Backyard
+
+    // 2. North Forest Walking Aisles
+    this.createRoadSegment(0, -46, 2.6, 32);  // North center aisle
+    this.createRoadSegment(0, -46, 52, 2.6);  // Forest cross aisle
+
+    // 3. Play Park Walkways
+    this.createRoadSegment(40, -4, 2.8, 28);
+    this.createRoadSegment(40, 10, 24, 2.8);
   }
 
   createRoadSegment(x, z, width, length) {
@@ -121,212 +128,166 @@ export class Town {
     this.scene.add(mesh);
   }
 
-  buildExpandedPark() {
-    const pond = new THREE.Mesh(new THREE.CylinderGeometry(10.5, 11.0, 0.08, 24), this.materials.water);
-    pond.position.set(-45, 0.04, 45);
-    this.scene.add(pond);
+  buildMainYard() {
+    // Attached to East of Couple House (x: 6 to 10, z: -4 to 4)
+    const yardGeo = new THREE.BoxGeometry(7.2, 0.06, 8.4);
+    const yardMesh = new THREE.Mesh(yardGeo, this.materials.stone);
+    yardMesh.position.set(8.2, 0.03, 0);
+    yardMesh.receiveShadow = true;
+    this.scene.add(yardMesh);
 
-    const rimStoneGeo = new THREE.DodecahedronGeometry(0.45, 1);
-    for (let i = 0; i < 26; i++) {
-      const a = (i / 26) * Math.PI * 2;
-      const stone = new THREE.Mesh(rimStoneGeo, this.materials.stone);
-      stone.position.set(-45 + Math.cos(a) * 10.8, 0.15, 45 + Math.sin(a) * 10.8);
-      this.scene.add(stone);
-    }
+    // Decorative perimeter fence for Main Yard
+    const fenceMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+    const fenceTop = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.8, 0.08), fenceMat);
+    fenceTop.position.set(8.2, 0.4, -4.2);
+    this.scene.add(fenceTop);
 
-    for (let i = 0; i < 9; i++) {
-      const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.02, 8), new THREE.MeshLambertMaterial({ color: 0x86efac }));
-      const pa = (i / 9) * Math.PI * 2;
-      pad.position.set(-45 + Math.cos(pa) * (3 + (i % 3) * 2), 0.07, 45 + Math.sin(pa) * (3 + (i % 3) * 2));
-      this.scene.add(pad);
-    }
+    const fenceRight = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.8, 8.4), fenceMat);
+    fenceRight.position.set(11.8, 0.4, 0);
+    this.scene.add(fenceRight);
 
-    const blanket = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.04, 2.8), new THREE.MeshLambertMaterial({ color: 0xf43f5e }));
-    blanket.position.set(-30, 0.03, 58);
-    this.scene.add(blanket);
+    // Patio Table & Couple Chairs in Main Yard
+    const tableMat = new THREE.MeshLambertMaterial({ color: 0xffedd5 });
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.7, 16), tableMat);
+    table.position.set(8.2, 0.38, -1.2);
+    table.castShadow = true;
+    this.scene.add(table);
+    this.colliders.push({ type: 'circle', x: 8.2, z: -1.2, r: 1.0 });
 
-    const basket = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.45, 0.4), new THREE.MeshLambertMaterial({ color: 0xb45309 }));
-    basket.position.set(-30, 0.25, 58);
-    this.scene.add(basket);
+    [-1.2, 1.2].forEach(cz => {
+      const chair = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.45, 12), new THREE.MeshLambertMaterial({ color: 0xf472b6 }));
+      chair.position.set(8.2, 0.25, -1.2 + cz);
+      this.scene.add(chair);
+    });
+  }
 
-    const flowerGeo = new THREE.DodecahedronGeometry(0.12, 0);
-    const flowerColors = [0xf472b6, 0xfb7185, 0xfde047, 0xa78bfa, 0x67e8f9];
-    for (let i = 0; i < 60; i++) {
+  buildEastPlayPark() {
+    // East Play Park turf area (x: 28 to 52, z: -18 to 22)
+    const parkTurf = new THREE.Mesh(new THREE.BoxGeometry(24, 0.02, 40), new THREE.MeshLambertMaterial({ color: 0xbbf7d0 }));
+    parkTurf.position.set(40, 0.015, 2);
+    parkTurf.receiveShadow = true;
+    this.scene.add(parkTurf);
+
+    // Play park decorative perimeter border
+    const borderMat = new THREE.MeshLambertMaterial({ color: 0x86efac });
+    const bTop = new THREE.Mesh(new THREE.BoxGeometry(24.4, 0.25, 0.3), borderMat);
+    bTop.position.set(40, 0.12, -18);
+    this.scene.add(bTop);
+
+    const bBottom = new THREE.Mesh(new THREE.BoxGeometry(24.4, 0.25, 0.3), borderMat);
+    bBottom.position.set(40, 0.12, 22);
+    this.scene.add(bBottom);
+
+    const bRight = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 40), borderMat);
+    bRight.position.set(52, 0.12, 2);
+    this.scene.add(bRight);
+
+    this.colliders.push({ type: 'box', minX: 27.8, maxX: 52.2, minZ: -18.2, maxZ: -17.8 });
+    this.colliders.push({ type: 'box', minX: 27.8, maxX: 52.2, minZ: 21.8, maxZ: 22.2 });
+    this.colliders.push({ type: 'box', minX: 51.8, maxX: 52.2, minZ: -18, maxZ: 22 });
+
+    // Colorful Park Flowers
+    const flowerGeo = new THREE.DodecahedronGeometry(0.14, 0);
+    const flowerColors = [0xf472b6, 0xfb7185, 0xfde047, 0xa78bfa, 0x38bdf8];
+    for (let i = 0; i < 40; i++) {
       const fl = new THREE.Mesh(flowerGeo, new THREE.MeshBasicMaterial({ color: flowerColors[i % 5] }));
-      fl.position.set(-58 + (i % 10) * 3, 0.14, 20 + Math.floor(i / 10) * 6 + (Math.cos(i) * 2));
+      fl.position.set(30 + (i % 8) * 2.8, 0.12, -16 + Math.floor(i / 8) * 8.5 + (Math.sin(i) * 1.5));
       this.scene.add(fl);
     }
   }
 
-  buildCentralFountainPlaza() {
-    const plaza = new THREE.Mesh(new THREE.CylinderGeometry(8.0, 8.0, 0.06, 28), this.materials.road);
-    plaza.position.set(0, 0.03, 0);
-    plaza.receiveShadow = true;
-    this.scene.add(plaza);
+  buildSouthStreet() {
+    // The Main Street asphalt roadway (looping along South z: 34 to 48)
+    const asphaltMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+    const roadMain = new THREE.Mesh(new THREE.BoxGeometry(82, 0.05, 8.4), asphaltMat);
+    roadMain.position.set(0, 0.025, 42);
+    roadMain.receiveShadow = true;
+    this.scene.add(roadMain);
 
-    const fountainGroup = new THREE.Group();
-    fountainGroup.position.set(0, 0, 0);
-
-    const basin = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.0, 0.55, 16), this.materials.stone);
-    basin.position.y = 0.275;
-    fountainGroup.add(basin);
-
-    const waterMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.65, 2.65, 0.04, 16), this.materials.fountainWater);
-    waterMesh.position.y = 0.48;
-    fountainGroup.add(waterMesh);
-
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 1.2, 10), this.materials.stone);
-    stem.position.y = 0.85;
-    fountainGroup.add(stem);
-
-    const upperTier = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.4, 0.25, 12), this.materials.stone);
-    upperTier.position.y = 1.35;
-    fountainGroup.add(upperTier);
-
-    const topSphere = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), this.materials.stone);
-    topSphere.position.y = 1.7;
-    fountainGroup.add(topSphere);
-
-    this.scene.add(fountainGroup);
-    this.colliders.push({ type: 'circle', x: 0, z: 0, r: 3.6 });
-  }
-
-  buildRiverAndBridge() {
-    // 1. Scenic River spanning full 150m map
-    const river = new THREE.Mesh(new THREE.BoxGeometry(8.0, 0.04, 150), this.materials.water);
-    river.position.set(-24, 0.02, 0);
-    this.scene.add(river);
-
-    // River bed under water
-    const riverBed = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.1, 150), new THREE.MeshLambertMaterial({ color: 0x60a5fa }));
-    riverBed.position.set(-24, -0.06, 0);
-    this.scene.add(riverBed);
-
-    // 2. Charming Arched Wooden Footbridge
-    const bridgeGroup = new THREE.Group();
-    bridgeGroup.position.set(-24, 0, 0);
-
-    const deckWidth = 4.6; // Matches road alignment
-    const deckLen = 9.6;
-
-    // Bridge Deck Planks
-    const bridgeDeck = new THREE.Mesh(new THREE.BoxGeometry(deckLen, 0.22, deckWidth), this.materials.wood);
-    bridgeDeck.position.y = 0.38;
-    bridgeDeck.receiveShadow = true;
-    bridgeGroup.add(bridgeDeck);
-
-    // Flush approach ramps connecting to road smoothly
-    [-5.6, 5.6].forEach((rx, idx) => {
-      const ramp = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.16, deckWidth), this.materials.wood);
-      ramp.position.set(rx > 0 ? 5.2 : -5.2, 0.18, 0);
-      ramp.rotation.z = idx === 0 ? 0.16 : -0.16;
-      ramp.receiveShadow = true;
-      bridgeGroup.add(ramp);
-    });
-
-    // 4 Heavy Timber Under-Pillars in River
-    [-2.8, 2.8].forEach(px => {
-      [-1.9, 1.9].forEach(pz => {
-        const pier = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.9, 8), this.materials.stone);
-        pier.position.set(px, 0.15, pz);
-        bridgeGroup.add(pier);
-      });
-    });
-
-    // Elegant Wooden Railings perfectly aligned with deck
-    const railMat = this.materials.woodDark;
-    [-deckWidth / 2 + 0.1, deckWidth / 2 - 0.1].forEach(rz => {
-      // Top handrail
-      const topRail = new THREE.Mesh(new THREE.BoxGeometry(deckLen, 0.1, 0.1), railMat);
-      topRail.position.set(0, 0.98, rz);
-      bridgeGroup.add(topRail);
-
-      // Mid safety rail
-      const midRail = new THREE.Mesh(new THREE.BoxGeometry(deckLen, 0.06, 0.06), railMat);
-      midRail.position.set(0, 0.68, rz);
-      bridgeGroup.add(midRail);
-
-      // Vertical spindles
-      for (let px = -deckLen / 2 + 0.2; px <= deckLen / 2 - 0.2; px += 1.35) {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.62, 6), railMat);
-        post.position.set(px, 0.68, rz);
-        bridgeGroup.add(post);
-      }
-
-      // Sturdy end posts
-      [-deckLen / 2, deckLen / 2].forEach(ex => {
-        const endPost = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.82, 0.14), railMat);
-        endPost.position.set(ex, 0.72, rz);
-        bridgeGroup.add(endPost);
-
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), this.materials.wood);
-        cap.position.set(ex, 1.15, rz);
-        bridgeGroup.add(cap);
-      });
-    });
-
-    this.scene.add(bridgeGroup);
-
-    // River impassable boundaries (leave walkway at z: -2.4 to 2.4 open)
-    this.colliders.push({ type: 'box', minX: -28.2, maxX: -19.8, minZ: -75, maxZ: -2.5 });
-    this.colliders.push({ type: 'box', minX: -28.2, maxX: -19.8, minZ: 2.5, maxZ: 75 });
-  }
-
-  buildBuildings() {
-    const houses = [
-      { x: 12, z: -16, w: 5.2, d: 4.8, h: 3.4, color: this.colors.wallPink, roof: this.colors.roofPurple, rot: 0 },
-      // Note: Removed cramped house at (26, -16) to give the Couple's Master Villa a grand open front lawn!
-      { x: 12, z: 16, w: 5.0, d: 4.6, h: 3.4, color: this.colors.wallPeach, roof: this.colors.roofTeal, rot: Math.PI },
-      { x: 26, z: 16, w: 5.4, d: 4.8, h: 3.5, color: this.colors.wallMint, roof: this.colors.roofOrange, rot: Math.PI },
-      { x: -10, z: -32, w: 5.0, d: 4.4, h: 3.2, color: this.colors.wallSky, roof: this.colors.roofRose, rot: Math.PI / 2 },
-      { x: 12, z: -36, w: 4.6, d: 4.2, h: 3.0, color: this.colors.wallYellow, roof: this.colors.roofSky, rot: 0 }
-    ];
-
-    houses.forEach(h => this.createHouse(h.x, h.z, h.w, h.d, h.h, h.color, h.roof, h.rot));
-
-    // Charming garden path leading to Couple's Master Villa
-    this.createRoadSegment(38, -26, 3.6, 16);
-  }
-
-  createHouse(x, z, w, d, h, wc, rc, ry) {
-    const grp = new THREE.Group();
-    grp.position.set(x, 0, z);
-    grp.rotation.y = ry;
-
-    const walls = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: wc }));
-    walls.position.y = h / 2;
-    grp.add(walls);
-
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.74, h * 0.55, 4), new THREE.MeshLambertMaterial({ color: rc }));
-    roof.position.y = h + (h * 0.27);
-    roof.rotation.y = Math.PI / 4;
-    roof.scale.set(w / d, 1, 1);
-    grp.add(roof);
-
-    this.scene.add(grp);
-    this.colliders.push({ type: 'box', minX: x - w / 2 - 0.2, maxX: x + w / 2 + 0.2, minZ: z - d / 2 - 0.2, maxZ: z + d / 2 + 0.2 });
-  }
-
-  buildRomanticGazebo() {
-    const grp = new THREE.Group();
-    grp.position.set(24, 0, 32);
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.8, 0.4, 8), this.materials.stone);
-    base.position.y = 0.2;
-    grp.add(base);
-    for (let i = 0; i < 8; i++) {
-      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-      pillar.position.set(Math.cos(i / 8 * Math.PI * 2) * 3.2, 1.4, Math.sin(i / 8 * Math.PI * 2) * 3.2);
-      grp.add(pillar);
+    // Yellow dashed center road markings
+    const stripeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    for (let x = -36; x <= 36; x += 4.5) {
+      const stripe = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.22), stripeMat);
+      stripe.rotation.x = -Math.PI / 2;
+      stripe.position.set(x, 0.052, 42);
+      this.scene.add(stripe);
     }
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(4.0, 1.6, 8), new THREE.MeshLambertMaterial({ color: 0xf472b6 }));
-    roof.position.y = 3.4;
-    grp.add(roof);
-    this.scene.add(grp);
-    this.colliders.push({ type: 'circle', x: 24, z: 32, r: 3.6 });
+
+    // Curbs & Sidewalks along south side
+    const sidewalkMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
+    const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(84, 0.14, 4.2), sidewalkMat);
+    sidewalk.position.set(0, 0.07, 48.3);
+    sidewalk.receiveShadow = true;
+    this.scene.add(sidewalk);
+
+    // Scooter & Buggy Parking Bay at (2, 0, 42)
+    const parkingBay = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.06, 5.4), new THREE.MeshLambertMaterial({ color: 0x475569 }));
+    parkingBay.position.set(2, 0.03, 42);
+    this.scene.add(parkingBay);
+
+    // White parking lot lines
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    [-4.2, -1.4, 1.4, 4.2].forEach(lx => {
+      const pLine = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 4.8), lineMat);
+      pLine.rotation.x = -Math.PI / 2;
+      pLine.position.set(2 + lx, 0.065, 42);
+      this.scene.add(pLine);
+    });
+  }
+
+  buildGLBAssets() {
+    const loader = new GLTFLoader();
+
+    // 1. Apartment Block on South Main Street (38, 0, 44)
+    loader.load('./GLBs/assets/apartment-block-01.glb', (gltf) => {
+      const model = gltf.scene;
+      model.position.set(38, 0, 44);
+      model.rotation.y = 0;
+      model.scale.setScalar(1.0);
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (this.engine) this.engine.registerWallObstacle(child);
+        }
+      });
+      this.scene.add(model);
+      this.colliders.push({ type: 'box', minX: 32.5, maxX: 43.5, minZ: 40.0, maxZ: 48.0 });
+    });
+
+    // 2. Cozy General Store / Shed in West Backyard (-24, 0, -14)
+    loader.load('./GLBs/assets/bld-general-store-01.glb', (gltf) => {
+      const model = gltf.scene;
+      model.position.set(-24, 0, -14);
+      model.rotation.y = Math.PI / 2;
+      model.scale.setScalar(1.0);
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (this.engine) this.engine.registerWallObstacle(child);
+        }
+      });
+      this.scene.add(model);
+      this.colliders.push({ type: 'box', minX: -27.5, maxX: -20.5, minZ: -17.5, maxZ: -10.5 });
+    });
+
+    // 3. Stepping Stones at scenic creek crossing in Pets Zone (-28, 0, -32)
+    loader.load('./GLBs/assets/creek-stepping-stones.glb', (gltf) => {
+      const stones = gltf.scene;
+      stones.position.set(-28, 0, -32);
+      stones.scale.setScalar(1.0);
+      stones.traverse((child) => {
+        if (child.isMesh) {
+          child.receiveShadow = true;
+        }
+      });
+      this.scene.add(stones);
+    });
   }
 
   buildTrees() {
-    // All trees are now managed dynamically by TreeChoppingSystem so that EVERY tree is interactive & choppable!
+    // Choppable trees organized in North Forest Zone by TreeChoppingSystem
   }
 
   createTree(x, z, type, scale) {

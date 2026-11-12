@@ -86,7 +86,7 @@ class App {
 
   init3D() {
     this.engine = new GameEngine(document.getElementById('canvas-container'));
-    this.town = new Town(this.engine.scene);
+    this.town = new Town(this.engine.scene, this.engine);
     this.bike = new BikeSpot(this.engine.scene, this.town);
     this.buggy = new BuggySpot(this.engine.scene, this.town);
     this.swing = new SwingSpot(this.engine.scene, this.town);
@@ -322,6 +322,47 @@ class App {
         const res = await roomService.joinRoom(code, document.getElementById('landing-nickname')?.value?.trim() || '', selectedGender);
         this.onRoomReady(res.roomId, res.slot);
       } catch (err) { this.landingError.textContent = err.message; document.getElementById('btn-join-room').disabled = false; }
+    });
+
+    // Waiting Screen Copy, Share & Cancel handlers
+    document.getElementById('waiting-copy-btn')?.addEventListener('click', () => {
+      const rawCode = this.waitingRoomCode?.textContent?.trim() || '';
+      const pureCode = rawCode.replace(/[^0-9]/g, '').slice(0, 4);
+      navigator.clipboard?.writeText(pureCode).then(() => {
+        const copyBtn = document.getElementById('waiting-copy-btn');
+        if (copyBtn) {
+          copyBtn.textContent = '✓ Copied ' + pureCode + '!';
+          setTimeout(() => { copyBtn.textContent = '📋 Copy Code'; }, 1800);
+        }
+      });
+      soundEngine.playPop();
+    });
+
+    document.getElementById('waiting-share-btn')?.addEventListener('click', () => {
+      const rawCode = this.waitingRoomCode?.textContent?.trim() || '';
+      const pureCode = rawCode.replace(/[^0-9]/g, '').slice(0, 4);
+      const shareUrl = `${window.location.origin}${window.location.pathname}?room=${pureCode}`;
+      if (navigator.share) {
+        navigator.share({
+          title: 'Our Little Town',
+          text: `Join my room in Our Little Town! Room code: ${pureCode}`,
+          url: shareUrl
+        }).catch(() => {});
+      } else {
+        navigator.clipboard?.writeText(shareUrl).then(() => {
+          const shareBtn = document.getElementById('waiting-share-btn');
+          if (shareBtn) {
+            shareBtn.textContent = '✓ Link Copied!';
+            setTimeout(() => { shareBtn.textContent = '🔗 Share Link'; }, 1800);
+          }
+        });
+      }
+      soundEngine.playPop();
+    });
+
+    document.getElementById('waiting-cancel-btn')?.addEventListener('click', () => {
+      soundEngine.playPop();
+      window.location.href = window.location.origin + window.location.pathname;
     });
   }
 
@@ -910,9 +951,9 @@ class App {
     else if (action.type === 'farm_plot') {
       this.myChar.anim = 'farm';
       const result = this.farming.interact(action.plot);
-      if (result === 'plant') soundEngine.playPlantSeed();
-      else if (result === 'water') soundEngine.playWaterCrop();
-      else if (result === 'harvest') soundEngine.playHarvest();
+      if (result?.type === 'seeded') soundEngine.playPlantSeed();
+      else if (result?.type === 'watered') soundEngine.playWaterCrop();
+      else if (result?.type === 'harvested') soundEngine.playHarvest();
       else soundEngine.playPop();
       this.hud.setCropCount(this.farming.cropInventory);
       setTimeout(() => { if (this.myChar && this.myChar.anim === 'farm') this.myChar.anim = 'idle'; }, 850);

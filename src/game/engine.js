@@ -12,16 +12,17 @@ export class GameEngine {
     this.isNight = false;
 
     // 360° Orbit Camera properties (Third-Person / Chase Camera)
-    this.cameraTarget = new THREE.Vector3(0, 1.2, 0);
-    this.currentCameraTarget = new THREE.Vector3(0, 1.2, 0);
+    this.cameraTarget = new THREE.Vector3(0, 1.35, 0);
+    this.currentCameraTarget = new THREE.Vector3(0, 1.35, 0);
     this.cameraYaw = 0;
-    this.cameraPitch = 0.32;
+    this.cameraPitch = 0.35;
     this.targetYaw = 0;
-    this.targetPitch = 0.32;
+    this.targetPitch = 0.35;
     this.cameraDistance = 5.2;
     this.targetDistance = 5.2;
 
     this.raycaster = new THREE.Raycaster(); // For wall collision
+    this.wallObstacles = []; // Registered solid obstacles for clean raycast collision
 
     this.initScene();
     this.initRenderer();
@@ -251,54 +252,44 @@ export class GameEngine {
     const idealEyeX = this.currentCameraTarget.x - (sinYaw * cosPitch * this.cameraDistance);
     const idealEyeY = this.currentCameraTarget.y + (sinPitch * this.cameraDistance);
     const idealEyeZ = this.currentCameraTarget.z - (cosYaw * cosPitch * this.cameraDistance);
-    const idealEye = new THREE.Vector3(idealEyeX, Math.max(0.5, idealEyeY), idealEyeZ);
+    const idealEye = new THREE.Vector3(idealEyeX, Math.max(1.1, idealEyeY), idealEyeZ);
 
-    // 🚀 NEW: Wall Collision Glitch Fix
+    // Camera Collision & Glitch Prevention (Smooth Zoom-in without head/ground clipping)
     const dir = new THREE.Vector3().subVectors(idealEye, this.currentCameraTarget).normalize();
     const dist = this.currentCameraTarget.distanceTo(idealEye);
 
-    // Provide camera to raycaster so Sprite objects don't throw warnings/errors
     this.raycaster.camera = this.camera;
     this.raycaster.set(this.currentCameraTarget, dir);
 
-    // Check collision against non-transparent meshes (walls, buildings)
     let finalDistance = dist;
     try {
-      const candidates = [];
-      this.scene.traverse((obj) => {
-        if (obj.isMesh && obj !== this.skyDome && obj !== this.particles) {
-          if (!obj.material || !obj.material.transparent) {
-            // Exclude character meshes
-            let p = obj;
-            let isChar = false;
-            while (p) {
-              if (p.name === 'character') { isChar = true; break; }
-              p = p.parent;
-            }
-            if (!isChar) candidates.push(obj);
-          }
+      if (this.wallObstacles && this.wallObstacles.length > 0) {
+        const intersects = this.raycaster.intersectObjects(this.wallObstacles, false);
+        if (intersects.length > 0 && intersects[0].distance < dist) {
+          finalDistance = Math.max(3.0, intersects[0].distance - 0.35);
         }
-      });
-
-      const intersects = this.raycaster.intersectObjects(candidates, false);
-      if (intersects.length > 0 && intersects[0].distance < dist) {
-        finalDistance = Math.max(0.8, intersects[0].distance - 0.2);
       }
     } catch (_) {}
 
     const finalEyeX = this.currentCameraTarget.x + dir.x * finalDistance;
-    const finalEyeY = this.currentCameraTarget.y + dir.y * finalDistance;
+    const finalEyeY = Math.max(1.1, this.currentCameraTarget.y + dir.y * finalDistance);
     const finalEyeZ = this.currentCameraTarget.z + dir.z * finalDistance;
 
-    this.camera.position.set(finalEyeX, Math.max(0.5, finalEyeY), finalEyeZ);
-    this.camera.lookAt(this.currentCameraTarget.x, this.currentCameraTarget.y + 0.25, this.currentCameraTarget.z);
+    this.camera.position.set(finalEyeX, finalEyeY, finalEyeZ);
+    this.camera.lookAt(this.currentCameraTarget.x, this.currentCameraTarget.y, this.currentCameraTarget.z);
 
     if (this.sunLight) this.sunLight.target.position.copy(this.currentCameraTarget);
     if (this.skyDome) this.skyDome.position.copy(this.currentCameraTarget);
   }
 
+  registerWallObstacle(mesh) {
+    if (mesh && mesh.isMesh && !this.wallObstacles.includes(mesh)) {
+      this.wallObstacles.push(mesh);
+    }
+  }
+
   setCameraTarget(targetPos) {
-    this.cameraTarget.set(targetPos.x, targetPos.y + 0.9, targetPos.z);
+    this.cameraTarget.set(targetPos.x, targetPos.y + 1.25, targetPos.z);
     this.updateCameraPosition();
   }
 

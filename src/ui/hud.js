@@ -291,8 +291,9 @@ export class GameHUD {
     this.fullscreenBtn.addEventListener('click', () => { if (this.callbacks.onToggleFullscreen) this.callbacks.onToggleFullscreen(); });
 
     this.copyBtn.addEventListener('click', () => {
-      const url = `${window.location.origin}${window.location.pathname}?room=${this.roomCodeEl.textContent}`;
-      navigator.clipboard?.writeText(url).then(() => {
+      const rawCode = this.roomCodeEl.textContent || '';
+      const pureCode = rawCode.replace(/[^0-9]/g, '').slice(0, 4);
+      navigator.clipboard?.writeText(pureCode).then(() => {
         this.copyBtn.textContent = '✓';
         setTimeout(() => this.copyBtn.textContent = '📋', 1500);
       });

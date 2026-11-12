@@ -7,8 +7,8 @@ export class PlaygroundSpot {
     this.town = town;
     this.id = 'playground';
 
-    // Positioned deeply in the newly expanded park area
-    this.position = new THREE.Vector3(-52, 0, 52);
+    // Positioned in the East Play Park (Playground Slide)
+    this.position = new THREE.Vector3(44, 0, 4);
     this.rotationY = 0;
 
     this.seesawAngle = 0;

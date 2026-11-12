@@ -8,8 +8,8 @@ export class CoupleHouseSpot {
     this.id = 'coupleHouse';
     this.isLightOn = true;
 
-    this.position = new THREE.Vector3(38, 0, -38);
-    this.rotationY = Math.PI;
+    this.position = new THREE.Vector3(0, 0, 0);
+    this.rotationY = 0;
 
     this.bedOccupants = { left: null, right: null };
     this.zzzParticles = [];
@@ -178,6 +178,7 @@ export class CoupleHouseSpot {
 
     if (this.town && this.town.colliders) {
       this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x + 4.6, minZ: this.position.z + 3.5, maxZ: this.position.z + 4.1 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x + 4.6, minZ: this.position.z - 4.1, maxZ: this.position.z - 3.5 });
       this.town.colliders.push({ type: 'box', minX: this.position.x + 4.2, maxX: this.position.x + 4.8, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
       this.town.colliders.push({ type: 'box', minX: this.position.x - 4.8, maxX: this.position.x - 4.2, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
     }

@@ -35,19 +35,16 @@ export class TreeChoppingSystem {
   }
 
   buildChoppableTrees() {
-    // 28 Choppable trees across the entire 150x150 map: orchards, forest glade, lake margin & trails
-    const treeCoords = [
-      // Town orchards & greenbelts
-      { x: -15, z: -15 }, { x: 15, z: -15 }, { x: -30, z: -40 }, { x: 30, z: -40 },
-      { x: -40, z: -20 }, { x: 40, z: -20 }, { x: 55, z: 20 }, { x: 55, z: -20 },
-      { x: -55, z: 20 }, { x: -55, z: -20 }, { x: -25, z: 60 }, { x: 25, z: 60 },
-      { x: 60, z: 60 }, { x: -60, z: -60 }, { x: 60, z: -60 }, { x: -60, z: 60 },
-      // Woodland glade & south grove
-      { x: 18, z: 22 }, { x: 26, z: 24 }, { x: 34, z: 20 }, { x: 22, z: 32 }, { x: 30, z: 34 },
-      { x: -24, z: -20 }, { x: -32, z: -22 }, { x: -28, z: -30 },
-      // Waterfront & park edge
-      { x: -52, z: 36 }, { x: -38, z: 48 }, { x: 10, z: 40 }, { x: -10, z: 42 }
-    ];
+    // North Forest Zone (Choppable Trees) organized in clean groves matching Town Layout Map
+    const treeCoords = [];
+    const zRows = [-56, -50, -42, -36];
+    const xWest = [-24, -20, -16, -12, -8];
+    const xEast = [8, 12, 16, 20, 24];
+
+    zRows.forEach(z => {
+      xWest.forEach(x => treeCoords.push({ x, z }));
+      xEast.forEach(x => treeCoords.push({ x, z }));
+    });
 
     const trunkMat = new THREE.MeshLambertMaterial({ color: 0x78350f }); // Rich cedar trunk
     const stumpMat = new THREE.MeshLambertMaterial({ color: 0xa16207 }); // Annual rings top

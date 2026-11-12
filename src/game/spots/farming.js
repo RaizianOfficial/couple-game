@@ -8,8 +8,8 @@ export class FarmingSpot {
     this.town = town;
     this.id = 'farming';
 
-    // Located in the South-West garden plot
-    this.position = new THREE.Vector3(-32, 0, -32);
+    // Located in the West Cozy Backyard (strictly matching Town Layout Map)
+    this.position = new THREE.Vector3(-34, 0, 0);
     this.cropInventory = 0;
     this.plots = [];
     this.sparkles = [];
@@ -50,72 +50,51 @@ export class FarmingSpot {
     const postMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
     const woodBorderMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
 
-    // 1. Garden plot fence (12m x 9m with front entrance)
+    // 1. Backyard boundary fence (spanning z: -22 to +22)
     const fenceH = 0.85;
-    // Back fence
-    const backFence = new THREE.Mesh(new THREE.BoxGeometry(12, fenceH, 0.08), fenceMat);
-    backFence.position.set(0, fenceH / 2, -4.5);
-    this.group.add(backFence);
-    // Left fence
-    const leftFence = new THREE.Mesh(new THREE.BoxGeometry(0.08, fenceH, 9), fenceMat);
-    leftFence.position.set(-6, fenceH / 2, 0);
-    this.group.add(leftFence);
-    // Right fence
-    const rightFence = new THREE.Mesh(new THREE.BoxGeometry(0.08, fenceH, 9), fenceMat);
-    rightFence.position.set(6, fenceH / 2, 0);
-    this.group.add(rightFence);
+    const westFence = new THREE.Mesh(new THREE.BoxGeometry(0.1, fenceH, 44), fenceMat);
+    westFence.position.set(-6.5, fenceH / 2, 0);
+    this.group.add(westFence);
 
-    // Front fence with open walkway gate in middle
-    const frontL = new THREE.Mesh(new THREE.BoxGeometry(4.6, fenceH, 0.08), fenceMat);
-    frontL.position.set(-3.7, fenceH / 2, 4.5);
-    this.group.add(frontL);
-    const frontR = new THREE.Mesh(new THREE.BoxGeometry(4.6, fenceH, 0.08), fenceMat);
-    frontR.position.set(3.7, fenceH / 2, 4.5);
-    this.group.add(frontR);
+    const northFence = new THREE.Mesh(new THREE.BoxGeometry(13, fenceH, 0.1), fenceMat);
+    northFence.position.set(0, fenceH / 2, -22);
+    this.group.add(northFence);
 
-    // Cute Flower Arch at Garden Entrance
-    const archMat = new THREE.MeshLambertMaterial({ color: 0x86efac });
-    const archTop = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.8, 8), archMat);
-    archTop.rotation.z = Math.PI / 2;
-    archTop.position.set(0, 2.4, 4.5);
-    this.group.add(archTop);
+    const southFence = new THREE.Mesh(new THREE.BoxGeometry(13, fenceH, 0.1), fenceMat);
+    southFence.position.set(0, fenceH / 2, 22);
+    this.group.add(southFence);
 
-    // Roses decorating the arch
-    const roseColors = [0xf43f5e, 0xf472b6, 0xfb7185];
-    for (let i = 0; i < 7; i++) {
-      const rose = new THREE.Mesh(new THREE.DodecahedronGeometry(0.12, 0), new THREE.MeshLambertMaterial({ color: roseColors[i % 3] }));
-      rose.position.set(-1.1 + (i / 6) * 2.2, 2.45, 4.5);
-      this.group.add(rose);
+    if (this.town && this.town.colliders) {
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 6.8, maxX: this.position.x - 6.2, minZ: -22, maxZ: 22 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 6.8, maxX: this.position.x + 6.8, minZ: -22.3, maxZ: -21.7 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 6.8, maxX: this.position.x + 6.8, minZ: 21.7, maxZ: 22.3 });
     }
 
-    // 2. Six Raised Crop Beds (2 rows of 3)
-    const plotOffsets = [
-      { x: -3.6, z: -2.0, crop: 'wheat' },
-      { x: 0, z: -2.0, crop: 'strawberry' },
-      { x: 3.6, z: -2.0, crop: 'carrot' },
-      { x: -3.6, z: 1.8, crop: 'strawberry' },
-      { x: 0, z: 1.8, crop: 'carrot' },
-      { x: 3.6, z: 1.8, crop: 'wheat' }
+    // 2. Three Vertical Farm Plots (Farm Plot 1, 2, 3 as depicted on layout map)
+    const plotConfigs = [
+      { id: 'plot_0', name: 'Farm Plot 1', x: 0, z: -14, crop: 'strawberry' },
+      { id: 'plot_1', name: 'Farm Plot 2', x: 0, z: 0, crop: 'wheat' },
+      { id: 'plot_2', name: 'Farm Plot 3', x: 0, z: 14, crop: 'carrot' }
     ];
 
-    plotOffsets.forEach((po, idx) => {
+    plotConfigs.forEach((po, idx) => {
       const bedGroup = new THREE.Group();
       bedGroup.position.set(po.x, 0, po.z);
 
-      // Wooden garden bed border (2.6m x 1.8m)
-      const border = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.22, 1.8), woodBorderMat);
-      border.position.y = 0.11;
+      // Wooden plot border (7.0m x 5.2m)
+      const border = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.25, 5.2), woodBorderMat);
+      border.position.y = 0.125;
       border.castShadow = true;
       bedGroup.add(border);
 
-      // Soil patch mesh
-      const soil = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 1.6), soilDryMat.clone());
-      soil.position.y = 0.18;
+      // Soil patch mesh (6.6m x 4.8m)
+      const soil = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.15, 4.8), soilDryMat.clone());
+      soil.position.y = 0.2;
       bedGroup.add(soil);
 
-      // Crop models container (sprouts, growing foliage, ripe fruits)
+      // Crop models container
       const cropContainer = new THREE.Group();
-      cropContainer.position.y = 0.24;
+      cropContainer.position.y = 0.26;
       bedGroup.add(cropContainer);
 
       this.group.add(bedGroup);
@@ -123,19 +102,63 @@ export class FarmingSpot {
       const worldPos = new THREE.Vector3(this.position.x + po.x, 0, this.position.z + po.z);
 
       this.plots.push({
-        id: `plot_${idx}`,
+        id: po.id,
+        name: po.name,
         worldPos,
         cropType: po.crop,
-        state: 'ready', // Start initial plots as ready to harvest or seeded for instant joy!
+        state: 'ready',
         soilMesh: soil,
         container: cropContainer,
         growTimer: 0,
-        growDuration: 8.0 // seconds to fully grow
+        growDuration: 8.0
       });
 
-      // Build initial visual crop
       this.rebuildPlotMesh(this.plots[idx]);
     });
+
+    // 3. Cute Backyard Water Well (Located at world x: -24, z: 14)
+    const wellGroup = new THREE.Group();
+    wellGroup.position.set(10, 0, 14);
+
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0x92400e });
+    const waterMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+
+    // Circular stone well base
+    const wellBase = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.5, 0.9, 16), stoneMat);
+    wellBase.position.y = 0.45;
+    wellBase.castShadow = true;
+    wellGroup.add(wellBase);
+
+    // Water inside well
+    const wellWater = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.1, 16), waterMat);
+    wellWater.position.y = 0.65;
+    wellGroup.add(wellWater);
+
+    // Well Roof Posts
+    [-0.95, 0.95].forEach(px => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.2, 0.16), woodMat);
+      post.position.set(px, 1.1, 0);
+      wellGroup.add(post);
+    });
+
+    // Crossbar & crank
+    const crossbar = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.0, 8), woodMat);
+    crossbar.rotation.z = Math.PI / 2;
+    crossbar.position.set(0, 1.85, 0);
+    wellGroup.add(crossbar);
+
+    // Cute A-frame well roof
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.0, 4), new THREE.MeshLambertMaterial({ color: 0xf472b6 }));
+    roof.position.set(0, 2.45, 0);
+    roof.rotation.y = Math.PI / 4;
+    wellGroup.add(roof);
+
+    this.group.add(wellGroup);
+
+    if (this.town && this.town.colliders) {
+      this.town.colliders.push({ type: 'circle', x: this.position.x + 10, z: this.position.z + 14, r: 1.6 });
+    }
 
     this.scene.add(this.group);
   }

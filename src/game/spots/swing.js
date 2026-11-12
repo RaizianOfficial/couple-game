@@ -6,7 +6,7 @@ export class SwingSpot {
     this.scene = scene;
     this.town = town;
     this.id = 'swing';
-    this.position = new THREE.Vector3(-10, 0, 11); // Placed safely in waterfront park on open lawn
+    this.position = new THREE.Vector3(44, 0, -10); // Placed in East Play Park (Top-Right)
     this.rotationY = 0; // Facing the open park
 
     this.seat1Uid = null;

@@ -9,9 +9,9 @@ export class BuggySpot {
     this.driverUid = null;
     this.passengerUid = null;
 
-    // Placed in scenic beach/park avenue
-    this.position = new THREE.Vector3(16, 0, -22);
-    this.rotationY = Math.PI / 2;
+    // Placed at South Main Street Scooter & Buggy Parking
+    this.position = new THREE.Vector3(2, 0, 42);
+    this.rotationY = 0;
     this.speed = 0;
     this.wheelRotation = 0;
     this.steerAngle = 0;
@@ -143,8 +143,8 @@ export class BuggySpot {
 
   updateMovement(moveX, moveZ, delta) {
     const isMoving = Math.hypot(moveX, moveZ) > 0.1;
-    const targetSpeed = isMoving ? 9.0 : 0;
-    this.speed += (targetSpeed - this.speed) * Math.min(1, delta * 6.0);
+    const targetSpeed = isMoving ? 17.0 : 0;
+    this.speed += (targetSpeed - this.speed) * Math.min(1, delta * 7.5);
 
     if (this.speed > 0.05) {
       const targetAngle = Math.atan2(moveX, moveZ);

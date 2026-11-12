@@ -6,8 +6,8 @@ export class TeaStallSpot {
     this.scene = scene;
     this.town = town;
     this.id = 'teaStall';
-    this.position = new THREE.Vector3(0, 0, -12); // Located along north garden path
-    this.rotationY = 0;
+    this.position = new THREE.Vector3(-22, 0, 42); // Located on South Main Street (Chai Stall)
+    this.rotationY = Math.PI;
 
     this.cupHolderUid = null;
     this.teaState = 'idle'; // 'idle' | 'holding' | 'sipping'

@@ -425,8 +425,23 @@ export class Town {
       this.scene.add(grassGroup);
     }, undefined, (err) => console.error('[Town] Airfield grass tile GLB error:', err));
 
-    // 2. Full Lively City: Multi-Story Apartment Complexes (Downtown & Suburbs)
+    // 4. Full Lively City: Multi-Story Apartment Complexes (Downtown & Suburbs)
     loader.load(`${cleanBase}GLBs/assets/apartment-block-01.glb`, (gltf) => {
+      const baseScene = gltf.scene;
+      baseScene.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (this.engine) this.engine.registerWallObstacle(child);
+        }
+      });
+
+      // Calculate exact bounding box so building sits 100% on the ground (no sinking)
+      const box = new THREE.Box3().setFromObject(baseScene);
+      const offsetY = -box.min.y; // Lifts 6.7m so ground floor is completely above ground
+      const offsetX = -(box.min.x + box.max.x) / 2;
+      const offsetZ = -(box.min.z + box.max.z) / 2;
+
       const apartmentConfigs = [
         // South-West Downtown Residential Block
         { x: -38, z: 46, rotY: 0, w: 7.6, d: 6.8 },
@@ -448,24 +463,37 @@ export class Town {
       ];
 
       apartmentConfigs.forEach((cfg) => {
-        const apt = gltf.scene.clone();
-        apt.position.set(cfg.x, 0, cfg.z);
-        apt.rotation.y = cfg.rotY;
-        apt.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            if (this.engine) this.engine.registerWallObstacle(child);
-          }
-        });
-        this.scene.add(apt);
+        const wrapper = new THREE.Group();
+        wrapper.position.set(cfg.x, 0, cfg.z);
+        wrapper.rotation.y = cfg.rotY;
+
+        const apt = baseScene.clone();
+        apt.position.set(offsetX, offsetY, offsetZ);
+        wrapper.add(apt);
+
+        this.scene.add(wrapper);
         // Wall colliders only: entrance remains completely open for hide-and-seek!
         this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 2.0);
       });
     }, undefined, (err) => console.error('[Town] Apartment block GLB error:', err));
 
-    // 3. Full Lively City: General Stores, Cafes, Boutiques, Bakeries & Hideout Cottages
+    // 5. Full Lively City: General Stores, Cafes, Boutiques, Bakeries & Hideout Cottages
     loader.load(`${cleanBase}GLBs/assets/bld-general-store-01.glb`, (gltf) => {
+      const baseScene = gltf.scene;
+      baseScene.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (this.engine) this.engine.registerWallObstacle(child);
+        }
+      });
+
+      // Calculate exact bounding box so store sits 100% on the ground (no sinking)
+      const box = new THREE.Box3().setFromObject(baseScene);
+      const offsetY = -box.min.y; // Lifts 1.58m so store doors, porches and awnings are completely above ground
+      const offsetX = -(box.min.x + box.max.x) / 2;
+      const offsetZ = -(box.min.z + box.max.z) / 2;
+
       const houseConfigs = [
         // South Main Street North Shops & Cafes
         { x: -22, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
@@ -494,17 +522,15 @@ export class Town {
       ];
 
       houseConfigs.forEach((cfg) => {
-        const house = gltf.scene.clone();
-        house.position.set(cfg.x, 0, cfg.z);
-        house.rotation.y = cfg.rotY;
-        house.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            if (this.engine) this.engine.registerWallObstacle(child);
-          }
-        });
-        this.scene.add(house);
+        const wrapper = new THREE.Group();
+        wrapper.position.set(cfg.x, 0, cfg.z);
+        wrapper.rotation.y = cfg.rotY;
+
+        const house = baseScene.clone();
+        house.position.set(offsetX, offsetY, offsetZ);
+        wrapper.add(house);
+
+        this.scene.add(wrapper);
         // Wall colliders only: front doorway open so partners can hide inside!
         this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 1.4);
       });

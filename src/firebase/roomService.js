@@ -155,9 +155,11 @@ export class RoomService {
     if (players[uid]) {
       this.roomId = cleanCode;
       this.slot = players[uid].slot;
-      this.gender = players[uid].gender || 'boy'; // Recover gender
+      this.gender = gender || players[uid].gender || 'boy';
       await dbUpdate(dbRef(`rooms/${cleanCode}/players/${uid}`), {
         online: true,
+        gender: this.gender,
+        nick: cleanNick,
         lastSeen: getServerTimestamp()
       });
       await this._setupPresence(cleanCode, uid);
@@ -165,12 +167,28 @@ export class RoomService {
       return { roomId: cleanCode, slot: this.slot, uid };
     }
 
-    if (existingPlayerUids.length >= 2) {
+    // Check for offline/abandoned players so rooms never get permanently locked as "full"
+    const activePlayerUids = existingPlayerUids.filter(id => {
+      const p = players[id];
+      if (p.online === false) return false;
+      return true;
+    });
+
+    if (existingPlayerUids.length >= 2 && activePlayerUids.length >= 2) {
       throw new Error('This room is full (maximum 2 players).');
     }
 
-    const takenSlots = Object.values(players).map(p => p.slot);
-    this.slot = takenSlots.includes(1) ? 2 : 1;
+    // Reuse slot from offline player or unassigned slot
+    let assignedSlot = 2;
+    if (!players || Object.keys(players).length === 0) {
+      assignedSlot = 1;
+    } else {
+      const takenSlots = Object.entries(players)
+        .filter(([id, p]) => p.online !== false || activePlayerUids.includes(id))
+        .map(([id, p]) => p.slot);
+      assignedSlot = takenSlots.includes(1) ? 2 : 1;
+    }
+    this.slot = assignedSlot;
     this.roomId = cleanCode;
 
     const defaultOutfit = this.slot === 1 ? DEFAULT_OUTFIT_P1 : DEFAULT_OUTFIT_P2;

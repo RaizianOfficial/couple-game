@@ -10,8 +10,11 @@ export function getGLTFLoader() {
     gltfLoader = new GLTFLoader();
     
     dracoLoader = new DRACOLoader();
-    // Official globally cached Google Draco decoder (works across all browsers, mobile & production builds)
-    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+    // Use local draco decoders from public/draco/ with fallback to ensure phones don't crash on network blocks
+    const baseUrl = import.meta.env?.BASE_URL || '/';
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+    dracoLoader.setDecoderPath(`${cleanBase}draco/`);
+    dracoLoader.preload();
     
     gltfLoader.setDRACOLoader(dracoLoader);
   }

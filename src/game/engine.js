@@ -48,22 +48,33 @@ export class GameEngine {
   initRenderer() {
     this.isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !this.isMobile, // Disable MSAA on mobile GPUs to prevent WebGL context lost & thermal lag
       powerPreference: 'high-performance',
-      precision: 'highp',
+      precision: this.isMobile ? 'mediump' : 'highp',
       stencil: false,
-      depth: true
+      depth: true,
+      failIfMajorPerformanceCaveat: false
     });
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h);
-    // High-resolution Retina rendering on mobile and desktop alike
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    // Smooth DPR: 1.5 max on mobile, 2.0 max on desktop
+    const dpr = this.isMobile ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2.0);
     this.renderer.setPixelRatio(dpr);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
+
+    // Context lost prevention & automatic recovery
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      console.warn('[Engine] WebGL context lost! Waiting for restoration...');
+    }, false);
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      console.info('[Engine] WebGL context restored! Refreshing scene...');
+      this.resize();
+    }, false);
   }
 
   initCamera() {

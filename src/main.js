@@ -113,6 +113,7 @@ class App {
     this.hugTimer = 0;
     this.slideProgress = null;
     this.elevatorRide = null;
+    this.treehouseClimb = null;
     this.handsSystem = new HandHoldingSystem(this.engine.scene);
     this.myChar = null;
     this.partnerChar = null;
@@ -452,19 +453,29 @@ class App {
     const isHandsConnected = this.handsSystem.update(this.myChar, this.partnerChar, syncService.isBothHolding(), delta);
     this.hud.setHandsConnected(isHandsConnected);
 
-    if (this.isJumping) {
-      this.jumpVelY -= 15.0 * delta;
-      this.playerY += this.jumpVelY * delta;
+    const houseX = this.coupleHouse.position.x;
+    const houseZ = this.coupleHouse.position.z;
+    const isOverHouse = (myPos && myPos.x > houseX - 5 && myPos.x < houseX + 5 && myPos.z > houseZ - 5 && myPos.z < houseZ + 5);
+    const isOverTreehouse = (myPos && myPos.x > -37.8 && myPos.x < -34.2 && myPos.z > -29.8 && myPos.z < -26.0);
 
-      const houseX = this.coupleHouse.position.x;
-      const houseZ = this.coupleHouse.position.z;
-      const isOverHouse = (myPos && myPos.x > houseX - 5 && myPos.x < houseX + 5 && myPos.z > houseZ - 5 && myPos.z < houseZ + 5);
-      const floorLevel = (isOverHouse && this.playerY >= 2.8) ? 2.8 : 0;
+    let floorLevel = 0;
+    if (isOverHouse && this.playerY >= 2.5) floorLevel = 2.8;
+    else if (isOverTreehouse && this.playerY >= 2.5) floorLevel = 3.2;
 
-      if (this.playerY <= floorLevel) {
-        this.playerY = floorLevel;
+    if (!this.treehouseClimb && !this.elevatorRide && !this.currentSpot) {
+      if (this.isJumping) {
+        this.jumpVelY -= 15.0 * delta;
+        this.playerY += this.jumpVelY * delta;
+
+        if (this.playerY <= floorLevel) {
+          this.playerY = floorLevel;
+          this.jumpVelY = 0;
+          this.isJumping = false;
+        }
+      } else if (this.playerY > floorLevel) {
+        // Stepped off treehouse deck or balcony: initiate gravity fall
+        this.isJumping = true;
         this.jumpVelY = 0;
-        this.isJumping = false;
       }
     }
 
@@ -474,7 +485,30 @@ class App {
       if (this.partnerChar) this.partnerChar.anim = 'hug';
     }
 
-    if (this.elevatorRide) {
+    if (this.treehouseClimb) {
+      this.treehouseClimb.elapsed += delta;
+      const t = Math.min(1, this.treehouseClimb.elapsed / this.treehouseClimb.duration);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      this.playerY = THREE.MathUtils.lerp(this.treehouseClimb.startY, this.treehouseClimb.targetY, ease);
+      const curX = THREE.MathUtils.lerp(this.treehouseClimb.startX, this.treehouseClimb.targetX, ease);
+      const curZ = THREE.MathUtils.lerp(this.treehouseClimb.startZ, this.treehouseClimb.targetZ, ease);
+
+      const rotY = this.treehouseClimb.direction === 'up' ? 0 : Math.PI;
+      this.myChar.setPosition(curX, curZ, rotY, this.playerY);
+      this.myChar.anim = 'walk';
+      this.myChar.update(delta);
+      syncService.sendState(curX, curZ, rotY, 'walk', false, this.playerY);
+
+      if (t >= 1) {
+        this.playerY = this.treehouseClimb.targetY;
+        const dir = this.treehouseClimb.direction;
+        this.treehouseClimb = null;
+        this.myChar.anim = 'idle';
+        soundEngine.playCheer();
+        const pos = this.toScreenPosition(this.myChar.group.position);
+        this.emojiSystem.spawnFloatingReaction(dir === 'up' ? '🏡 Cozy Treehouse!' : '✨ Safe Landing!', pos.x, pos.y - 60);
+      }
+    } else if (this.elevatorRide) {
       this.elevatorRide.elapsed += delta;
       const t = Math.min(1, this.elevatorRide.elapsed / this.elevatorRide.duration);
       const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -504,7 +538,7 @@ class App {
       if (move.isMoving) {
         const nextX = myPos.x + move.x * speed * delta;
         const nextZ = myPos.z + move.z * speed * delta;
-        if (!this.town.checkCollision(nextX, nextZ, 0.35)) this.myChar.setPosition(nextX, nextZ, undefined, this.playerY);
+        if (!this.town.checkCollision(nextX, nextZ, 0.35, this.playerY)) this.myChar.setPosition(nextX, nextZ, undefined, this.playerY);
         else this.myChar.group.position.y = this.playerY;
 
         let diff = Math.atan2(move.x, move.z) - this.myChar.group.rotation.y;
@@ -673,7 +707,7 @@ class App {
   }
 
   handleJump() {
-    if (this.currentSpot || this.isJumping) return;
+    if (this.currentSpot || this.isJumping || this.treehouseClimb || this.elevatorRide) return;
     this.isJumping = true;
     this.jumpVelY = 5.2;
     soundEngine.playPop();
@@ -716,8 +750,35 @@ class App {
       return;
     }
 
+    if (this.treehouseClimb) {
+      this.hud.setInteractAction({
+        type: 'climbing_treehouse',
+        icon: '🪜',
+        label: this.treehouseClimb.direction === 'up' ? 'Climbing Up...' : 'Climbing Down...'
+      });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
+
     if (this.elevatorRide) {
       this.hud.setInteractAction({ type: 'riding_elevator', icon: '🛗', label: 'Elevator Moving...' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
+
+    // Romantic Treehouse Ladder & Deck Interactions
+    const ladderBase = this.town.getTreehouseLadderPos();
+    const distToLadder = Math.hypot(myPos.x - ladderBase.x, myPos.z - ladderBase.z);
+    if (this.playerY < 1.0 && distToLadder < 2.5) {
+      this.hud.setInteractAction({ type: 'climb_treehouse', icon: '🪜', label: 'Climb Treehouse' });
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
+
+    const treehouseDeck = this.town.getTreehouseDeckPos();
+    const distToTreehouse = Math.hypot(myPos.x - treehouseDeck.x, myPos.z - treehouseDeck.z);
+    if (this.playerY >= 2.5 && distToTreehouse < 3.2) {
+      this.hud.setInteractAction({ type: 'climb_down_treehouse', icon: '🪜', label: 'Climb Down Treehouse' });
       this.hud.setSecondaryInteractAction(null);
       return;
     }
@@ -929,6 +990,42 @@ class App {
       this.myChar.setPosition(topPos.x, topPos.z, undefined, this.playerY);
       soundEngine.playElevator(false);
       syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 3.2, elevatorMoving: true });
+    }
+    else if (action.type === 'climb_treehouse') {
+      if (this.treehouseClimb) return;
+      const ladderBase = this.town.getTreehouseLadderPos();
+      const deckPos = this.town.getTreehouseDeckPos();
+      this.treehouseClimb = {
+        direction: 'up',
+        startX: ladderBase.x,
+        startZ: ladderBase.z,
+        startY: this.playerY,
+        targetX: deckPos.x,
+        targetZ: deckPos.z,
+        targetY: deckPos.y,
+        duration: 1.2,
+        elapsed: 0
+      };
+      this.myChar.setPosition(ladderBase.x, ladderBase.z, 0, this.playerY);
+      soundEngine.playPop();
+    }
+    else if (action.type === 'climb_down_treehouse') {
+      if (this.treehouseClimb) return;
+      const ladderBase = this.town.getTreehouseLadderPos();
+      const currentPos = this.myChar.getPosition();
+      this.treehouseClimb = {
+        direction: 'down',
+        startX: ladderBase.x,
+        startZ: currentPos.z,
+        startY: this.playerY,
+        targetX: ladderBase.x,
+        targetZ: ladderBase.z + 0.4,
+        targetY: 0,
+        duration: 1.2,
+        elapsed: 0
+      };
+      this.myChar.setPosition(ladderBase.x, currentPos.z, Math.PI, this.playerY);
+      soundEngine.playPop();
     }
     else if (action.type === 'heli_pilot') {
       if (await syncService.claimSeat('helicopter', 'driver')) { this.currentSpot = 'heli_pilot'; soundEngine.playHelicopter(); }

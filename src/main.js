@@ -11,6 +11,7 @@ import { TeaStallSpot } from './game/spots/teaStall.js';
 import { HelicopterSpot } from './game/spots/helicopter.js';
 import { CoupleHouseSpot } from './game/spots/house.js';
 import { PlaygroundSpot } from './game/spots/playground.js';
+import { FerrisWheelSpot } from './game/spots/ferrisWheel.js';
 import { TreeChoppingSystem } from './game/spots/treeChopping.js';
 import { FarmingSpot } from './game/spots/farming.js';
 import { ChairSpotSystem } from './game/spots/chair.js';
@@ -95,6 +96,7 @@ class App {
     this.helicopter = new HelicopterSpot(this.engine.scene, this.town);
     this.coupleHouse = new CoupleHouseSpot(this.engine.scene, this.town);
     this.playground = new PlaygroundSpot(this.engine.scene, this.town);
+    this.ferrisWheel = new FerrisWheelSpot(this.engine.scene, this.town);
     this.treeChopping = new TreeChoppingSystem(this.engine.scene, this.town);
     this.farming = new FarmingSpot(this.engine.scene, this.town);
     this.chairSystem = new ChairSpotSystem(this.engine.scene, this.town);
@@ -565,6 +567,15 @@ class App {
     this.helicopter.update(delta, this.currentSpot === 'heli_pilot');
     this.coupleHouse.update(delta, this.currentSpot === 'bed_left' || this.currentSpot === 'bed_right');
     this.playground.update(delta);
+    this.ferrisWheel.update(delta, Boolean(syncService.spotsData?.ferrisWheel?.occupants?.seat1 || syncService.spotsData?.ferrisWheel?.occupants?.seat2));
+    const ferrisExtra = syncService.spotsData?.ferrisWheel?.extra;
+    if (ferrisExtra && typeof ferrisExtra.wheelAngle === 'number' && this.currentSpot !== 'ferris_seat1') {
+      const diff = ferrisExtra.wheelAngle - this.ferrisWheel.wheelAngle;
+      if (Math.abs(diff) > 0.25) this.ferrisWheel.wheelAngle += diff * delta * 2;
+    }
+    if (this.currentSpot === 'ferris_seat1') {
+      syncService.updateSpotExtra('ferrisWheel', { wheelAngle: this.ferrisWheel.wheelAngle });
+    }
     this.treeChopping.update(delta);
     this.farming.update(delta);
     if (this.petSystem) {
@@ -634,6 +645,14 @@ class App {
       this.myChar.anim = 'swing';
       this.myChar.update(delta);
       syncService.sendState(seat.x, seat.z, this.canopySwing.rotationY, 'swing', false, seat.y - 0.05);
+    } else if (this.currentSpot === 'ferris_seat1' || this.currentSpot === 'ferris_seat2') {
+      const isSeat1 = this.currentSpot === 'ferris_seat1';
+      const seat = isSeat1 ? this.ferrisWheel.getSeat1WorldPos() : this.ferrisWheel.getSeat2WorldPos();
+      this.playerY = seat.y;
+      this.myChar.setPosition(seat.x, seat.z, this.ferrisWheel.rotationY, seat.y - 0.28);
+      this.myChar.anim = 'sit';
+      this.myChar.update(delta);
+      syncService.sendState(seat.x, seat.z, this.ferrisWheel.rotationY, 'sit', false, seat.y - 0.28);
     } else if (this.currentSpot === 'swing_1' || this.currentSpot === 'swing_2') {
       const seat = this.currentSpot === 'swing_1' ? this.swing.getSeat1WorldPos() : this.swing.getSeat2WorldPos();
       this.myChar.setPosition(seat.x, seat.z, this.swing.rotationY, seat.y + 0.08);
@@ -743,6 +762,7 @@ class App {
       else if (this.currentSpot === 'buggy_driver' || this.currentSpot === 'buggy_passenger') { icon = '🚙'; label = 'Exit Buggy'; }
       else if (this.currentSpot.startsWith('canopy_')) { icon = '🌸'; label = 'Leave Canopy Swing'; }
       else if (this.currentSpot.startsWith('swing')) { icon = '🎠'; label = 'Get Off Swing'; }
+      else if (this.currentSpot === 'ferris_seat1' || this.currentSpot === 'ferris_seat2') { icon = '🎡'; label = 'Leave Giant Wheel'; }
       else if (this.currentSpot.startsWith('bench')) { icon = '🧍'; label = 'Stand Up'; }
       else if (this.currentSpot.startsWith('bed_')) { icon = '☀️'; label = 'Wake Up'; }
       this.hud.setInteractAction({ type: 'exit_spot', icon, label });
@@ -867,6 +887,21 @@ class App {
         return;
       } else if (!occ.seat2) {
         this.hud.setInteractAction({ type: 'canopy_2', icon: '🌸', label: 'Sit with Partner 💕' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      }
+    }
+
+    // Giant Wheel (Ferris Wheel) Interaction (2 Seats)
+    const ferrisDist = Math.hypot(myPos.x - (this.ferrisWheel.position.x - 2.5), myPos.z - this.ferrisWheel.position.z);
+    if (ferrisDist < 4.2 && this.playerY < 2.0) {
+      const occ = syncService.spotsData?.ferrisWheel?.occupants || {};
+      if (!occ.seat1) {
+        this.hud.setInteractAction({ type: 'ferris_1', icon: '🎡', label: 'Ride Giant Wheel' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      } else if (!occ.seat2) {
+        this.hud.setInteractAction({ type: 'ferris_2', icon: '🎡', label: 'Ride with Partner 💕' });
         this.hud.setSecondaryInteractAction(null);
         return;
       }
@@ -1059,6 +1094,22 @@ class App {
     else if (action.type === 'canopy_2') {
       if (await syncService.claimSeat('canopySwing', 'seat2')) { this.currentSpot = 'canopy_seat2'; soundEngine.playPop(); }
     }
+    else if (action.type === 'ferris_1') {
+      if (await syncService.claimSeat('ferrisWheel', 'seat1')) {
+        this.currentSpot = 'ferris_seat1';
+        soundEngine.playPop();
+        const pos = this.toScreenPosition(this.myChar.group.position);
+        this.emojiSystem.spawnFloatingReaction('🎡 Romantic View!', pos.x, pos.y - 60);
+      }
+    }
+    else if (action.type === 'ferris_2') {
+      if (await syncService.claimSeat('ferrisWheel', 'seat2')) {
+        this.currentSpot = 'ferris_seat2';
+        soundEngine.playPop();
+        const pos = this.toScreenPosition(this.myChar.group.position);
+        this.emojiSystem.spawnFloatingReaction('💕 Riding Together!', pos.x, pos.y - 60);
+      }
+    }
     else if (action.type === 'swing_1') {
       if (await syncService.claimSeat('swing', 'seat1')) { this.currentSpot = 'swing_1'; soundEngine.playPop(); }
     }
@@ -1130,6 +1181,8 @@ class App {
     else if (prev === 'canopy_seat2') { await syncService.releaseSeat('canopySwing', 'seat2'); }
     else if (prev === 'swing_1') { await syncService.releaseSeat('swing', 'seat1'); }
     else if (prev === 'swing_2') { await syncService.releaseSeat('swing', 'seat2'); }
+    else if (prev === 'ferris_seat1') { await syncService.releaseSeat('ferrisWheel', 'seat1'); }
+    else if (prev === 'ferris_seat2') { await syncService.releaseSeat('ferrisWheel', 'seat2'); }
 
     this.currentSpot = null;
     this.hud.showSpeedButton(false);
@@ -1155,6 +1208,10 @@ class App {
         this.myChar.setPosition(this.swing.position.x - 1.2, this.swing.position.z + 1.2, this.swing.rotationY, 0);
       } else if (prev === 'swing_2') {
         this.myChar.setPosition(this.swing.position.x + 1.2, this.swing.position.z + 1.2, this.swing.rotationY, 0);
+      } else if (prev === 'ferris_seat1' || prev === 'ferris_seat2') {
+        const dismount = this.ferrisWheel.getDismountWorldPos();
+        this.playerY = 0;
+        this.myChar.setPosition(dismount.x, dismount.z, this.ferrisWheel.rotationY, 0);
       } else if (prev.startsWith('bench_')) {
         const isLeft = prev.endsWith('_left');
         const side = isLeft ? 'left' : 'right';

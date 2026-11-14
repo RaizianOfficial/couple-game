@@ -50,9 +50,9 @@ export class GameEngine {
   initRenderer() {
     this.isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.isMobile, // ★ Disable MSAA on mobile for massive FPS boost
+      antialias: true, // Ultra-sharp crystal edges on all devices
       powerPreference: 'high-performance',
-      precision: this.isMobile ? 'mediump' : 'highp', // ★ mediump on phones saves GPU bandwidth
+      precision: 'highp', // Pristine material & lighting rendering
       stencil: false,
       depth: true,
       failIfMajorPerformanceCaveat: false
@@ -60,13 +60,11 @@ export class GameEngine {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h);
-    // ★ Mobile: cap DPR at 1.5 (most phones are 2.5-3x which is overkill and causes lag)
-    const maxDpr = this.isMobile ? 1.5 : 2.0;
-    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+    // Native high-res retina resolution (2.0 max for zero blurriness/pixelation)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
     this.renderer.setPixelRatio(dpr);
     this.renderer.shadowMap.enabled = true;
-    // ★ BasicShadowMap on mobile (much faster), PCFSoft on desktop
-    this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Ultra-smooth soft shadow edges
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 

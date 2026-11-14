@@ -514,12 +514,14 @@ class App {
 
     const houseX = this.coupleHouse.position.x;
     const houseZ = this.coupleHouse.position.z;
-    const isOverHouse = (myPos && myPos.x > houseX - 5 && myPos.x < houseX + 5 && myPos.z > houseZ - 5 && myPos.z < houseZ + 5);
+    const isOverHouse = (myPos && myPos.x > houseX - 5.2 && myPos.x < houseX + 5.2 && myPos.z > houseZ - 4.4 && myPos.z < houseZ + 4.2);
     const isOverTreehouse = (myPos && myPos.x > -38.8 && myPos.x < -33.2 && myPos.z > -31.0 && myPos.z < -25.0);
+    const isOverConcertStage = (myPos && this.danceStage && this.danceStage.isOnStage(myPos));
 
     let floorLevel = 0;
-    if (isOverHouse && this.playerY >= 2.5) floorLevel = 2.8;
+    if (isOverHouse && this.playerY >= 3.0) floorLevel = 4.0;
     else if (isOverTreehouse && this.playerY >= 2.5) floorLevel = 3.25;
+    else if (isOverConcertStage) floorLevel = 0.55;
 
     if (!this.treehouseClimb && !this.elevatorRide && !this.currentSpot) {
       if (this.isJumping) {
@@ -923,13 +925,13 @@ class App {
       return;
     }
     const elevatorBotPos = this.coupleHouse.getElevatorBottomWorldPos();
-    if (Math.hypot(myPos.x - elevatorBotPos.x, myPos.z - elevatorBotPos.z) < 2.0 && this.playerY < 1) {
+    if (Math.hypot(myPos.x - elevatorBotPos.x, myPos.z - elevatorBotPos.z) < 2.0 && this.playerY < 1.0) {
       this.hud.setInteractAction({ type: 'elevator_up', icon: '🛗', label: 'Take Elevator Up' });
       this.hud.setSecondaryInteractAction(null);
       return;
     }
     const elevatorTopPos = this.coupleHouse.getElevatorTopWorldPos();
-    if (Math.hypot(myPos.x - elevatorTopPos.x, myPos.z - elevatorTopPos.z) < 2.0 && this.playerY > 2) {
+    if (Math.hypot(myPos.x - elevatorTopPos.x, myPos.z - elevatorTopPos.z) < 2.0 && this.playerY > 3.0) {
       this.hud.setInteractAction({ type: 'elevator_down', icon: '🛗', label: 'Take Elevator Down' });
       this.hud.setSecondaryInteractAction(null);
       return;
@@ -937,14 +939,16 @@ class App {
 
     const bedLPos = this.coupleHouse.getBedWorldPosition('left');
     const bedRPos = this.coupleHouse.getBedWorldPosition('right');
-    if (Math.hypot(myPos.x - bedLPos.x, myPos.z - bedLPos.z) < 2.0) {
-      this.hud.setInteractAction({ type: 'sleep_bed_left', icon: '💤', label: 'Sleep in Bed' });
-      this.hud.setSecondaryInteractAction(null);
-      return;
-    } else if (Math.hypot(myPos.x - bedRPos.x, myPos.z - bedRPos.z) < 2.0) {
-      this.hud.setInteractAction({ type: 'sleep_bed_right', icon: '💤', label: 'Sleep in Bed' });
-      this.hud.setSecondaryInteractAction(null);
-      return;
+    if (this.playerY > 3.0) {
+      if (Math.hypot(myPos.x - bedLPos.x, myPos.z - bedLPos.z) < 2.0) {
+        this.hud.setInteractAction({ type: 'sleep_bed_left', icon: '💤', label: 'Sleep in Bed' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      } else if (Math.hypot(myPos.x - bedRPos.x, myPos.z - bedRPos.z) < 2.0) {
+        this.hud.setInteractAction({ type: 'sleep_bed_right', icon: '💤', label: 'Sleep in Bed' });
+        this.hud.setSecondaryInteractAction(null);
+        return;
+      }
     }
 
     const heliDist = Math.hypot(myPos.x - this.helicopter.group.position.x, myPos.z - this.helicopter.group.position.z);
@@ -1107,10 +1111,10 @@ class App {
       return;
     }
 
-    // Romantic Couple Dance Stage (Pavilion)
+    // Grand Festival Concert Stage
     if (this.danceStage && this.danceStage.isOnStage(myPos)) {
       if (!this.isDancing) {
-        this.hud.setInteractAction({ type: 'start_dance', icon: '💃', label: 'Start Couple Dance ✨' });
+        this.hud.setInteractAction({ type: 'start_dance', icon: '💃', label: 'Start Concert Dance 🎵' });
       } else {
         this.hud.setInteractAction({ type: 'stop_dance', icon: '🛑', label: 'Stop Dancing' });
       }
@@ -1159,7 +1163,7 @@ class App {
     else if (action.type === 'elevator_up') {
       if (this.elevatorRide) return;
       const botPos = this.coupleHouse.getElevatorBottomWorldPos();
-      this.elevatorRide = { startY: 0, targetY: 2.9, duration: 1.2, elapsed: 0, x: botPos.x, z: botPos.z };
+      this.elevatorRide = { startY: 0, targetY: 4.1, duration: 1.4, elapsed: 0, x: botPos.x, z: botPos.z };
       this.myChar.setPosition(botPos.x, botPos.z, undefined, this.playerY);
       soundEngine.playElevator(true);
       syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 0.25, elevatorMoving: true });
@@ -1167,10 +1171,10 @@ class App {
     else if (action.type === 'elevator_down') {
       if (this.elevatorRide) return;
       const topPos = this.coupleHouse.getElevatorTopWorldPos();
-      this.elevatorRide = { startY: 2.9, targetY: 0, duration: 1.2, elapsed: 0, x: topPos.x, z: topPos.z };
+      this.elevatorRide = { startY: 4.1, targetY: 0, duration: 1.4, elapsed: 0, x: topPos.x, z: topPos.z };
       this.myChar.setPosition(topPos.x, topPos.z, undefined, this.playerY);
       soundEngine.playElevator(false);
-      syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 3.2, elevatorMoving: true });
+      syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 4.1, elevatorMoving: true });
     }
     else if (action.type === 'sit_cushion' || action.type === 'stand_up') {
       this.handleSitToggle();
@@ -1407,7 +1411,7 @@ class App {
         }
       } else if (prev.startsWith('bed_')) {
         const wakePos = this.coupleHouse.getWakeUpWorldPosition(prev === 'bed_left' ? 'left' : 'right');
-        this.playerY = 2.9;
+        this.playerY = 4.1;
         this.myChar.setPosition(wakePos.x, wakePos.z, this.coupleHouse.rotationY, this.playerY);
         this.myChar.anim = 'cheer';
         setTimeout(() => { if (this.myChar && this.myChar.anim === 'cheer') this.myChar.anim = 'idle'; }, 1200);

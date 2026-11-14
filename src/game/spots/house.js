@@ -44,38 +44,38 @@ export class CoupleHouseSpot {
     porch.position.set(0, 0.08, 5.2);
     this.group.add(porch);
 
-    // Walls
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(11.0, 5.8, 0.25), wallMat);
-    backWall.position.set(0, 2.9, -4.4);
+    // Walls - Grand 8.0m Height (4.0m Ground Floor + 4.2m Second Floor) for zero camera/roof clipping!
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(11.0, 8.0, 0.25), wallMat);
+    backWall.position.set(0, 4.1, -4.4);
     this.group.add(backWall);
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.8, 9.0), wallMat);
-    leftWall.position.set(-5.4, 2.9, 0);
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 8.0, 9.0), wallMat);
+    leftWall.position.set(-5.4, 4.1, 0);
     this.group.add(leftWall);
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.8, 9.0), wallMat);
-    rightWall.position.set(5.4, 2.9, 0);
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 8.0, 9.0), wallMat);
+    rightWall.position.set(5.4, 4.1, 0);
     this.group.add(rightWall);
 
     // Modern Flat Roof (Toggled in Room Mode for 0 camera glitches!)
     this.roofMesh = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.35, 9.6), roofMat);
-    this.roofMesh.position.set(0, 6.0, 0);
+    this.roofMesh.position.set(0, 8.2, 0);
     this.group.add(this.roofMesh);
 
     [-5.2, 5.2].forEach(px => {
-      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.35, 5.8, 0.35), whiteMat);
-      pillar.position.set(px, 2.9, 4.4);
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.35, 8.0, 0.35), whiteMat);
+      pillar.position.set(px, 4.1, 4.4);
       this.group.add(pillar);
     });
 
-    // Second Floor
-    const secondFloor = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.18, 9.0), floorMat);
-    secondFloor.position.set(0, 2.8, 0);
+    // Second Floor Deck at y = 4.0 (Generous 3.9m headroom on ground floor!)
+    const secondFloor = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.2, 9.0), floorMat);
+    secondFloor.position.set(0, 4.0, 0);
     this.group.add(secondFloor);
-    const balcony = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.16, 2.6), floorMat);
-    balcony.position.set(0, 2.8, 5.2);
+    const balcony = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.18, 2.6), floorMat);
+    balcony.position.set(0, 4.0, 5.2);
     this.group.add(balcony);
 
-    const glassRailing = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.8, 0.05), glassMat);
-    glassRailing.position.set(0, 3.2, 6.45);
+    const glassRailing = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.9, 0.05), glassMat);
+    glassRailing.position.set(0, 4.5, 6.45);
     this.group.add(glassRailing);
 
     // === REAL GROUND FLOOR INTERIORS: LUXURY LIVING ROOM & KITCHENETTE ===
@@ -128,17 +128,17 @@ export class CoupleHouseSpot {
       this.group.add(stool);
     });
 
-    // THE MODERN ELEVATOR
+    // THE MODERN ELEVATOR - Full 8.0m travel
     const elevatorGroup = new THREE.Group();
     elevatorGroup.position.set(3.2, 0, -1.5);
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 5.6, 16), glassMat);
-    tube.position.y = 2.8;
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 7.8, 16), glassMat);
+    tube.position.y = 4.0;
     elevatorGroup.add(tube);
     const pad1 = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.1, 16), accentMat);
     pad1.position.y = 0.25;
     elevatorGroup.add(pad1);
     const pad2 = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.1, 16), accentMat);
-    pad2.position.y = 2.95;
+    pad2.position.y = 4.15;
     elevatorGroup.add(pad2);
 
     // Glowing elevator moving cabin platform
@@ -154,9 +154,9 @@ export class CoupleHouseSpot {
 
     this.group.add(elevatorGroup);
 
-    // Bed on 2nd Floor
+    // Bed on 2nd Floor (y = 4.1m floor level)
     const bedGroup = new THREE.Group();
-    bedGroup.position.set(-1.6, 2.9, -2.0);
+    bedGroup.position.set(-1.6, 4.1, -2.0);
     const bedBase = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.4, 2.5), bedFrameMat);
     bedBase.position.set(0, 0.2, 0);
     bedGroup.add(bedBase);
@@ -175,11 +175,11 @@ export class CoupleHouseSpot {
     this.group.add(bedGroup);
 
     // Lights & Visible Glowing Ceiling Chandeliers
-    this.houseLight1 = new THREE.PointLight(0xfff5b6, 1.2, 16);
-    this.houseLight1.position.set(0, 2.2, 0.5);
+    this.houseLight1 = new THREE.PointLight(0xfff5b6, 1.3, 18);
+    this.houseLight1.position.set(0, 3.4, 0.5);
     this.group.add(this.houseLight1);
-    this.houseLight2 = new THREE.PointLight(0xfff5b6, 1.1, 16);
-    this.houseLight2.position.set(-1.6, 5.1, -1.0);
+    this.houseLight2 = new THREE.PointLight(0xfff5b6, 1.2, 18);
+    this.houseLight2.position.set(-1.6, 7.2, -1.0);
     this.group.add(this.houseLight2);
 
     this.bulbMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
@@ -188,29 +188,29 @@ export class CoupleHouseSpot {
 
     // Ground Floor Living Room Pendant Lamp
     const gfLamp = new THREE.Group();
-    gfLamp.position.set(0, 2.7, 0.5);
-    const gfCord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.45, 6), cordMat);
-    gfCord.position.y = -0.225;
+    gfLamp.position.set(0, 3.9, 0.5);
+    const gfCord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.7, 6), cordMat);
+    gfCord.position.y = -0.35;
     gfLamp.add(gfCord);
-    const gfShade = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.18, 12, 1, true), shadeMat);
-    gfShade.position.y = -0.45;
+    const gfShade = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.2, 12, 1, true), shadeMat);
+    gfShade.position.y = -0.7;
     gfLamp.add(gfShade);
     this.gfBulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 12), this.bulbMat);
-    this.gfBulb.position.y = -0.48;
+    this.gfBulb.position.y = -0.74;
     gfLamp.add(this.gfBulb);
     this.group.add(gfLamp);
 
     // 2nd Floor Master Bedroom Chandelier
     const sfLamp = new THREE.Group();
-    sfLamp.position.set(-1.6, 5.7, -1.0);
-    const sfCord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 6), cordMat);
-    sfCord.position.y = -0.25;
+    sfLamp.position.set(-1.6, 8.0, -1.0);
+    const sfCord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.8, 6), cordMat);
+    sfCord.position.y = -0.4;
     sfLamp.add(sfCord);
-    const sfShade = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.22, 12, 1, true), shadeMat);
-    sfShade.position.y = -0.5;
+    const sfShade = new THREE.Mesh(new THREE.ConeGeometry(0.46, 0.24, 12, 1, true), shadeMat);
+    sfShade.position.y = -0.8;
     sfLamp.add(sfShade);
     this.sfBulb = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 12), this.bulbMat);
-    this.sfBulb.position.y = -0.54;
+    this.sfBulb.position.y = -0.85;
     sfLamp.add(this.sfBulb);
     this.group.add(sfLamp);
 
@@ -270,7 +270,7 @@ export class CoupleHouseSpot {
 
   setElevatorY(y) {
     if (this.elevatorCabin) {
-      this.elevatorCabin.position.y = Math.max(0.25, Math.min(2.95, y));
+      this.elevatorCabin.position.y = Math.max(0.25, Math.min(4.15, y));
     }
   }
 
@@ -287,7 +287,7 @@ export class CoupleHouseSpot {
   }
 
   getElevatorTopWorldPos() {
-    const local = new THREE.Vector3(3.2, 2.95, -1.5);
+    const local = new THREE.Vector3(3.2, 4.15, -1.5);
     this.group.localToWorld(local);
     return local;
   }
@@ -308,14 +308,14 @@ export class CoupleHouseSpot {
 
   getBedWorldPosition(side = 'left') {
     const localX = side === 'left' ? -2.22 : -0.98;
-    const local = new THREE.Vector3(localX, 3.48, -2.1);
+    const local = new THREE.Vector3(localX, 4.68, -2.1);
     this.group.localToWorld(local);
     return local;
   }
 
   getWakeUpWorldPosition(side = 'left') {
     const localX = side === 'left' ? -3.2 : 0.4;
-    const local = new THREE.Vector3(localX, 2.9, -1.2);
+    const local = new THREE.Vector3(localX, 4.1, -1.2);
     this.group.localToWorld(local);
     return local;
   }

@@ -130,7 +130,10 @@ export class GameHUD {
           <span class="btn-label" id="hud-speed-label">Speed: Normal</span>
         </button>
 
-        <button class="action-btn jump-btn" id="hud-jump-btn">🦘 Jump</button>
+        <div class="hud-jump-sit-row">
+          <button class="action-btn jump-btn" id="hud-jump-btn">🦘 Jump</button>
+          <button class="action-btn sit-btn" id="hud-sit-btn">🧘 Sit</button>
+        </div>
         <button class="action-btn hug-btn hidden" id="hud-hug-btn">🫂 Hug ❤️</button>
         <button class="action-btn hold-hands-btn hidden" id="hud-hold-hands-btn">
           <span class="btn-icon">🤝</span>
@@ -207,6 +210,7 @@ export class GameHUD {
     this.speedIcon = this.hudEl.querySelector('#hud-speed-icon');
     this.speedLabel = this.hudEl.querySelector('#hud-speed-label');
     this.jumpBtn = this.hudEl.querySelector('#hud-jump-btn');
+    this.sitBtn = this.hudEl.querySelector('#hud-sit-btn');
     this.hugBtn = this.hudEl.querySelector('#hud-hug-btn');
     this.flightControls = this.hudEl.querySelector('#hud-flight-controls');
     this.ascendBtn = this.hudEl.querySelector('#hud-ascend-btn');
@@ -252,6 +256,7 @@ export class GameHUD {
     this.holdHandsBtn.addEventListener('pointerdown', startHold);
     this.holdHandsBtn.addEventListener('pointerup', endHold);
     this.jumpBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (this.callbacks.onJump) this.callbacks.onJump(); });
+    this.sitBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (this.callbacks.onSit) this.callbacks.onSit(); });
     this.hugBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (this.callbacks.onHug) this.callbacks.onHug(); });
 
     const bindHoldButton = (btn, onStart, onEnd) => {
@@ -347,6 +352,21 @@ export class GameHUD {
       this.speedBtn.classList.add('hidden');
     }
   }
+  setSitState(isSitting) {
+    if (this.sitBtn) {
+      this.sitBtn.textContent = isSitting ? '🧍 Stand' : '🧘 Sit';
+      if (isSitting) this.sitBtn.classList.add('active-sitting');
+      else this.sitBtn.classList.remove('active-sitting');
+    }
+  }
+
+  showSitButton(visible) {
+    if (this.sitBtn) {
+      if (visible) this.sitBtn.classList.remove('hidden');
+      else this.sitBtn.classList.add('hidden');
+    }
+  }
+
   setWoodCount(count) { if (this.woodVal) this.woodVal.textContent = count; }
   setCropCount(count) { if (this.cropVal) this.cropVal.textContent = count; }
 

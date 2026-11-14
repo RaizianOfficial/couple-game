@@ -108,6 +108,7 @@ class App {
     };
 
     this.isJumping = false;
+    this.isSitting = false;
     this.jumpVelY = 0;
     this.playerY = 0;
     this.heliAscending = false;
@@ -131,6 +132,7 @@ class App {
       onHoldHandsStart: () => syncService.setHandHolding(true),
       onHoldHandsEnd: () => syncService.setHandHolding(false),
       onJump: () => this.handleJump(),
+      onSit: () => this.handleSitToggle(),
       onHug: () => this.handleHug(),
       onAscendStart: () => { this.heliAscending = true; },
       onAscendEnd: () => { this.heliAscending = false; },
@@ -458,11 +460,11 @@ class App {
     const houseX = this.coupleHouse.position.x;
     const houseZ = this.coupleHouse.position.z;
     const isOverHouse = (myPos && myPos.x > houseX - 5 && myPos.x < houseX + 5 && myPos.z > houseZ - 5 && myPos.z < houseZ + 5);
-    const isOverTreehouse = (myPos && myPos.x > -37.8 && myPos.x < -34.2 && myPos.z > -29.8 && myPos.z < -26.0);
+    const isOverTreehouse = (myPos && myPos.x > -38.8 && myPos.x < -33.2 && myPos.z > -31.0 && myPos.z < -25.0);
 
     let floorLevel = 0;
     if (isOverHouse && this.playerY >= 2.5) floorLevel = 2.8;
-    else if (isOverTreehouse && this.playerY >= 2.5) floorLevel = 3.2;
+    else if (isOverTreehouse && this.playerY >= 2.5) floorLevel = 3.25;
 
     if (!this.treehouseClimb && !this.elevatorRide && !this.currentSpot) {
       if (this.isJumping) {
@@ -538,6 +540,11 @@ class App {
         }
       }
       if (move.isMoving) {
+        if (this.isSitting) {
+          this.isSitting = false;
+          this.hud.setSitState(false);
+          this.myChar.modelRoot.position.y = 0;
+        }
         const nextX = myPos.x + move.x * speed * delta;
         const nextZ = myPos.z + move.z * speed * delta;
         if (!this.town.checkCollision(nextX, nextZ, 0.35, this.playerY)) this.myChar.setPosition(nextX, nextZ, undefined, this.playerY);
@@ -554,7 +561,13 @@ class App {
         this.myChar.group.position.y = this.playerY;
         if (this.hugTimer > 0) this.myChar.anim = 'hug';
         else if (this.isJumping) this.myChar.anim = 'jump';
-        else this.myChar.anim = 'idle';
+        else if (this.isSitting) {
+          this.myChar.anim = 'sit';
+          this.myChar.modelRoot.position.y = -0.15;
+        } else {
+          this.myChar.modelRoot.position.y = 0;
+          this.myChar.anim = 'idle';
+        }
       }
       this.myChar.update(delta);
       const cur = this.myChar.getPosition();
@@ -727,9 +740,39 @@ class App {
 
   handleJump() {
     if (this.currentSpot || this.isJumping || this.treehouseClimb || this.elevatorRide) return;
+    if (this.isSitting) {
+      this.isSitting = false;
+      this.hud.setSitState(false);
+      if (this.myChar) this.myChar.modelRoot.position.y = 0;
+    }
     this.isJumping = true;
     this.jumpVelY = 5.2;
     soundEngine.playPop();
+  }
+
+  handleSitToggle() {
+    if (this.currentSpot || this.isJumping || this.treehouseClimb || this.elevatorRide) return;
+    this.isSitting = !this.isSitting;
+    this.hud.setSitState(this.isSitting);
+    soundEngine.playPop();
+
+    if (this.isSitting) {
+      if (this.myChar) {
+        this.myChar.anim = 'sit';
+        this.myChar.modelRoot.position.y = -0.15;
+        const cur = this.myChar.getPosition();
+        syncService.sendState(cur.x, cur.z, cur.rotY, 'sit', true, this.playerY);
+        const pos = this.toScreenPosition(this.myChar.group.position);
+        this.emojiSystem.spawnFloatingReaction('🧘 Relaxing...', pos.x, pos.y - 60);
+      }
+    } else {
+      if (this.myChar) {
+        this.myChar.anim = 'idle';
+        this.myChar.modelRoot.position.y = 0;
+        const cur = this.myChar.getPosition();
+        syncService.sendState(cur.x, cur.z, cur.rotY, 'idle', true, this.playerY);
+      }
+    }
   }
 
   handleHug() {
@@ -754,6 +797,7 @@ class App {
     const partnerPos = this.partnerChar && this.partnerChar.group.visible ? this.partnerChar.getPosition() : null;
     this.hud.showHugButton(Boolean(partnerPos && Math.hypot(myPos.x - partnerPos.x, myPos.z - partnerPos.z) < 2.4 && !this.currentSpot));
     this.hud.showFlightControls(this.currentSpot === 'heli_pilot');
+    this.hud.showSitButton(!this.currentSpot);
 
     if (this.currentSpot) {
       let icon = '🚪', label = 'Leave Spot';
@@ -797,7 +841,18 @@ class App {
 
     const treehouseDeck = this.town.getTreehouseDeckPos();
     const distToTreehouse = Math.hypot(myPos.x - treehouseDeck.x, myPos.z - treehouseDeck.z);
-    if (this.playerY >= 2.5 && distToTreehouse < 3.2) {
+    if (this.playerY >= 2.5 && distToTreehouse < 4.2) {
+      if (distToTreehouse < 2.0) {
+        if (!this.isSitting) {
+          this.hud.setInteractAction({ type: 'sit_cushion', icon: '🧘', label: 'Sit on Cushion 💕' });
+          this.hud.setSecondaryInteractAction({ type: 'climb_down_treehouse', icon: '🪜', label: 'Climb Down' });
+          return;
+        } else {
+          this.hud.setInteractAction({ type: 'stand_up', icon: '🧍', label: 'Stand Up' });
+          this.hud.setSecondaryInteractAction({ type: 'climb_down_treehouse', icon: '🪜', label: 'Climb Down' });
+          return;
+        }
+      }
       this.hud.setInteractAction({ type: 'climb_down_treehouse', icon: '🪜', label: 'Climb Down Treehouse' });
       this.hud.setSecondaryInteractAction(null);
       return;
@@ -1025,6 +1080,9 @@ class App {
       this.myChar.setPosition(topPos.x, topPos.z, undefined, this.playerY);
       soundEngine.playElevator(false);
       syncService.updateSpotExtra('coupleHouse', { isLightOn: this.coupleHouse.isLightOn, elevatorY: 3.2, elevatorMoving: true });
+    }
+    else if (action.type === 'sit_cushion' || action.type === 'stand_up') {
+      this.handleSitToggle();
     }
     else if (action.type === 'climb_treehouse') {
       if (this.treehouseClimb) return;

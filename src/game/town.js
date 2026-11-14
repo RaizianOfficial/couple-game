@@ -285,85 +285,113 @@ export class Town {
     const cabinMat = new THREE.MeshLambertMaterial({ color: 0xfde68a });
     const roofMat = new THREE.MeshLambertMaterial({ color: 0xf472b6, flatShading: true });
 
-    [-1.3, 1.3].forEach(px => {
-      [-1.3, 1.3].forEach(pz => {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.0, 0.18), woodMat);
-        post.position.set(px, 1.5, pz);
+    // 4 Heavy Sturdy Timber Support Stilts (Wide footprint 4.4m x 4.4m)
+    [-2.2, 2.2].forEach(px => {
+      [-2.2, 2.2].forEach(pz => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 3.2, 8), woodMat);
+        post.position.set(px, 1.6, pz);
         post.castShadow = true;
         thGrp.add(post);
       });
     });
 
-    const thFloor = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.18, 3.4), woodMat);
-    thFloor.position.set(0, 3.0, 0);
+    // Spacious Wooden Deck Floor (5.4m x 5.4m) at y = 3.1
+    const thFloor = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.22, 5.4), woodMat);
+    thFloor.position.set(0, 3.1, 0);
+    thFloor.receiveShadow = true;
     thGrp.add(thFloor);
 
-    // Doorway open on front (+Z) so players can climb & hide inside
-    const thLeft = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.0, 3.0), cabinMat);
-    thLeft.position.set(-1.4, 4.0, 0);
+    // High Cabin Walls (Height 2.6m with plenty of headroom, interior width 4.8m)
+    const thLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.6, 5.0), cabinMat);
+    thLeft.position.set(-2.4, 4.4, -0.2);
     thGrp.add(thLeft);
 
-    const thRight = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.0, 3.0), cabinMat);
-    thRight.position.set(1.4, 4.0, 0);
+    const thRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.6, 5.0), cabinMat);
+    thRight.position.set(2.4, 4.4, -0.2);
     thGrp.add(thRight);
 
-    const thBack = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.0, 0.18), cabinMat);
-    thBack.position.set(0, 4.0, -1.4);
+    const thBack = new THREE.Mesh(new THREE.BoxGeometry(5.0, 2.6, 0.2), cabinMat);
+    thBack.position.set(0, 4.4, -2.6);
     thGrp.add(thBack);
 
-    // Front safety railings on left and right, leaving center doorway open
-    [-1.05, 1.05].forEach(gx => {
-      const railFront = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.1), woodMat);
-      railFront.position.set(gx, 3.5, 1.6);
+    // Front Balcony Safety Railings on left and right, leaving wide 2.0m open doorway
+    [-1.75, 1.75].forEach(gx => {
+      const railFront = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 0.12), woodMat);
+      railFront.position.set(gx, 3.65, 2.6);
       thGrp.add(railFront);
     });
 
-    const thRoof = new THREE.Mesh(new THREE.ConeGeometry(2.6, 1.4, 4), roofMat);
-    thRoof.position.set(0, 5.5, 0);
+    // High Vaulted Pyramid Roof at y = 6.9 (Interior ceiling > 3.5m tall!)
+    const thRoof = new THREE.Mesh(new THREE.ConeGeometry(4.2, 2.2, 4), roofMat);
+    thRoof.position.set(0, 6.7, -0.1);
     thRoof.rotation.y = Math.PI / 4;
     thRoof.castShadow = true;
     thGrp.add(thRoof);
 
-    // Cozy interior rug and cuddle pillows for romantic hide & seek
-    const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.04, 16), new THREE.MeshLambertMaterial({ color: 0xfbcfe8 }));
-    rug.position.set(0, 3.11, -0.2);
+    // Large Plush Romantic Pink Rug (Radius 1.8m)
+    const rug = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.04, 24), new THREE.MeshLambertMaterial({ color: 0xfbcfe8 }));
+    rug.position.set(0, 3.23, -0.4);
     thGrp.add(rug);
 
-    const pillowPink = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), new THREE.MeshLambertMaterial({ color: 0xf472b6 }));
-    pillowPink.position.set(-0.55, 3.16, -0.6);
-    pillowPink.rotation.y = 0.25;
-    thGrp.add(pillowPink);
+    // 4 Cozy Cuddle Cushions around the rug
+    const cushionColors = [0xf472b6, 0x93c5fd, 0xa855f7, 0xfde047];
+    const cushionCoords = [
+      { x: -0.9, z: -1.0, rot: 0.2 },
+      { x: 0.9, z: -1.0, rot: -0.2 },
+      { x: -0.9, z: 0.2, rot: -0.3 },
+      { x: 0.9, z: 0.2, rot: 0.3 }
+    ];
+    cushionCoords.forEach((cc, idx) => {
+      const pillow = new THREE.Mesh(
+        new THREE.BoxGeometry(0.55, 0.14, 0.55),
+        new THREE.MeshLambertMaterial({ color: cushionColors[idx] })
+      );
+      pillow.position.set(cc.x, 3.28, cc.z);
+      pillow.rotation.y = cc.rot;
+      thGrp.add(pillow);
+    });
 
-    const pillowBlue = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), new THREE.MeshLambertMaterial({ color: 0x93c5fd }));
-    pillowBlue.position.set(0.55, 3.16, -0.6);
-    pillowBlue.rotation.y = -0.25;
-    thGrp.add(pillowBlue);
+    // Cute Low Wooden Tea Table in Center
+    const tableMat = new THREE.MeshLambertMaterial({ color: 0xffedd5 });
+    const centerTable = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.38, 16), tableMat);
+    centerTable.position.set(0, 3.4, -0.4);
+    thGrp.add(centerTable);
 
-    // Warm hanging fairy lantern inside treehouse
-    const fairyLantern = new THREE.Mesh(new THREE.DodecahedronGeometry(0.18, 0), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
-    fairyLantern.position.set(0, 4.6, 0);
+    // 2 Little Cups of Warm Tea
+    [-0.18, 0.18].forEach((cx, i) => {
+      const cup = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.07, 0.12, 10),
+        new THREE.MeshLambertMaterial({ color: i === 0 ? 0xf43f5e : 0x0ea5e9 })
+      );
+      cup.position.set(cx, 3.65, -0.4);
+      thGrp.add(cup);
+    });
+
+    // Warm Hanging Fairy Chandelier Lantern inside roof peak
+    const fairyLantern = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+    fairyLantern.position.set(0, 5.4, -0.4);
     thGrp.add(fairyLantern);
 
-    // Climbing Ladder: Side rails + rungs
-    [-0.3, 0.3].forEach(rx => {
-      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.1, 8), woodMat);
-      rail.position.set(rx, 1.5, 1.6);
+    // Climbing Ladder: Side rails + rungs at front edge (z = 2.6)
+    [-0.35, 0.35].forEach(rx => {
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 3.3, 8), woodMat);
+      rail.position.set(rx, 1.6, 2.6);
       rail.castShadow = true;
       thGrp.add(rail);
     });
 
-    for (let r = 0.4; r <= 2.8; r += 0.4) {
-      const rung = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.08, 0.08), woodMat);
-      rung.position.set(0, r, 1.6);
+    for (let r = 0.4; r <= 3.0; r += 0.38) {
+      const rung = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.08, 0.08), woodMat);
+      rung.position.set(0, r, 2.6);
       thGrp.add(rung);
     }
 
     this.scene.add(thGrp);
 
-    // 4 Corner Stilts ground colliders (open passage in front of ladder at z = -26.4)
-    [-1.3, 1.3].forEach(px => {
-      [-1.3, 1.3].forEach(pz => {
-        this.colliders.push({ type: 'circle', x: -36 + px, z: -28 + pz, r: 0.28, groundOnly: true });
+    // 4 Corner Stilts ground colliders (wide open central passage at z = -25.4)
+    [-2.2, 2.2].forEach(px => {
+      [-2.2, 2.2].forEach(pz => {
+        this.colliders.push({ type: 'circle', x: -36 + px, z: -28 + pz, r: 0.35, groundOnly: true });
       });
     });
   }
@@ -845,25 +873,25 @@ export class Town {
   }
 
   getTreehouseLadderPos() {
-    return { x: -36, y: 0, z: -26.0 };
+    return { x: -36, y: 0, z: -25.3 };
   }
 
   getTreehouseDeckPos() {
-    return { x: -36, y: 3.2, z: -27.5 };
+    return { x: -36, y: 3.25, z: -28.0 };
   }
 
   checkCollision(x, z, radius = 0.35, y = 0) {
     if (x < -53 || x > 53 || z < -53 || z > 53) return true;
 
     // Elevated Treehouse Cabin collision boundary (y >= 2.5)
-    if (y >= 2.5 && x > -38.5 && x < -33.5 && z > -30.5 && z < -25.5) {
-      // Treehouse walls: Left (-37.3), Right (-34.7), Back (-29.3)
-      if (x - radius < -37.3 || x + radius > -34.7 || z - radius < -29.3) return true;
-      // Front guard rails (leaving ladder doorway open between -36.6 and -35.4)
-      if (z + radius > -26.3) {
-        if (x < -36.6 || x > -35.4) return true;
+    if (y >= 2.5 && x > -39.2 && x < -32.8 && z > -31.4 && z < -24.6) {
+      // Treehouse walls: Left (-38.3), Right (-33.7), Back (-30.5)
+      if (x - radius < -38.3 || x + radius > -33.7 || z - radius < -30.5) return true;
+      // Front guard rails (leaving wide doorway open between -37.0 and -35.0)
+      if (z + radius > -25.4) {
+        if (x < -37.0 || x > -35.0) return true;
       }
-      return false; // Walk freely inside treehouse deck
+      return false; // Walk freely inside spacious treehouse deck
     }
 
     for (let i = 0; i < this.colliders.length; i++) {

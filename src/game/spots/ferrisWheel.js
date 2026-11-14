@@ -106,57 +106,63 @@ export class FerrisWheelSpot {
     // Dual Wheel Rims (Front and Back rings at x = -0.9 and x = +0.9)
     const spokeCount = 8;
     const spokeMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
-    const rimMat = new THREE.MeshLambertMaterial({ color: 0xfbcfe8 }); // Romantic pastel pink rim
+    const rimMat = new THREE.MeshLambertMaterial({ color: 0xfbcfe8 }); // Romantic pastel pink outer rim
     const innerRimMat = new THREE.MeshLambertMaterial({ color: 0xfde047 }); // Golden inner truss ring
 
     const fairyColors = [0xfef08a, 0xf472b6, 0x38bdf8, 0xa855f7];
 
     [-0.9, 0.9].forEach(sideX => {
-      // Outer polygonal tubular rim (16 segments)
-      const segCount = 16;
-      for (let s = 0; s < segCount; s++) {
-        const a1 = (s * Math.PI * 2) / segCount;
-        const a2 = ((s + 1) * Math.PI * 2) / segCount;
-        const y1 = Math.sin(a1) * 6.0, z1 = Math.cos(a1) * 6.0;
-        const y2 = Math.sin(a2) * 6.0, z2 = Math.cos(a2) * 6.0;
+      // 1. Continuous, Perfectly Smooth 3D Circular Ring (Outer Rim Torus)
+      const outerRim = new THREE.Mesh(
+        new THREE.TorusGeometry(6.0, 0.08, 12, 64),
+        rimMat
+      );
+      outerRim.position.set(sideX, 0, 0);
+      outerRim.rotation.y = Math.PI / 2; // Lie in Y-Z wheel plane
+      this.wheelGroup.add(outerRim);
 
-        const chordLen = Math.hypot(y2 - y1, z2 - z1);
-        const rimSeg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, chordLen, 6), rimMat);
-        rimSeg.position.set(sideX, (y1 + y2) / 2, (z1 + z2) / 2);
-        rimSeg.rotation.x = Math.atan2(z2 - z1, y2 - y1) - Math.PI / 2;
-        this.wheelGroup.add(rimSeg);
+      // 2. Continuous Smooth Inner Ring (Inner Truss Torus)
+      const innerRim = new THREE.Mesh(
+        new THREE.TorusGeometry(3.6, 0.05, 12, 64),
+        innerRimMat
+      );
+      innerRim.position.set(sideX, 0, 0);
+      innerRim.rotation.y = Math.PI / 2;
+      this.wheelGroup.add(innerRim);
 
-        // Fairy light bulb on each vertex
-        const bulb = new THREE.Mesh(
-          new THREE.SphereGeometry(0.11, 8, 8),
-          new THREE.MeshBasicMaterial({ color: fairyColors[s % fairyColors.length] })
-        );
-        bulb.position.set(sideX + (sideX > 0 ? 0.08 : -0.08), y1, z1);
-        this.wheelGroup.add(bulb);
-      }
-
-      // Inner brace ring
-      for (let s = 0; s < 12; s++) {
-        const a1 = (s * Math.PI * 2) / 12;
-        const a2 = ((s + 1) * Math.PI * 2) / 12;
-        const y1 = Math.sin(a1) * 3.6, z1 = Math.cos(a1) * 3.6;
-        const y2 = Math.sin(a2) * 3.6, z2 = Math.cos(a2) * 3.6;
-        const chordLen = Math.hypot(y2 - y1, z2 - z1);
-        const inSeg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, chordLen, 6), innerRimMat);
-        inSeg.position.set(sideX, (y1 + y2) / 2, (z1 + z2) / 2);
-        inSeg.rotation.x = Math.atan2(z2 - z1, y2 - y1) - Math.PI / 2;
-        this.wheelGroup.add(inSeg);
-      }
-
-      // 8 Radial Spokes connecting hub to outer rim
+      // 3. 8 Radial Spokes connecting hub to outer rim perfectly
       for (let i = 0; i < spokeCount; i++) {
-        const angle = (i * Math.PI * 2) / spokeCount;
-        const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 5.9, 6), spokeMat);
-        spoke.position.set(sideX, Math.sin(angle) * 2.95, Math.cos(angle) * 2.95);
-        spoke.rotation.x = angle + Math.PI / 2;
+        const a = (i * Math.PI * 2) / spokeCount;
+        const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 5.95, 8), spokeMat);
+        spoke.position.set(sideX, Math.cos(a) * 2.975, Math.sin(a) * 2.975);
+        spoke.rotation.x = a;
         this.wheelGroup.add(spoke);
       }
+
+      // 4. Sparkling Fairy Light Bulbs on outer circular ring
+      for (let s = 0; s < 16; s++) {
+        const a = (s * Math.PI * 2) / 16;
+        const bulb = new THREE.Mesh(
+          new THREE.SphereGeometry(0.12, 8, 8),
+          new THREE.MeshBasicMaterial({ color: fairyColors[s % fairyColors.length] })
+        );
+        bulb.position.set(
+          sideX + (sideX > 0 ? 0.09 : -0.09),
+          Math.cos(a) * 6.0,
+          Math.sin(a) * 6.0
+        );
+        this.wheelGroup.add(bulb);
+      }
     });
+
+    // Cross-struts connecting front and back inner rims for realistic 3D lattice
+    for (let i = 0; i < spokeCount; i++) {
+      const a = (i * Math.PI * 2) / spokeCount;
+      const crossStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.8, 6), innerRimMat);
+      crossStrut.rotation.z = Math.PI / 2;
+      crossStrut.position.set(0, Math.cos(a) * 3.6, Math.sin(a) * 3.6);
+      this.wheelGroup.add(crossStrut);
+    }
 
     // 4. Gondola Cross-Axles and 8 Hanging Passenger Cabins
     const gondolaColors = [
@@ -171,11 +177,11 @@ export class FerrisWheelSpot {
     ];
 
     for (let k = 0; k < spokeCount; k++) {
-      // Angle: k=0 starts at bottom (-PI/2) for direct boarding station access
-      const angle = (k * Math.PI * 2) / spokeCount - Math.PI / 2;
+      // Angle: k=0 starts at bottom (angle = Math.PI, cos = -1) for direct boarding station access
+      const angle = (k * Math.PI * 2) / spokeCount + Math.PI;
       const gondolaRadius = this.wheelRadius;
-      const gy = Math.sin(angle) * gondolaRadius;
-      const gz = Math.cos(angle) * gondolaRadius;
+      const gy = Math.cos(angle) * gondolaRadius;
+      const gz = Math.sin(angle) * gondolaRadius;
 
       // Cross axle bar spanning front and back rims
       const crossAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.1, 6), goldMat);
@@ -390,3 +396,4 @@ export class FerrisWheelSpot {
     }
   }
 }
+

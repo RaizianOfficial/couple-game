@@ -864,36 +864,45 @@ export class Town {
       frameTop.position.set(0, doorH + 0.07, house.d / 2 - 0.12);
       houseGrp.add(frameTop);
 
-      // 5. Authentic Pitched Gable Roof with Front/Rear Overhangs (Peak at y = 6.6m)
-      const roofPitch = 0.52;
-      const roofLen = (house.d / 2 + 0.8) / Math.cos(roofPitch);
-      const roofWidth = house.w + 0.8;
+      // 5. Authentic Pitched Gable Roof with Front/Rear Overhangs (Peak at y = 6.2m)
+      const roofPitch = 0.48; // ~27.5 degree slope
+      const roofLen = (house.d / 2 + 0.6) / Math.cos(roofPitch);
+      const roofWidth = house.w + 0.6;
 
-      // Front slope
+      // Front slope (slopes DOWN towards +Z front porch)
       const roofSlopeFront = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.18, roofLen), house.roofMat);
-      roofSlopeFront.position.set(0, house.h + 1.15, (house.d / 4) + 0.2);
-      roofSlopeFront.rotation.x = -roofPitch;
+      roofSlopeFront.position.set(0, house.h + 0.95, (house.d / 4) + 0.15);
+      roofSlopeFront.rotation.x = roofPitch;
       roofSlopeFront.castShadow = true;
       houseGrp.add(roofSlopeFront);
 
-      // Back slope
+      // Back slope (slopes DOWN towards -Z back wall)
       const roofSlopeBack = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.18, roofLen), house.roofMat);
-      roofSlopeBack.position.set(0, house.h + 1.15, -(house.d / 4) - 0.2);
-      roofSlopeBack.rotation.x = roofPitch;
+      roofSlopeBack.position.set(0, house.h + 0.95, -(house.d / 4) - 0.15);
+      roofSlopeBack.rotation.x = -roofPitch;
       roofSlopeBack.castShadow = true;
       houseGrp.add(roofSlopeBack);
 
-      // Ridge Beam
-      const ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(roofWidth + 0.2, 0.25, 0.25), porchWoodMat);
-      ridgeBeam.position.set(0, house.h + 2.35, 0);
+      // Ridge Beam along the top apex
+      const ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(roofWidth + 0.2, 0.24, 0.24), porchWoodMat);
+      ridgeBeam.position.set(0, house.h + 1.95, 0);
       houseGrp.add(ridgeBeam);
 
-      // Triangular Gables on Left and Right
+      // Triangular Gables on Left and Right Walls
+      const gableMat = house.wallMat.clone();
+      gableMat.side = THREE.DoubleSide;
       [-house.w / 2 + 0.12, house.w / 2 - 0.12].forEach(gx => {
-        const gable = new THREE.Mesh(new THREE.ConeGeometry((house.d / 2) + 0.1, 2.2, 4), house.wallMat);
-        gable.position.set(gx, house.h + 1.1, 0);
-        gable.rotation.y = Math.PI / 4;
-        houseGrp.add(gable);
+        const gableShape = new THREE.Shape();
+        gableShape.moveTo(-house.d / 2, 0);
+        gableShape.lineTo(0, 1.95);
+        gableShape.lineTo(house.d / 2, 0);
+        gableShape.closePath();
+        const gableGeo = new THREE.ShapeGeometry(gableShape);
+        const gableMesh = new THREE.Mesh(gableGeo, gableMat);
+        gableMesh.position.set(gx, house.h, 0);
+        gableMesh.rotation.y = gx > 0 ? -Math.PI / 2 : Math.PI / 2;
+        gableMesh.castShadow = true;
+        houseGrp.add(gableMesh);
       });
 
       // 6. REAL INTERIOR LIVING COMFORT & HIDE & SEEK PROPS

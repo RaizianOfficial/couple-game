@@ -1,4 +1,4 @@
-// Procedural Low-Poly Dreamy Pastel Expanded Town (strictly matching Town Layout Map)
+// Procedural Low-Poly Dreamy Pastel Expanded Town (Sweet & Romantic Cozy Town)
 import * as THREE from 'three';
 import { getGLTFLoader } from './loader.js';
 
@@ -109,7 +109,19 @@ export class Town {
   }
 
   buildRoadsAndPaths() {
-    // Procedural cream road removed so user's 3D GLB road pieces (black asphalt & markings) are 100% visible
+    // Warm Pastel pathways
+    this.createRoadSegment(0, -18, 3.6, 24); // North path to Forest Zone
+    this.createRoadSegment(0, 18, 3.6, 24);  // South path to The Main Street
+    this.createRoadSegment(18, 0, 24, 3.6);  // East path to Play Park
+    this.createRoadSegment(-18, 0, 24, 3.6); // West path to Cozy Backyard
+
+    // North Forest Walking Aisles
+    this.createRoadSegment(0, -46, 2.6, 32);  // North center aisle
+    this.createRoadSegment(0, -46, 52, 2.6);  // Forest cross aisle
+
+    // Play Park Walkways
+    this.createRoadSegment(40, -4, 2.8, 28);
+    this.createRoadSegment(40, 10, 24, 2.8);
   }
 
   createRoadSegment(x, z, width, length) {
@@ -210,51 +222,6 @@ export class Town {
     });
   }
 
-  addHouseWallColliders(x, z, width, depth, rotY = 0, doorWidth = 1.6) {
-    // Solid perimeter walls with front entrance left open for Hide & Seek gameplay!
-    const halfW = width / 2;
-    const halfD = depth / 2;
-    const wallThick = 0.35;
-
-    // Normalize rotation angle
-    let normRot = rotY % (Math.PI * 2);
-    if (normRot < 0) normRot += Math.PI * 2;
-
-    if (Math.abs(normRot - Math.PI / 2) < 0.2) {
-      // Facing East (+X): Doorway opens on +X front
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW }); // North wall
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick }); // South wall
-      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z + halfW }); // Back West wall
-      // Front East wall pillars
-      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z - doorWidth / 2 });
-      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z + doorWidth / 2, maxZ: z + halfW });
-    } else if (Math.abs(normRot - 3 * Math.PI / 2) < 0.2) {
-      // Facing West (-X): Doorway opens on -X front
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW });
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick });
-      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z + halfW });
-      // Front West wall pillars
-      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z - doorWidth / 2 });
-      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z + doorWidth / 2, maxZ: z + halfW });
-    } else if (Math.abs(normRot - Math.PI) < 0.2) {
-      // Facing South (+Z): Doorway opens on +Z front
-      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
-      // Front South wall pillars
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z + halfD, maxZ: z + halfD + wallThick });
-      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
-    } else {
-      // Facing North (-Z): Doorway opens on -Z front
-      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
-      // Front North wall pillars
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z - halfD - wallThick, maxZ: z - halfD });
-      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
-    }
-  }
-
   buildGLBAssets() {
     const loader = getGLTFLoader();
     const baseUrl = import.meta.env?.BASE_URL || '/';
@@ -267,8 +234,6 @@ export class Town {
     const tryBuildRoads = () => {
       if (!straightBase || !cornerBase) return;
       const roadGroup = new THREE.Group();
-
-      // Lift road slightly (y = 0.08) so real black asphalt, white lane markings & kerbs are 100% visible
       const roadY = 0.08;
 
       // A. Horizontal South Main Street (z = 42, step = 4m from x = -28 to +28)
@@ -280,20 +245,18 @@ export class Town {
       }
 
       // B. Corner Turns at East and West ends of Main Street
-      // West Corner (x = -32, z = 42) turning North
       const westCorner = cornerBase.clone();
       westCorner.position.set(-32, roadY, 42);
       westCorner.rotation.y = Math.PI / 2;
       roadGroup.add(westCorner);
 
-      // East Corner (x = 32, z = 42) turning North
       const eastCorner = cornerBase.clone();
       eastCorner.position.set(32, roadY, 42);
       eastCorner.rotation.y = 0;
       roadGroup.add(eastCorner);
 
-      // C. Northward road extensions from corners (wrapping around town)
-      for (let z = 38; z >= 18; z -= 4) {
+      // C. Northward road extensions from corners
+      for (let z = 38; z >= 22; z -= 4) {
         const westTurnTile = straightBase.clone();
         westTurnTile.position.set(-32, roadY, z);
         roadGroup.add(westTurnTile);
@@ -303,8 +266,8 @@ export class Town {
         roadGroup.add(eastTurnTile);
       }
 
-      // D. Central Avenue connecting South Main Street directly to Couple House porch (z = 38 down to 6)
-      for (let z = 38; z >= 6; z -= 4) {
+      // D. Central Avenue connecting South Main Street to Couple House (x = 0, z = 38 down to 8)
+      for (let z = 38; z >= 8; z -= 4) {
         const centerTile = straightBase.clone();
         centerTile.position.set(0, roadY, z);
         roadGroup.add(centerTile);
@@ -329,7 +292,7 @@ export class Town {
       tryBuildRoads();
     }, undefined, (err) => console.error('[Town] Road corner GLB error:', err));
 
-    // 2. Base Flagstone Paving Tiles (Agora Flagstone Tiles on paths, plazas, and courtyards)
+    // 2. Base Flagstone Paving Tiles (Cobblestone patio paths)
     loader.load(`${cleanBase}GLBs/assets/agora-flagstone-tile.glb`, (gltf) => {
       const tileGroup = new THREE.Group();
       const baseTile = gltf.scene;
@@ -360,124 +323,10 @@ export class Town {
         tileGroup.add(t);
       }
 
-      // Main Yard & Porch Terrace Paving
-      for (let x = -4; x <= 4; x += 4) {
-        const t = baseTile.clone();
-        t.position.set(x, tileY, 4.8);
-        tileGroup.add(t);
-      }
-      for (let x = 6; x <= 14; x += 4) {
-        for (let z = -2; z <= 2; z += 4) {
-          const t = baseTile.clone();
-          t.position.set(x, tileY, z);
-          tileGroup.add(t);
-        }
-      }
-
-      // Play Park Central Walkway
-      for (let z = -12; z <= 16; z += 4) {
-        const t = baseTile.clone();
-        t.position.set(40, tileY, z);
-        tileGroup.add(t);
-      }
-
       this.scene.add(tileGroup);
     }, undefined, (err) => console.error('[Town] Agora flagstone tile GLB error:', err));
 
-    // 3. Base Grass Tiles (Airfield Grass 3D textured tiles for central park and meadow areas)
-    loader.load(`${cleanBase}GLBs/assets/airfield-grass-tile.glb`, (gltf) => {
-      const grassGroup = new THREE.Group();
-      const baseGrass = gltf.scene;
-      baseGrass.traverse((c) => {
-        if (c.isMesh) { c.castShadow = false; c.receiveShadow = true; }
-      });
-
-      const grassY = 0.02;
-
-      // Play Park Grass Field
-      for (let x = 32; x <= 48; x += 4) {
-        for (let z = -14; z <= 18; z += 4) {
-          if (x === 40 && z >= -12 && z <= 16) continue; // Keep flagstone path clear
-          const g = baseGrass.clone();
-          g.position.set(x, grassY, z);
-          grassGroup.add(g);
-        }
-      }
-
-      // North Forest Soft Meadow Floor
-      for (let x = -24; x <= 24; x += 8) {
-        for (let z = -36; z >= -60; z -= 8) {
-          const g = baseGrass.clone();
-          g.position.set(x, grassY, z);
-          g.scale.setScalar(2.0); // Scaled tile for scenic large meadow
-          grassGroup.add(g);
-        }
-      }
-
-      // Pets Zone Green Lawn
-      for (let x = -16; x >= -32; x -= 4) {
-        for (let z = -20; z >= -36; z -= 4) {
-          const g = baseGrass.clone();
-          g.position.set(x, grassY, z);
-          grassGroup.add(g);
-        }
-      }
-
-      this.scene.add(grassGroup);
-    }, undefined, (err) => console.error('[Town] Airfield grass tile GLB error:', err));
-
-    // 4. Full Lively City: Multi-Story Apartment Complexes (Downtown & Suburbs)
-    loader.load(`${cleanBase}GLBs/assets/apartment-block-01.glb`, (gltf) => {
-      const baseScene = gltf.scene;
-      baseScene.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-
-      // Calculate exact bounding box so building sits 100% on the ground (no sinking)
-      const box = new THREE.Box3().setFromObject(baseScene);
-      const offsetY = -box.min.y; // Lifts 6.7m so ground floor is completely above ground
-      const offsetX = -(box.min.x + box.max.x) / 2;
-      const offsetZ = -(box.min.z + box.max.z) / 2;
-
-      const apartmentConfigs = [
-        // South-West Downtown Residential Block
-        { x: -38, z: 46, rotY: 0, w: 7.6, d: 6.8 },
-        { x: -48, z: 46, rotY: 0, w: 7.6, d: 6.8 },
-        { x: -44, z: 58, rotY: Math.PI, w: 7.6, d: 6.8 },
-        // South-East Downtown Residential Block
-        { x: 38, z: 46, rotY: 0, w: 7.6, d: 6.8 },
-        { x: 48, z: 46, rotY: 0, w: 7.6, d: 6.8 },
-        { x: 44, z: 58, rotY: Math.PI, w: 7.6, d: 6.8 },
-        // West Boulevard Neighborhood
-        { x: -56, z: 12, rotY: Math.PI / 2, w: 7.6, d: 6.8 },
-        { x: -56, z: 26, rotY: Math.PI / 2, w: 7.6, d: 6.8 },
-        // East City District (Behind Play Park)
-        { x: 58, z: -4, rotY: -Math.PI / 2, w: 7.6, d: 6.8 },
-        { x: 58, z: 12, rotY: -Math.PI / 2, w: 7.6, d: 6.8 },
-        { x: 58, z: 26, rotY: -Math.PI / 2, w: 7.6, d: 6.8 },
-        // North-East Skyline Towers
-        { x: 58, z: -32, rotY: -Math.PI / 2, w: 7.6, d: 6.8 }
-      ];
-
-      apartmentConfigs.forEach((cfg) => {
-        const wrapper = new THREE.Group();
-        wrapper.position.set(cfg.x, 0, cfg.z);
-        wrapper.rotation.y = cfg.rotY;
-
-        const apt = baseScene.clone();
-        apt.position.set(offsetX, offsetY, offsetZ);
-        wrapper.add(apt);
-
-        this.scene.add(wrapper);
-        // Wall colliders only: entrance remains completely open for hide-and-seek!
-        this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 2.0);
-      });
-    }, undefined, (err) => console.error('[Town] Apartment block GLB error:', err));
-
-    // 5. Full Lively City: General Stores, Cafes, Boutiques, Bakeries & Hideout Cottages
+    // 3. Cute Village Cottages & Hideout Shops for Hide & Seek (Only 4 cute cozy cottage houses!)
     loader.load(`${cleanBase}GLBs/assets/bld-general-store-01.glb`, (gltf) => {
       const baseScene = gltf.scene;
       baseScene.traverse((child) => {
@@ -487,40 +336,26 @@ export class Town {
         }
       });
 
-      // Calculate exact bounding box so store sits 100% on the ground (no sinking)
       const box = new THREE.Box3().setFromObject(baseScene);
-      const offsetY = -box.min.y; // Lifts 1.58m so store doors, porches and awnings are completely above ground
+      const offsetY = -box.min.y;
       const offsetX = -(box.min.x + box.max.x) / 2;
       const offsetZ = -(box.min.z + box.max.z) / 2;
 
-      const houseConfigs = [
-        // South Main Street North Shops & Cafes
-        { x: -22, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
-        { x: -14, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
-        { x: 14, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
-        { x: 22, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
-        // South Main Street South Sidewalk Boutiques
-        { x: -26, z: 52, rotY: 0, w: 3.4, d: 3.8 },
-        { x: -16, z: 52, rotY: 0, w: 3.4, d: 3.8 },
-        { x: 16, z: 52, rotY: 0, w: 3.4, d: 3.8 },
-        { x: 26, z: 52, rotY: 0, w: 3.4, d: 3.8 },
-        // West Farm Lane Sheds & Cozy Cottages
+      // Carefully placed cute cottages:
+      const cuteCottages = [
+        // Backyard Garden Shed
         { x: -24, z: -14, rotY: Math.PI / 2, w: 3.4, d: 3.8 },
-        { x: -24, z: 14, rotY: Math.PI / 2, w: 3.4, d: 3.8 },
-        { x: -44, z: -18, rotY: 0, w: 3.4, d: 3.8 },
-        // Parkside Tea Cottages & Sweet Shops
-        { x: 22, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
-        { x: 32, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
-        { x: 42, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
-        // Secret Forest Hideout Cabins (Deep in North Forest for Hide & Seek!)
-        { x: -16, z: -58, rotY: 0, w: 3.4, d: 3.8 },
-        { x: 0, z: -58, rotY: 0, w: 3.4, d: 3.8 },
-        { x: 16, z: -58, rotY: 0, w: 3.4, d: 3.8 },
-        // Main Yard Garden Boutique
-        { x: 18, z: 12, rotY: -Math.PI / 2, w: 3.4, d: 3.8 }
+        // Parkside Sweet Candy Shop
+        { x: 24, z: -22, rotY: -Math.PI / 2, w: 3.4, d: 3.8 },
+        // South Main Street Flower Boutique
+        { x: -18, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
+        // South Main Street Cozy Bakery
+        { x: 18, z: 34, rotY: Math.PI, w: 3.4, d: 3.8 },
+        // Secret Forest Hideout Cabin (Deep in North Forest for romantic hide & seek!)
+        { x: 0, z: -58, rotY: 0, w: 3.4, d: 3.8 }
       ];
 
-      houseConfigs.forEach((cfg) => {
+      cuteCottages.forEach((cfg) => {
         const wrapper = new THREE.Group();
         wrapper.position.set(cfg.x, 0, cfg.z);
         wrapper.rotation.y = cfg.rotY;
@@ -530,10 +365,10 @@ export class Town {
         wrapper.add(house);
 
         this.scene.add(wrapper);
-        // Wall colliders only: front doorway open so partners can hide inside!
+        // Wall colliders: doorway open so players can run inside and hide!
         this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 1.4);
       });
-    }, undefined, (err) => console.error('[Town] General store GLB error:', err));
+    }, undefined, (err) => console.error('[Town] Cute store GLB error:', err));
 
     // 4. Stepping Stones at scenic creek crossing in Pets Zone (-28, 0, -32)
     loader.load(`${cleanBase}GLBs/assets/creek-stepping-stones.glb`, (gltf) => {
@@ -545,43 +380,41 @@ export class Town {
       });
       this.scene.add(stones);
     }, undefined, (err) => console.error('[Town] Stepping stones GLB error:', err));
+  }
 
-    // 6. Historic Grand Red Barns (Ranch & North Meadow) for Hide & Seek!
-    loader.load(`${cleanBase}GLBs/assets/big-red-barn.glb`, (gltf) => {
-      const baseScene = gltf.scene;
-      baseScene.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
+  addHouseWallColliders(x, z, width, depth, rotY = 0, doorWidth = 1.6) {
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    const wallThick = 0.35;
 
-      const box = new THREE.Box3().setFromObject(baseScene);
-      const offsetY = -box.min.y; // Exactly +2.70m so barn foundation sits 100% on ground
-      const offsetX = -(box.min.x + box.max.x) / 2;
-      const offsetZ = -(box.min.z + box.max.z) / 2;
+    let normRot = rotY % (Math.PI * 2);
+    if (normRot < 0) normRot += Math.PI * 2;
 
-      const barnConfigs = [
-        // Grand Farmstead Barn in West Ranch Zone (x = -44, z = 4)
-        { x: -44, z: 4, rotY: Math.PI / 2, w: 8.9, d: 7.8 },
-        // Scenic Meadow Barn in North-East Zone (x = 22, z = -52)
-        { x: 22, z: -52, rotY: 0, w: 8.9, d: 7.8 }
-      ];
-
-      barnConfigs.forEach((cfg) => {
-        const wrapper = new THREE.Group();
-        wrapper.position.set(cfg.x, 0, cfg.z);
-        wrapper.rotation.y = cfg.rotY;
-
-        const barn = baseScene.clone();
-        barn.position.set(offsetX, offsetY, offsetZ);
-        wrapper.add(barn);
-
-        this.scene.add(wrapper);
-        // Wall colliders: double front door open (3.2m doorway) so players can run inside!
-        this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 3.2);
-      });
-    }, undefined, (err) => console.error('[Town] Big Red Barn GLB error:', err));
+    if (Math.abs(normRot - Math.PI / 2) < 0.2) {
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW });
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick });
+      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z + halfW });
+      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z - doorWidth / 2 });
+      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z + doorWidth / 2, maxZ: z + halfW });
+    } else if (Math.abs(normRot - 3 * Math.PI / 2) < 0.2) {
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW });
+      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick });
+      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z + halfW });
+      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z - doorWidth / 2 });
+      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z + doorWidth / 2, maxZ: z + halfW });
+    } else if (Math.abs(normRot - Math.PI) < 0.2) {
+      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z + halfD, maxZ: z + halfD + wallThick });
+      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
+    } else {
+      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
+      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z - halfD - wallThick, maxZ: z - halfD });
+      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
+    }
   }
 
   buildHideAndSeekProps() {
@@ -679,19 +512,15 @@ export class Town {
 
     // 3. Hay Bale Stacks for Tactical Hide-and-Seek Cover
     const hayBaleConfigs = [
-      // Cluster A: West Farm Edge
       { x: -26, z: 6, rotY: 0.2 },
       { x: -27.2, z: 6.8, rotY: -0.4 },
       { x: -26.5, z: 6.3, rotY: 0, y: 0.65 },
-      // Cluster B: Near Central Avenue & Plaza
       { x: 10, z: 28, rotY: -0.2 },
       { x: 11.2, z: 27.4, rotY: 0.3 },
       { x: 10.6, z: 27.7, rotY: 0, y: 0.65 },
-      // Cluster C: North Meadow Path
       { x: -8, z: -32, rotY: 0.4 },
       { x: -9.2, z: -32.6, rotY: -0.1 },
       { x: -8.6, z: -32.2, rotY: 0, y: 0.65 },
-      // Cluster D: South-East Lawn
       { x: 26, z: 32, rotY: 0.1 },
       { x: 27.3, z: 32.5, rotY: -0.3 }
     ];
@@ -705,13 +534,12 @@ export class Town {
       this.scene.add(bale);
     });
 
-    // Solid Colliders for Hay Stacks
     this.colliders.push({ type: 'box', minX: -28, maxX: -25, minZ: 5.2, maxZ: 7.8 });
     this.colliders.push({ type: 'box', minX: 9.2, maxX: 12.2, minZ: 26.5, maxZ: 29.0 });
     this.colliders.push({ type: 'box', minX: -10.2, maxX: -7.2, minZ: -33.5, maxZ: -31.0 });
     this.colliders.push({ type: 'box', minX: 25.2, maxX: 28.2, minZ: 31.0, maxZ: 33.5 });
 
-    // 4. Wooden Cargo Crates & Vintage Barrels (Awesome Crouch Cover)
+    // 4. Wooden Cargo Crates & Vintage Barrels
     const crateBarrelSpots = [
       { cx: -8, cz: 32, r: 1.4 },
       { cx: 8, cz: 32, r: 1.4 },
@@ -720,7 +548,6 @@ export class Town {
     ];
 
     crateBarrelSpots.forEach(s => {
-      // 2 Stacked Crates
       const c1 = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.85), crateMat);
       c1.position.set(s.cx, 0.425, s.cz);
       c1.castShadow = true;
@@ -732,7 +559,6 @@ export class Town {
       c2.castShadow = true;
       this.scene.add(c2);
 
-      // Vintage Wine/Apple Barrels
       const b1 = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 0.9, 12), barrelMat);
       b1.position.set(s.cx + 0.9, 0.45, s.cz + 0.2);
       b1.castShadow = true;
@@ -748,15 +574,12 @@ export class Town {
 
     // 5. Lush Manicured Flower Hedges (Full Visual Cover for Hide-and-Seek)
     const hedgeConfigs = [
-      // Flanking Central Avenue
       { x: -5.5, z: 14, w: 0.8, d: 5.6 },
       { x: -5.5, z: 28, w: 0.8, d: 5.6 },
       { x: 5.5, z: 14, w: 0.8, d: 5.6 },
       { x: 5.5, z: 28, w: 0.8, d: 5.6 },
-      // East Park Boundary Hedges
       { x: 26, z: 2, w: 0.8, d: 7.2 },
       { x: 26, z: 16, w: 0.8, d: 7.2 },
-      // West Farm Boundary Hedges
       { x: -24, z: -2, w: 0.8, d: 6.4 },
       { x: -24, z: 26, w: 0.8, d: 6.4 }
     ];
@@ -768,7 +591,6 @@ export class Town {
       hedge.receiveShadow = true;
       this.scene.add(hedge);
 
-      // Cute pink flower buds on top of hedges
       for (let f = -h.d / 2 + 0.6; f < h.d / 2; f += 1.4) {
         const blossom = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), flowerPinkMat);
         blossom.position.set(h.x, 1.3, h.z + f);
@@ -786,20 +608,18 @@ export class Town {
 
     // 6. Charming Street Flower & Pastry Market Stalls with Striped Pastel Awnings
     [
-      { x: -14, z: 22, rotY: 0, colorA: 0xfbcfe8, colorB: 0xffffff, title: 'Flowers' },
-      { x: 14, z: 22, rotY: 0, colorA: 0xfed7aa, colorB: 0xffedd5, title: 'Bakery' }
+      { x: -14, z: 22, rotY: 0, colorA: 0xfbcfe8, title: 'Flowers' },
+      { x: 14, z: 22, rotY: 0, colorA: 0xfed7aa, title: 'Bakery' }
     ].forEach(st => {
       const stallGrp = new THREE.Group();
       stallGrp.position.set(st.x, 0, st.z);
       stallGrp.rotation.y = st.rotY;
 
-      // Table Counter
       const table = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.85, 1.1), woodMat);
       table.position.set(0, 0.425, 0);
       table.castShadow = true;
       stallGrp.add(table);
 
-      // 4 Canopy Awning Posts
       [-0.95, 0.95].forEach(cx => {
         [-0.45, 0.45].forEach(cz => {
           const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.1, 6), woodMat);
@@ -808,7 +628,6 @@ export class Town {
         });
       });
 
-      // Striped Curved Awning
       const awning = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.15, 1.4), new THREE.MeshLambertMaterial({ color: st.colorA }));
       awning.position.set(0, 2.15, 0);
       awning.rotation.x = -0.15;
@@ -834,28 +653,24 @@ export class Town {
     ];
 
     const poleMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
-    const glassMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // Warm glow with 0 GPU light cost
+    const glassMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
     lampCoords.forEach((lc) => {
       const lampGrp = new THREE.Group();
       lampGrp.position.set(lc.x, 0, lc.z);
 
-      // Base
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.35, 8), poleMat);
       base.position.y = 0.175;
       lampGrp.add(base);
 
-      // Pole
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 3.0, 8), poleMat);
       pole.position.y = 1.65;
       lampGrp.add(pole);
 
-      // Curved lantern arm
       const arm = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.06), poleMat);
       arm.position.set(0.18, 3.15, 0);
       lampGrp.add(arm);
 
-      // Glowing Lantern head (emissive basic material)
       const lantern = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24, 0), glassMat);
       lantern.position.set(0.38, 3.05, 0);
       lampGrp.add(lantern);

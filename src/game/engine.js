@@ -1,4 +1,5 @@
 // Three.js 3D Third-Person Perspective Engine with 360° Screen Drag Orbit & Dreamy Sky
+// ★ Optimized for smooth 60fps on mobile phones ★
 import * as THREE from 'three';
 
 export class GameEngine {
@@ -42,15 +43,16 @@ export class GameEngine {
   initScene() {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0xfde2d1);
-    this.scene.fog = new THREE.FogExp2(0xfde2d1, 0.018);
+    // ★ Lighter fog for mobile — less fragment shader work
+    this.scene.fog = new THREE.FogExp2(0xfde2d1, 0.022);
   }
 
   initRenderer() {
     this.isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ('ontouchstart' in window);
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true, // Crisp anti-aliased geometry on mobile & PC
+      antialias: !this.isMobile, // ★ Disable MSAA on mobile for massive FPS boost
       powerPreference: 'high-performance',
-      precision: 'highp', // Crystal clear shaders
+      precision: this.isMobile ? 'mediump' : 'highp', // ★ mediump on phones saves GPU bandwidth
       stencil: false,
       depth: true,
       failIfMajorPerformanceCaveat: false
@@ -58,11 +60,13 @@ export class GameEngine {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h);
-    // Full HD / Retina sharp resolution (up to 2.0x device pixel ratio)
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    // ★ Mobile: cap DPR at 1.5 (most phones are 2.5-3x which is overkill and causes lag)
+    const maxDpr = this.isMobile ? 1.5 : 2.0;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     this.renderer.setPixelRatio(dpr);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Ultra-smooth soft shadows
+    // ★ BasicShadowMap on mobile (much faster), PCFSoft on desktop
+    this.renderer.shadowMap.type = this.isMobile ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.container.appendChild(this.renderer.domElement);
 
@@ -80,12 +84,14 @@ export class GameEngine {
   initCamera() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
-    this.camera = new THREE.PerspectiveCamera(54, w / h, 0.1, 400);
+    // ★ Reduced far plane from 400 to 180 for less overdraw
+    this.camera = new THREE.PerspectiveCamera(54, w / h, 0.1, 180);
     this.updateCameraPosition();
   }
 
   initSkyDome() {
-    const skyGeo = new THREE.SphereGeometry(140, 24, 24);
+    // ★ Reduced segments from 24→12 for mobile, smaller radius to match reduced far plane
+    const skyGeo = new THREE.SphereGeometry(100, 12, 12);
     skyGeo.scale(-1, 1, 1);
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 16;

@@ -634,9 +634,10 @@ class App {
       syncService.sendState(cur.x, cur.z, cur.rotY, this.myChar.anim, false, this.playerY);
     }
 
-    // Room Mode: Smooth automatic camera zoom & interior roof unclipping inside house
+    // Room Mode: Smooth automatic camera zoom & interior roof unclipping inside any house
     const isInsideHouse = this.coupleHouse.isInsideHouse(myPos);
-    this.engine.setIndoorMode(isInsideHouse);
+    const isInsideAnyCabin = Boolean(this.town && this.town.isInsideAnyHouse && this.town.isInsideAnyHouse(myPos));
+    this.engine.setIndoorMode(isInsideHouse || isInsideAnyCabin);
     this.coupleHouse.setRoomMode(isInsideHouse);
 
     this.swing.update(delta);

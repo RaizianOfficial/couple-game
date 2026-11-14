@@ -558,80 +558,6 @@ export class Town {
 
       this.scene.add(tileGroup);
     }, undefined, (err) => console.error('[Town] Agora flagstone tile GLB error:', err));
-
-    // 3. Cute Hideout Cottages for Hide & Seek (Only 3 well-separated, non-overlapping cottages)
-    loader.load(`${cleanBase}GLBs/assets/bld-general-store-01.glb`, (gltf) => {
-      const baseScene = gltf.scene;
-      baseScene.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-
-      const box = new THREE.Box3().setFromObject(baseScene);
-      const offsetY = -box.min.y;
-      const offsetX = -(box.min.x + box.max.x) / 2;
-      const offsetZ = -(box.min.z + box.max.z) / 2;
-
-      // Non-overlapping dedicated coordinates:
-      const cuteCottages = [
-        // South-East Flower Shop (x: 18, z: 30)
-        { x: 18, z: 30, rotY: Math.PI, w: 3.4, d: 3.8 },
-        // South-West Bakery Shop (x: -18, z: 30)
-        { x: -18, z: 30, rotY: Math.PI, w: 3.4, d: 3.8 },
-        // North-Center Romantic Valley Cabin (x: 0, z: -46)
-        { x: 0, z: -46, rotY: 0, w: 3.4, d: 3.8 }
-      ];
-
-      cuteCottages.forEach((cfg) => {
-        const wrapper = new THREE.Group();
-        wrapper.position.set(cfg.x, 0, cfg.z);
-        wrapper.rotation.y = cfg.rotY;
-
-        const house = baseScene.clone();
-        house.position.set(offsetX, offsetY, offsetZ);
-        wrapper.add(house);
-
-        this.scene.add(wrapper);
-        this.addHouseWallColliders(cfg.x, cfg.z, cfg.w, cfg.d, cfg.rotY, 1.4);
-      });
-    }, undefined, (err) => console.error('[Town] Cute store GLB error:', err));
-  }
-
-  addHouseWallColliders(x, z, width, depth, rotY = 0, doorWidth = 1.6) {
-    const halfW = width / 2;
-    const halfD = depth / 2;
-    const wallThick = 0.35;
-
-    let normRot = rotY % (Math.PI * 2);
-    if (normRot < 0) normRot += Math.PI * 2;
-
-    if (Math.abs(normRot - Math.PI / 2) < 0.2) {
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW });
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick });
-      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z + halfW });
-      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z - doorWidth / 2 });
-      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z + doorWidth / 2, maxZ: z + halfW });
-    } else if (Math.abs(normRot - 3 * Math.PI / 2) < 0.2) {
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z - halfW - wallThick, maxZ: z - halfW });
-      this.colliders.push({ type: 'box', minX: x - halfD, maxX: x + halfD, minZ: z + halfW, maxZ: z + halfW + wallThick });
-      this.colliders.push({ type: 'box', minX: x + halfD, maxX: x + halfD + wallThick, minZ: z - halfW, maxZ: z + halfW });
-      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z - halfW, maxZ: z - doorWidth / 2 });
-      this.colliders.push({ type: 'box', minX: x - halfD - wallThick, maxX: x - halfD, minZ: z + doorWidth / 2, maxZ: z + halfW });
-    } else if (Math.abs(normRot - Math.PI) < 0.2) {
-      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z + halfD, maxZ: z + halfD + wallThick });
-      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
-    } else {
-      this.colliders.push({ type: 'box', minX: x - halfW - wallThick, maxX: x - halfW, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x + halfW, maxX: x + halfW + wallThick, minZ: z - halfD, maxZ: z + halfD });
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x + halfW, minZ: z + halfD, maxZ: z + halfD + wallThick });
-      this.colliders.push({ type: 'box', minX: x - halfW, maxX: x - doorWidth / 2, minZ: z - halfD - wallThick, maxZ: z - halfD });
-      this.colliders.push({ type: 'box', minX: x + doorWidth / 2, maxX: x + halfW, minZ: z - halfD - wallThick, maxZ: z - halfD });
-    }
   }
 
   buildHideAndSeekProps() {
@@ -822,93 +748,293 @@ export class Town {
   }
 
   buildHideoutCottages() {
-    const wallPinkMat = new THREE.MeshLambertMaterial({ color: 0xfce7f3 });
-    const wallPeachMat = new THREE.MeshLambertMaterial({ color: 0xffedd5 });
-    const wallCedarMat = new THREE.MeshLambertMaterial({ color: 0x9a3412 });
-    const roofSlateMat = new THREE.MeshLambertMaterial({ color: 0x475569, flatShading: true });
-    const roofRoseMat = new THREE.MeshLambertMaterial({ color: 0xf472b6, flatShading: true });
-    const roofMintMat = new THREE.MeshLambertMaterial({ color: 0x10b981, flatShading: true });
-    const woodFloorMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
-    const crateMat = new THREE.MeshLambertMaterial({ color: 0xa16207 });
-    const hayMat = new THREE.MeshLambertMaterial({ color: 0xfbbf24 });
-
-    const cottages = [
-      // 1. Honeybee Woodland Cabin at (x: 24, z: -28) (North-East clearing)
-      { x: 24, z: -28, w: 4.8, d: 4.2, h: 2.6, wallMat: wallCedarMat, roofMat: roofSlateMat, rotY: 0 },
-      // 2. Storybook Riverbank Cottage at (x: -14, z: -18) (East bank of river)
-      { x: -14, z: -18, w: 4.8, d: 4.2, h: 2.6, wallMat: wallPeachMat, roofMat: roofRoseMat, rotY: 0 },
-      // 3. Sweet Blossom Tea Cabin at (x: -16, z: 24) (South-West clearing)
-      { x: -16, z: 24, w: 4.8, d: 4.2, h: 2.6, wallMat: wallPinkMat, roofMat: roofMintMat, rotY: Math.PI / 2 }
+    this.walkInHouses = [
+      // 1. Honeybee Woodland Manor (South-East near flower garden)
+      { name: 'Honeybee Woodland Manor', x: 20, z: 30, w: 8.6, d: 7.2, h: 4.2, wallMat: new THREE.MeshLambertMaterial({ color: 0x9a3412 }), roofMat: new THREE.MeshLambertMaterial({ color: 0x334155, flatShading: true }), rotY: Math.PI },
+      // 2. Sunny Valley Bakery Manor (South-West meadow)
+      { name: 'Sunny Valley Bakery Manor', x: -20, z: 30, w: 8.6, d: 7.2, h: 4.2, wallMat: new THREE.MeshLambertMaterial({ color: 0xffedd5 }), roofMat: new THREE.MeshLambertMaterial({ color: 0xc2410c, flatShading: true }), rotY: Math.PI },
+      // 3. Sweet Blossom River Chalet (West bank near river)
+      { name: 'Sweet Blossom River Chalet', x: -14, z: -18, w: 8.4, d: 7.0, h: 4.2, wallMat: new THREE.MeshLambertMaterial({ color: 0xfce7f3 }), roofMat: new THREE.MeshLambertMaterial({ color: 0xf472b6, flatShading: true }), rotY: -Math.PI / 2 },
+      // 4. Starry Pine Forest Lodge (North-East clearing near orchard)
+      { name: 'Starry Pine Forest Lodge', x: 24, z: -28, w: 8.6, d: 7.2, h: 4.2, wallMat: new THREE.MeshLambertMaterial({ color: 0xa7f3d0 }), roofMat: new THREE.MeshLambertMaterial({ color: 0x059669, flatShading: true }), rotY: 0 }
     ];
 
-    cottages.forEach((cot) => {
-      const cotGrp = new THREE.Group();
-      cotGrp.position.set(cot.x, 0, cot.z);
-      cotGrp.rotation.y = cot.rotY;
+    const woodFloorMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
+    const porchWoodMat = new THREE.MeshLambertMaterial({ color: 0xb45309 });
+    const stoneHearthMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    const fireMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+    const sofaMat = new THREE.MeshLambertMaterial({ color: 0xf43f5e });
+    const sofaCushionMat = new THREE.MeshLambertMaterial({ color: 0xfbcfe8 });
+    const crateMat = new THREE.MeshLambertMaterial({ color: 0xa16207 });
+    const hayMat = new THREE.MeshLambertMaterial({ color: 0xfbbf24 });
+    const windowFrameMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const glassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.35 });
+    const lanternBulbMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
-      // Wooden Floor
-      const floor = new THREE.Mesh(new THREE.BoxGeometry(cot.w, 0.16, cot.d), woodFloorMat);
+    this.walkInHouses.forEach((house) => {
+      const houseGrp = new THREE.Group();
+      houseGrp.position.set(house.x, 0, house.z);
+      houseGrp.rotation.y = house.rotY;
+
+      // 1. Polished Hardwood Floor
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(house.w, 0.16, house.d), woodFloorMat);
       floor.position.y = 0.08;
       floor.receiveShadow = true;
-      cotGrp.add(floor);
+      houseGrp.add(floor);
 
+      // 2. Front Porch with 2 Steps leading up from grass
+      const porch = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 1.8), porchWoodMat);
+      porch.position.set(0, 0.08, house.d / 2 + 0.9);
+      porch.receiveShadow = true;
+      houseGrp.add(porch);
+
+      const step1 = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, 0.6), porchWoodMat);
+      step1.position.set(0, 0.04, house.d / 2 + 2.0);
+      houseGrp.add(step1);
+
+      [-1.9, 1.9].forEach(px => {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.2, house.h, 0.2), porchWoodMat);
+        pillar.position.set(px, house.h / 2, house.d / 2 + 1.6);
+        pillar.castShadow = true;
+        houseGrp.add(pillar);
+      });
+
+      // 3. Walls - Grand 4.2m Height (Nearly 3x Human Height!)
       // Back Wall
-      const back = new THREE.Mesh(new THREE.BoxGeometry(cot.w, cot.h, 0.2), cot.wallMat);
-      back.position.set(0, cot.h / 2, -cot.d / 2 + 0.1);
-      back.castShadow = true;
-      cotGrp.add(back);
+      const backWall = new THREE.Mesh(new THREE.BoxGeometry(house.w, house.h, 0.24), house.wallMat);
+      backWall.position.set(0, house.h / 2, -house.d / 2 + 0.12);
+      backWall.castShadow = true;
+      houseGrp.add(backWall);
 
-      // Left Wall
-      const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, cot.h, cot.d), cot.wallMat);
-      left.position.set(-cot.w / 2 + 0.1, cot.h / 2, 0);
-      left.castShadow = true;
-      cotGrp.add(left);
+      // Left Wall with big picture window
+      const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, house.h, house.d), house.wallMat);
+      leftWall.position.set(-house.w / 2 + 0.12, house.h / 2, 0);
+      leftWall.castShadow = true;
+      houseGrp.add(leftWall);
 
-      // Right Wall
-      const right = new THREE.Mesh(new THREE.BoxGeometry(0.2, cot.h, cot.d), cot.wallMat);
-      right.position.set(cot.w / 2 - 0.1, cot.h / 2, 0);
-      right.castShadow = true;
-      cotGrp.add(right);
+      // Right Wall with big picture window
+      const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.24, house.h, house.d), house.wallMat);
+      rightWall.position.set(house.w / 2 - 0.12, house.h / 2, 0);
+      rightWall.castShadow = true;
+      houseGrp.add(rightWall);
 
-      // Front Wall with 1.6m open doorway in center
-      const sideWallW = (cot.w - 1.6) / 2;
-      const frontL = new THREE.Mesh(new THREE.BoxGeometry(sideWallW, cot.h, 0.2), cot.wallMat);
-      frontL.position.set(-cot.w / 2 + sideWallW / 2, cot.h / 2, cot.d / 2 - 0.1);
-      cotGrp.add(frontL);
+      // Windows with glass and cross frames on side walls
+      [-house.w / 2 + 0.12, house.w / 2 - 0.12].forEach(wx => {
+        const winGlass = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.6, 2.4), glassMat);
+        winGlass.position.set(wx, 2.2, 0);
+        houseGrp.add(winGlass);
 
-      const frontR = new THREE.Mesh(new THREE.BoxGeometry(sideWallW, cot.h, 0.2), cot.wallMat);
-      frontR.position.set(cot.w / 2 - sideWallW / 2, cot.h / 2, cot.d / 2 - 0.1);
-      cotGrp.add(frontR);
+        const winFrame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.7, 2.5), windowFrameMat);
+        winFrame.position.set(wx, 2.2, 0);
+        houseGrp.add(winFrame);
+      });
 
-      // Door Lintel beam
-      const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 0.2), cot.wallMat);
-      lintel.position.set(0, cot.h - 0.3, cot.d / 2 - 0.1);
-      cotGrp.add(lintel);
+      // 4. Front Wall with 2.4m Wide Grand Entrance Doorway!
+      const doorW = 2.4;
+      const doorH = 3.2; // 3.2m tall door (abundant headroom for humans!)
+      const sideWallW = (house.w - doorW) / 2;
 
-      // Pitched Gable Roof
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(cot.w * 0.72, 1.8, 4), cot.roofMat);
-      roof.position.set(0, cot.h + 0.8, 0);
-      roof.rotation.y = Math.PI / 4;
-      roof.castShadow = true;
-      cotGrp.add(roof);
+      // Front Left Wall
+      const frontLeft = new THREE.Mesh(new THREE.BoxGeometry(sideWallW, house.h, 0.24), house.wallMat);
+      frontLeft.position.set(-house.w / 2 + sideWallW / 2, house.h / 2, house.d / 2 - 0.12);
+      frontLeft.castShadow = true;
+      houseGrp.add(frontLeft);
 
-      // Hiding Props Inside Cottage (for Hide & Seek!)
-      const hideCrate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), crateMat);
-      hideCrate.position.set(-cot.w / 2 + 0.8, 0.4, -cot.d / 2 + 0.8);
-      hideCrate.castShadow = true;
-      cotGrp.add(hideCrate);
+      // Front Right Wall
+      const frontRight = new THREE.Mesh(new THREE.BoxGeometry(sideWallW, house.h, 0.24), house.wallMat);
+      frontRight.position.set(house.w / 2 - sideWallW / 2, house.h / 2, house.d / 2 - 0.12);
+      frontRight.castShadow = true;
+      houseGrp.add(frontRight);
 
-      const hideHay = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.8), hayMat);
-      hideHay.position.set(cot.w / 2 - 0.9, 0.3, -cot.d / 2 + 0.8);
-      hideHay.rotation.y = 0.2;
-      hideHay.castShadow = true;
-      cotGrp.add(hideHay);
+      // Door Lintel (Above 3.2m doorway)
+      const lintelH = house.h - doorH;
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(doorW, lintelH, 0.24), house.wallMat);
+      lintel.position.set(0, doorH + lintelH / 2, house.d / 2 - 0.12);
+      lintel.castShadow = true;
+      houseGrp.add(lintel);
 
-      this.scene.add(cotGrp);
+      // Decorative Door Arch Frame
+      const frameL = new THREE.Mesh(new THREE.BoxGeometry(0.12, doorH, 0.28), windowFrameMat);
+      frameL.position.set(-doorW / 2 + 0.06, doorH / 2, house.d / 2 - 0.12);
+      houseGrp.add(frameL);
+      const frameR = new THREE.Mesh(new THREE.BoxGeometry(0.12, doorH, 0.28), windowFrameMat);
+      frameR.position.set(doorW / 2 - 0.06, doorH / 2, house.d / 2 - 0.12);
+      houseGrp.add(frameR);
+      const frameTop = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.14, 0.28), windowFrameMat);
+      frameTop.position.set(0, doorH + 0.07, house.d / 2 - 0.12);
+      houseGrp.add(frameTop);
 
-      // Rigid wall colliders for each cottage (leaving door open!)
-      this.addHouseWallColliders(cot.x, cot.z, cot.w, cot.d, cot.rotY, 1.6);
+      // 5. Authentic Pitched Gable Roof with Front/Rear Overhangs (Peak at y = 6.6m)
+      const roofPitch = 0.52;
+      const roofLen = (house.d / 2 + 0.8) / Math.cos(roofPitch);
+      const roofWidth = house.w + 0.8;
+
+      // Front slope
+      const roofSlopeFront = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.18, roofLen), house.roofMat);
+      roofSlopeFront.position.set(0, house.h + 1.15, (house.d / 4) + 0.2);
+      roofSlopeFront.rotation.x = -roofPitch;
+      roofSlopeFront.castShadow = true;
+      houseGrp.add(roofSlopeFront);
+
+      // Back slope
+      const roofSlopeBack = new THREE.Mesh(new THREE.BoxGeometry(roofWidth, 0.18, roofLen), house.roofMat);
+      roofSlopeBack.position.set(0, house.h + 1.15, -(house.d / 4) - 0.2);
+      roofSlopeBack.rotation.x = roofPitch;
+      roofSlopeBack.castShadow = true;
+      houseGrp.add(roofSlopeBack);
+
+      // Ridge Beam
+      const ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(roofWidth + 0.2, 0.25, 0.25), porchWoodMat);
+      ridgeBeam.position.set(0, house.h + 2.35, 0);
+      houseGrp.add(ridgeBeam);
+
+      // Triangular Gables on Left and Right
+      [-house.w / 2 + 0.12, house.w / 2 - 0.12].forEach(gx => {
+        const gable = new THREE.Mesh(new THREE.ConeGeometry((house.d / 2) + 0.1, 2.2, 4), house.wallMat);
+        gable.position.set(gx, house.h + 1.1, 0);
+        gable.rotation.y = Math.PI / 4;
+        houseGrp.add(gable);
+      });
+
+      // 6. REAL INTERIOR LIVING COMFORT & HIDE & SEEK PROPS
+      // Stone Fireplace with dancing fire glow
+      const fireplace = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 1.8), stoneHearthMat);
+      fireplace.position.set(-house.w / 2 + 0.52, 1.1, -house.d / 4);
+      houseGrp.add(fireplace);
+
+      const firePit = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 0.9), fireMat);
+      firePit.position.set(-house.w / 2 + 0.72, 0.4, -house.d / 4);
+      houseGrp.add(firePit);
+
+      const fireLight = new THREE.PointLight(0xf97316, 0.8, 8);
+      fireLight.position.set(-house.w / 2 + 1.1, 0.6, -house.d / 4);
+      houseGrp.add(fireLight);
+
+      // Living Room Sofa & Coffee Table
+      const sofa = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.45, 2.4), sofaMat);
+      sofa.position.set(house.w / 2 - 0.65, 0.25, -house.d / 6);
+      houseGrp.add(sofa);
+
+      const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 2.4), sofaMat);
+      sofaBack.position.set(house.w / 2 - 0.22, 0.6, -house.d / 6);
+      houseGrp.add(sofaBack);
+
+      const rug = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.02, 2.6), sofaCushionMat);
+      rug.position.set(house.w / 2 - 2.0, 0.17, -house.d / 6);
+      houseGrp.add(rug);
+
+      const coffeeTable = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.38, 12), porchWoodMat);
+      coffeeTable.position.set(house.w / 2 - 2.0, 0.36, -house.d / 6);
+      houseGrp.add(coffeeTable);
+
+      // Bookshelf / Display Cupboard on back wall
+      const bookshelf = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.2, 0.45), porchWoodMat);
+      bookshelf.position.set(house.w / 4, 1.1, -house.d / 2 + 0.35);
+      houseGrp.add(bookshelf);
+
+      // Hiding Stack of Crates (Back-left corner)
+      const crate1 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.0, 1.0), crateMat);
+      crate1.position.set(-house.w / 2 + 0.8, 0.5, -house.d / 2 + 0.8);
+      houseGrp.add(crate1);
+
+      const crate2 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), crateMat);
+      crate2.position.set(-house.w / 2 + 0.7, 1.4, -house.d / 2 + 0.8);
+      houseGrp.add(crate2);
+
+      // Hiding Hay Bales (Front-right corner)
+      const hay1 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.65, 0.85), hayMat);
+      hay1.position.set(house.w / 2 - 1.0, 0.35, house.d / 2 - 1.2);
+      hay1.rotation.y = 0.25;
+      houseGrp.add(hay1);
+
+      // Warm Ceiling Chandelier / Hanging Lantern
+      const lanternPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 6), stoneHearthMat);
+      lanternPole.position.set(0, house.h + 0.5, 0);
+      houseGrp.add(lanternPole);
+
+      const lanternBulb = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), lanternBulbMat);
+      lanternBulb.position.set(0, house.h, 0);
+      houseGrp.add(lanternBulb);
+
+      const roomLight = new THREE.PointLight(0xfef08a, 0.9, 14);
+      roomLight.position.set(0, house.h - 0.2, 0);
+      houseGrp.add(roomLight);
+
+      this.scene.add(houseGrp);
+
+      // 7. BULLETPROOF ACCURATE COLLIDERS WITH UNBLOCKED 2.4m DOORWAY
+      this.addWalkInHouseColliders(house.x, house.z, house.w, house.d, house.rotY, 2.4);
     });
+  }
+
+  addWalkInHouseColliders(cx, cz, width, depth, rotY = 0, doorWidth = 2.4) {
+    const halfW = width / 2;
+    const halfD = depth / 2;
+    const wallThick = 0.35;
+
+    let norm = rotY % (Math.PI * 2);
+    if (norm < 0) norm += Math.PI * 2;
+
+    if (Math.abs(norm - 0) < 0.2) {
+      // Front door is at local +d/2 (which is world cz + halfD)
+      // Back wall (North, cz - halfD)
+      this.colliders.push({ type: 'box', minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD - wallThick, maxZ: cz - halfD });
+      // Left wall (West, cx - halfW)
+      this.colliders.push({ type: 'box', minX: cx - halfW - wallThick, maxX: cx - halfW, minZ: cz - halfD, maxZ: cz + halfD });
+      // Right wall (East, cx + halfW)
+      this.colliders.push({ type: 'box', minX: cx + halfW, maxX: cx + halfW + wallThick, minZ: cz - halfD, maxZ: cz + halfD });
+      // Front Left Wall (cz + halfD) leaving door from (cx - doorWidth/2) to (cx + doorWidth/2) open!
+      this.colliders.push({ type: 'box', minX: cx - halfW, maxX: cx - doorWidth / 2, minZ: cz + halfD, maxZ: cz + halfD + wallThick });
+      // Front Right Wall (cz + halfD)
+      this.colliders.push({ type: 'box', minX: cx + doorWidth / 2, maxX: cx + halfW, minZ: cz + halfD, maxZ: cz + halfD + wallThick });
+    } else if (Math.abs(norm - Math.PI) < 0.2) {
+      // Rotated 180 deg: local +d/2 is world cz - halfD (front door faces North)
+      // Back wall (South, cz + halfD)
+      this.colliders.push({ type: 'box', minX: cx - halfW, maxX: cx + halfW, minZ: cz + halfD, maxZ: cz + halfD + wallThick });
+      // Left wall (cx - halfW)
+      this.colliders.push({ type: 'box', minX: cx - halfW - wallThick, maxX: cx - halfW, minZ: cz - halfD, maxZ: cz + halfD });
+      // Right wall (cx + halfW)
+      this.colliders.push({ type: 'box', minX: cx + halfW, maxX: cx + halfW + wallThick, minZ: cz - halfD, maxZ: cz + halfD });
+      // Front Left Wall (cz - halfD) leaving door open!
+      this.colliders.push({ type: 'box', minX: cx - halfW, maxX: cx - doorWidth / 2, minZ: cz - halfD - wallThick, maxZ: cz - halfD });
+      // Front Right Wall (cz - halfD)
+      this.colliders.push({ type: 'box', minX: cx + doorWidth / 2, maxX: cx + halfW, minZ: cz - halfD - wallThick, maxZ: cz - halfD });
+    } else if (Math.abs(norm - (3 * Math.PI / 2)) < 0.2 || Math.abs(norm - (-Math.PI / 2)) < 0.2) {
+      // Rotated -90 deg: local +d/2 is world cx + halfD (front door faces East)
+      // Back wall (West, cx - halfD)
+      this.colliders.push({ type: 'box', minX: cx - halfD - wallThick, maxX: cx - halfD, minZ: cz - halfW, maxZ: cz + halfW });
+      // Top wall (cz - halfW)
+      this.colliders.push({ type: 'box', minX: cx - halfD, maxX: cx + halfD, minZ: cz - halfW - wallThick, maxZ: cz - halfW });
+      // Bottom wall (cz + halfW)
+      this.colliders.push({ type: 'box', minX: cx - halfD, maxX: cx + halfD, minZ: cz + halfW, maxZ: cz + halfW + wallThick });
+      // Front Top Wall (cx + halfD) leaving door open!
+      this.colliders.push({ type: 'box', minX: cx + halfD, maxX: cx + halfD + wallThick, minZ: cz - halfW, maxZ: cz - doorWidth / 2 });
+      // Front Bottom Wall (cx + halfD)
+      this.colliders.push({ type: 'box', minX: cx + halfD, maxX: cx + halfD + wallThick, minZ: cz + doorWidth / 2, maxZ: cz + halfW });
+    } else if (Math.abs(norm - (Math.PI / 2)) < 0.2) {
+      // Rotated +90 deg: local +d/2 is world cx - halfD (front door faces West)
+      // Back wall (East, cx + halfD)
+      this.colliders.push({ type: 'box', minX: cx + halfD, maxX: cx + halfD + wallThick, minZ: cz - halfW, maxZ: cz + halfW });
+      // Top wall (cz - halfW)
+      this.colliders.push({ type: 'box', minX: cx - halfD, maxX: cx + halfD, minZ: cz - halfW - wallThick, maxZ: cz - halfW });
+      // Bottom wall (cz + halfW)
+      this.colliders.push({ type: 'box', minX: cx - halfD, maxX: cx + halfD, minZ: cz + halfW, maxZ: cz + halfW + wallThick });
+      // Front Top Wall (cx - halfD) leaving door open!
+      this.colliders.push({ type: 'box', minX: cx - halfD - wallThick, maxX: cx - halfD, minZ: cz - halfW, maxZ: cz - doorWidth / 2 });
+      // Front Bottom Wall (cx - halfD)
+      this.colliders.push({ type: 'box', minX: cx - halfD - wallThick, maxX: cx - halfD, minZ: cz + doorWidth / 2, maxZ: cz + halfW });
+    }
+  }
+
+  isInsideAnyHouse(pos) {
+    if (!pos || !this.walkInHouses) return false;
+    for (let i = 0; i < this.walkInHouses.length; i++) {
+      const h = this.walkInHouses[i];
+      if (Math.abs(pos.x - h.x) < h.w / 2 - 0.2 && Math.abs(pos.z - h.z) < h.d / 2 - 0.2) {
+        return true;
+      }
+    }
+    return false;
   }
 
   buildTrees() {

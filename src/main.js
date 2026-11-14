@@ -12,6 +12,8 @@ import { HelicopterSpot } from './game/spots/helicopter.js';
 import { CoupleHouseSpot } from './game/spots/house.js';
 import { PlaygroundSpot } from './game/spots/playground.js';
 import { FerrisWheelSpot } from './game/spots/ferrisWheel.js';
+import { DanceStageSpot } from './game/spots/danceStage.js';
+import { AppleHarvestSystem } from './game/spots/appleHarvest.js';
 import { TreeChoppingSystem } from './game/spots/treeChopping.js';
 import { FarmingSpot } from './game/spots/farming.js';
 import { ChairSpotSystem } from './game/spots/chair.js';
@@ -101,6 +103,8 @@ class App {
     this.farming = new FarmingSpot(this.engine.scene, this.town);
     this.chairSystem = new ChairSpotSystem(this.engine.scene, this.town);
     this.petSystem = new PetSystem(this.engine.scene, this.town);
+    this.danceStage = new DanceStageSpot(this.engine.scene, this.town);
+    this.appleHarvest = new AppleHarvestSystem(this.engine.scene, this.town);
 
     // Sync farming changes to network
     this.farming.onPlotChanged = (plotId, state, cropType, growTimer) => {
@@ -109,6 +113,7 @@ class App {
 
     this.isJumping = false;
     this.isSitting = false;
+    this.isDancing = false;
     this.jumpVelY = 0;
     this.playerY = 0;
     this.heliAscending = false;
@@ -445,7 +450,57 @@ class App {
     const myPos = this.myChar ? this.myChar.getPosition() : null;
     const partnerPos = this.partnerChar && this.partnerChar.group.visible ? this.partnerChar.getPosition() : null;
 
-    if (this.partnerChar && this.partnerChar.group.visible) {
+    let partnerSeatedInSpot = false;
+    const partnerUid = roomService.partnerUid;
+    if (partnerUid && this.partnerChar && this.partnerChar.group.visible) {
+      // Zero-lag local node anchoring for partner on rotating/swinging spots
+      const fwOcc = syncService.spotsData?.ferrisWheel?.occupants;
+      if (fwOcc?.seat1 === partnerUid) {
+        const sPos = this.ferrisWheel.getSeat1WorldPos();
+        this.partnerChar.setPosition(sPos.x, sPos.z, this.ferrisWheel.rotationY, sPos.y - 0.28);
+        this.partnerChar.anim = 'sit';
+        this.partnerChar.update(delta);
+        partnerSeatedInSpot = true;
+      } else if (fwOcc?.seat2 === partnerUid) {
+        const sPos = this.ferrisWheel.getSeat2WorldPos();
+        this.partnerChar.setPosition(sPos.x, sPos.z, this.ferrisWheel.rotationY, sPos.y - 0.28);
+        this.partnerChar.anim = 'sit';
+        this.partnerChar.update(delta);
+        partnerSeatedInSpot = true;
+      }
+
+      const csOcc = syncService.spotsData?.canopySwing?.occupants;
+      if (!partnerSeatedInSpot && csOcc?.seat1 === partnerUid) {
+        const sPos = this.canopySwing.getSeat1WorldPos();
+        this.partnerChar.setPosition(sPos.x, sPos.z, this.canopySwing.rotationY, sPos.y - 0.05);
+        this.partnerChar.anim = 'swing';
+        this.partnerChar.update(delta);
+        partnerSeatedInSpot = true;
+      } else if (!partnerSeatedInSpot && csOcc?.seat2 === partnerUid) {
+        const sPos = this.canopySwing.getSeat2WorldPos();
+        this.partnerChar.setPosition(sPos.x, sPos.z, this.canopySwing.rotationY, sPos.y - 0.05);
+        this.partnerChar.anim = 'swing';
+        this.partnerChar.update(delta);
+        partnerSeatedInSpot = true;
+      }
+
+      const swOcc = syncService.spotsData?.swing?.occupants;
+      if (!partnerSeatedInSpot && swOcc?.seat1 === partnerUid) {
+        const sPos = this.swing.getSeat1WorldPos();
+        this.partnerChar.setPosition(sPos.x, sPos.z, this.swing.rotationY, sPos.y + 0.08);
+        this.partnerChar.anim = 'swing';
+        this.partnerChar.update(delta);
+        partnerSeatedInSpot = true;
+      } else if (!partnerSeatedInSpot && swOcc?.seat2 === partnerUid) {
+        const sPos = this.swing.getSeat2WorldPos();
+        this.partnerChar.setPosition(sPos.x, sPos.z, this.swing.rotationY, sPos.y + 0.08);
+        this.partnerChar.anim = 'swing';
+        this.partnerChar.update(delta);
+        partnerSeatedInSpot = true;
+      }
+    }
+
+    if (!partnerSeatedInSpot && this.partnerChar && this.partnerChar.group.visible) {
       const interp = syncService.updatePartnerInterpolation(delta);
       this.partnerChar.setPosition(interp.x, interp.z, interp.rotY, interp.y || 0);
       this.partnerChar.anim = interp.anim || 'idle';
@@ -545,6 +600,7 @@ class App {
           this.hud.setSitState(false);
           this.myChar.modelRoot.position.y = 0;
         }
+        if (this.isDancing) this.isDancing = false;
         const nextX = myPos.x + move.x * speed * delta;
         const nextZ = myPos.z + move.z * speed * delta;
         if (!this.town.checkCollision(nextX, nextZ, 0.35, this.playerY)) this.myChar.setPosition(nextX, nextZ, undefined, this.playerY);
@@ -561,7 +617,9 @@ class App {
         this.myChar.group.position.y = this.playerY;
         if (this.hugTimer > 0) this.myChar.anim = 'hug';
         else if (this.isJumping) this.myChar.anim = 'jump';
-        else if (this.isSitting) {
+        else if (this.isDancing) {
+          this.myChar.anim = 'dance';
+        } else if (this.isSitting) {
           this.myChar.anim = 'sit';
           this.myChar.modelRoot.position.y = -0.15;
         } else {
@@ -574,6 +632,11 @@ class App {
       syncService.sendState(cur.x, cur.z, cur.rotY, this.myChar.anim, false, this.playerY);
     }
 
+    // Room Mode: Smooth automatic camera zoom & interior roof unclipping inside house
+    const isInsideHouse = this.coupleHouse.isInsideHouse(myPos);
+    this.engine.setIndoorMode(isInsideHouse);
+    this.coupleHouse.setRoomMode(isInsideHouse);
+
     this.swing.update(delta);
     this.canopySwing.update(delta, Boolean(syncService.spotsData?.canopySwing?.occupants?.seat1 || syncService.spotsData?.canopySwing?.occupants?.seat2));
     this.teaStall.update(delta);
@@ -581,14 +644,8 @@ class App {
     this.coupleHouse.update(delta, this.currentSpot === 'bed_left' || this.currentSpot === 'bed_right');
     this.playground.update(delta);
     this.ferrisWheel.update(delta, Boolean(syncService.spotsData?.ferrisWheel?.occupants?.seat1 || syncService.spotsData?.ferrisWheel?.occupants?.seat2));
-    const ferrisExtra = syncService.spotsData?.ferrisWheel?.extra;
-    if (ferrisExtra && typeof ferrisExtra.wheelAngle === 'number' && this.currentSpot !== 'ferris_seat1') {
-      const diff = ferrisExtra.wheelAngle - this.ferrisWheel.wheelAngle;
-      if (Math.abs(diff) > 0.25) this.ferrisWheel.wheelAngle += diff * delta * 2;
-    }
-    if (this.currentSpot === 'ferris_seat1') {
-      syncService.updateSpotExtra('ferrisWheel', { wheelAngle: this.ferrisWheel.wheelAngle });
-    }
+    this.danceStage.update(delta, this.isDancing);
+    this.appleHarvest.update(delta);
     this.treeChopping.update(delta);
     this.farming.update(delta);
     if (this.petSystem) {
@@ -596,6 +653,7 @@ class App {
     }
     this.hud.setWoodCount(this.treeChopping.woodInventory);
     this.hud.setCropCount(this.farming.cropInventory);
+    this.hud.setAppleCount(this.appleHarvest.appleInventory);
 
     if (this.currentSpot === 'heli_pilot') {
       this.helicopter.isFlying = true;
@@ -1049,6 +1107,39 @@ class App {
       return;
     }
 
+    // Romantic Couple Dance Stage (Pavilion)
+    if (this.danceStage && this.danceStage.isOnStage(myPos)) {
+      if (!this.isDancing) {
+        this.hud.setInteractAction({ type: 'start_dance', icon: '💃', label: 'Start Couple Dance ✨' });
+      } else {
+        this.hud.setInteractAction({ type: 'stop_dance', icon: '🛑', label: 'Stop Dancing' });
+      }
+      this.hud.setSecondaryInteractAction(null);
+      return;
+    }
+
+    // Apple Harvest Orchard & Girl's Harvest Basket System
+    if (this.appleHarvest) {
+      if (this.appleHarvest.isCarryingBasket) {
+        const nearAppleTree = this.appleHarvest.getNearestTree(myPos, 2.8);
+        if (nearAppleTree) {
+          this.hud.setInteractAction({ type: 'pick_apple', apple: nearAppleTree.apple, icon: '🍎', label: 'Pick Ripe Apple' });
+          this.hud.setSecondaryInteractAction({ type: 'drop_basket', icon: '🧺', label: 'Put Down Basket' });
+          return;
+        } else {
+          this.hud.setInteractAction({ type: 'drop_basket', icon: '🧺', label: 'Put Down Basket' });
+          this.hud.setSecondaryInteractAction(null);
+          return;
+        }
+      } else {
+        if (this.appleHarvest.isNearGroundBasket(myPos, 2.5)) {
+          this.hud.setInteractAction({ type: 'pickup_basket', icon: '🧺', label: 'Pick Up Apple Basket' });
+          this.hud.setSecondaryInteractAction(null);
+          return;
+        }
+      }
+    }
+
     this.hud.setInteractAction(null);
     this.hud.setSecondaryInteractAction(null);
   }
@@ -1221,6 +1312,40 @@ class App {
       const pos = this.toScreenPosition(action.pet.group.position);
       this.emojiSystem.spawnFloatingReaction('💨 Bye!', pos.x, pos.y - 40);
       if (this.hud) this.hud.setSecondaryInteractAction(null);
+    }
+    else if (action.type === 'start_dance') {
+      this.isDancing = true;
+      if (this.myChar) this.myChar.anim = 'dance';
+      soundEngine.playCheer();
+      const pos = this.toScreenPosition(this.myChar.group.position);
+      this.emojiSystem.spawnFloatingReaction('🎵 Let\'s Dance! 💃', pos.x, pos.y - 60);
+    }
+    else if (action.type === 'stop_dance') {
+      this.isDancing = false;
+      if (this.myChar) this.myChar.anim = 'idle';
+      soundEngine.playPop();
+    }
+    else if (action.type === 'pickup_basket') {
+      this.appleHarvest.pickUpBasket();
+      if (this.myChar) this.myChar.setCarryingBasket(true);
+      const pos = this.toScreenPosition(this.myChar.group.position);
+      this.emojiSystem.spawnFloatingReaction('🧺 Got Harvest Basket!', pos.x, pos.y - 60);
+    }
+    else if (action.type === 'drop_basket') {
+      this.appleHarvest.putDownBasket(this.myChar.getPosition());
+      if (this.myChar) this.myChar.setCarryingBasket(false);
+      const pos = this.toScreenPosition(this.myChar.group.position);
+      this.emojiSystem.spawnFloatingReaction('🧺 Placed Basket', pos.x, pos.y - 60);
+    }
+    else if (action.type === 'pick_apple') {
+      const ok = this.appleHarvest.pickApple(action.apple);
+      if (ok) {
+        this.myChar.anim = 'farm';
+        this.hud.setAppleCount(this.appleHarvest.appleInventory);
+        const pos = this.toScreenPosition(this.myChar.group.position);
+        this.emojiSystem.spawnFloatingReaction('🍎 +1 Fresh Apple!', pos.x, pos.y - 60);
+        setTimeout(() => { if (this.myChar && this.myChar.anim === 'farm') this.myChar.anim = 'idle'; }, 650);
+      }
     }
   }
 

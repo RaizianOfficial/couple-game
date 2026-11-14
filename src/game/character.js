@@ -11,6 +11,7 @@ export class Character {
     this.animTime = 0;
     this.isLocal = false;
     this.isHoldingCup = false;
+    this.isCarryingBasket = false;
     this.isHoldingHands = false;
     this.holdingSide = slot === 1 ? 'right' : 'left';
 
@@ -184,7 +185,28 @@ export class Character {
     this.torchGroup.visible = false;
     this.leftHand.add(this.torchGroup);
 
+    // Cute Apple Harvest Basket attachment
+    this.carriedBasket = new THREE.Group();
+    const wickerMat = new THREE.MeshLambertMaterial({ color: 0xd97706 });
+    const cTub = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.18, 10), wickerMat);
+    cTub.position.y = -0.12;
+    const cHandle = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.02, 6, 12, Math.PI), wickerMat);
+    cHandle.rotation.z = Math.PI;
+    const cApple = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), new THREE.MeshLambertMaterial({ color: 0xef4444 }));
+    cApple.position.set(0, -0.06, 0);
+    this.carriedBasket.add(cTub, cHandle, cApple);
+    this.carriedBasket.position.set(0, -0.25, 0.05);
+    this.carriedBasket.visible = false;
+    this.leftHand.add(this.carriedBasket);
+
     this.applyAccessories();
+  }
+
+  setCarryingBasket(isCarrying) {
+    this.isCarryingBasket = Boolean(isCarrying);
+    if (this.carriedBasket) {
+      this.carriedBasket.visible = this.isCarryingBasket;
+    }
   }
 
   setNightTorch(isNight) {
@@ -358,6 +380,22 @@ export class Character {
       this.leftArmPivot.rotation.x = -2.8; this.rightArmPivot.rotation.x = -2.8;
       this.leftArmPivot.rotation.z = -0.4; this.rightArmPivot.rotation.z = 0.4;
       this.modelRoot.position.y = Math.abs(Math.sin(this.animTime * 10)) * 0.2;
+    } else if (this.anim === 'dance') {
+      const beat = this.animTime * 7.5;
+      const bHop = Math.abs(Math.sin(beat)) * 0.14;
+      this.modelRoot.position.y = bHop;
+      this.modelRoot.rotation.z = Math.sin(beat * 0.5) * 0.12;
+
+      // Groovy alternating arm celebration dance
+      this.leftArmPivot.rotation.x = -1.9 + Math.sin(beat) * 0.65;
+      this.leftArmPivot.rotation.z = 0.45 + Math.cos(beat) * 0.35;
+      this.rightArmPivot.rotation.x = -1.9 - Math.sin(beat) * 0.65;
+      this.rightArmPivot.rotation.z = -0.45 - Math.cos(beat) * 0.35;
+
+      // Rhythmic tapping feet
+      this.leftLegPivot.rotation.x = Math.sin(beat) * 0.4;
+      this.rightLegPivot.rotation.x = -Math.sin(beat) * 0.4;
+      this.headGroup.rotation.z = Math.sin(beat * 0.5) * 0.18;
     } else {
       this.modelRoot.position.y = Math.sin(this.animTime * 2.5) * 0.02;
       this.leftLegPivot.rotation.x = 0; this.rightLegPivot.rotation.x = 0;

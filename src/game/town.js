@@ -20,6 +20,7 @@ export class Town {
     this.buildCherryBlossomGroves();
     this.buildPicnicSpotsAndTreehouses();
     this.buildHideAndSeekProps();
+    this.buildHideoutCottages();
     this.buildGLBAssets();
     this.buildStreetlamps();
   }
@@ -818,6 +819,96 @@ export class Town {
 
     this.scene.add(stallGrp);
     this.colliders.push({ type: 'box', minX: -11.2, maxX: -8.8, minZ: 35.3, maxZ: 36.7 });
+  }
+
+  buildHideoutCottages() {
+    const wallPinkMat = new THREE.MeshLambertMaterial({ color: 0xfce7f3 });
+    const wallPeachMat = new THREE.MeshLambertMaterial({ color: 0xffedd5 });
+    const wallCedarMat = new THREE.MeshLambertMaterial({ color: 0x9a3412 });
+    const roofSlateMat = new THREE.MeshLambertMaterial({ color: 0x475569, flatShading: true });
+    const roofRoseMat = new THREE.MeshLambertMaterial({ color: 0xf472b6, flatShading: true });
+    const roofMintMat = new THREE.MeshLambertMaterial({ color: 0x10b981, flatShading: true });
+    const woodFloorMat = new THREE.MeshLambertMaterial({ color: 0x78350f });
+    const crateMat = new THREE.MeshLambertMaterial({ color: 0xa16207 });
+    const hayMat = new THREE.MeshLambertMaterial({ color: 0xfbbf24 });
+
+    const cottages = [
+      // 1. Honeybee Woodland Cabin at (x: 24, z: -28) (North-East clearing)
+      { x: 24, z: -28, w: 4.8, d: 4.2, h: 2.6, wallMat: wallCedarMat, roofMat: roofSlateMat, rotY: 0 },
+      // 2. Storybook Riverbank Cottage at (x: -14, z: -18) (East bank of river)
+      { x: -14, z: -18, w: 4.8, d: 4.2, h: 2.6, wallMat: wallPeachMat, roofMat: roofRoseMat, rotY: 0 },
+      // 3. Sweet Blossom Tea Cabin at (x: -16, z: 24) (South-West clearing)
+      { x: -16, z: 24, w: 4.8, d: 4.2, h: 2.6, wallMat: wallPinkMat, roofMat: roofMintMat, rotY: Math.PI / 2 }
+    ];
+
+    cottages.forEach((cot) => {
+      const cotGrp = new THREE.Group();
+      cotGrp.position.set(cot.x, 0, cot.z);
+      cotGrp.rotation.y = cot.rotY;
+
+      // Wooden Floor
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(cot.w, 0.16, cot.d), woodFloorMat);
+      floor.position.y = 0.08;
+      floor.receiveShadow = true;
+      cotGrp.add(floor);
+
+      // Back Wall
+      const back = new THREE.Mesh(new THREE.BoxGeometry(cot.w, cot.h, 0.2), cot.wallMat);
+      back.position.set(0, cot.h / 2, -cot.d / 2 + 0.1);
+      back.castShadow = true;
+      cotGrp.add(back);
+
+      // Left Wall
+      const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, cot.h, cot.d), cot.wallMat);
+      left.position.set(-cot.w / 2 + 0.1, cot.h / 2, 0);
+      left.castShadow = true;
+      cotGrp.add(left);
+
+      // Right Wall
+      const right = new THREE.Mesh(new THREE.BoxGeometry(0.2, cot.h, cot.d), cot.wallMat);
+      right.position.set(cot.w / 2 - 0.1, cot.h / 2, 0);
+      right.castShadow = true;
+      cotGrp.add(right);
+
+      // Front Wall with 1.6m open doorway in center
+      const sideWallW = (cot.w - 1.6) / 2;
+      const frontL = new THREE.Mesh(new THREE.BoxGeometry(sideWallW, cot.h, 0.2), cot.wallMat);
+      frontL.position.set(-cot.w / 2 + sideWallW / 2, cot.h / 2, cot.d / 2 - 0.1);
+      cotGrp.add(frontL);
+
+      const frontR = new THREE.Mesh(new THREE.BoxGeometry(sideWallW, cot.h, 0.2), cot.wallMat);
+      frontR.position.set(cot.w / 2 - sideWallW / 2, cot.h / 2, cot.d / 2 - 0.1);
+      cotGrp.add(frontR);
+
+      // Door Lintel beam
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 0.2), cot.wallMat);
+      lintel.position.set(0, cot.h - 0.3, cot.d / 2 - 0.1);
+      cotGrp.add(lintel);
+
+      // Pitched Gable Roof
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(cot.w * 0.72, 1.8, 4), cot.roofMat);
+      roof.position.set(0, cot.h + 0.8, 0);
+      roof.rotation.y = Math.PI / 4;
+      roof.castShadow = true;
+      cotGrp.add(roof);
+
+      // Hiding Props Inside Cottage (for Hide & Seek!)
+      const hideCrate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), crateMat);
+      hideCrate.position.set(-cot.w / 2 + 0.8, 0.4, -cot.d / 2 + 0.8);
+      hideCrate.castShadow = true;
+      cotGrp.add(hideCrate);
+
+      const hideHay = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.8), hayMat);
+      hideHay.position.set(cot.w / 2 - 0.9, 0.3, -cot.d / 2 + 0.8);
+      hideHay.rotation.y = 0.2;
+      hideHay.castShadow = true;
+      cotGrp.add(hideHay);
+
+      this.scene.add(cotGrp);
+
+      // Rigid wall colliders for each cottage (leaving door open!)
+      this.addHouseWallColliders(cot.x, cot.z, cot.w, cot.d, cot.rotY, 1.6);
+    });
   }
 
   buildTrees() {

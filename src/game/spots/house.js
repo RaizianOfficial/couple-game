@@ -36,47 +36,97 @@ export class CoupleHouseSpot {
     const blanketMat = new THREE.MeshLambertMaterial({ color: 0xec4899 });
 
     // Ground Floor
-    const groundFloor = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.2, 7.8), floorMat);
+    const groundFloor = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.2, 9.0), floorMat);
     groundFloor.position.set(0, 0.1, 0);
     this.group.add(groundFloor);
 
-    const porch = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.16, 2.2), floorMat);
-    porch.position.set(0, 0.08, 4.8);
+    const porch = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.16, 2.6), floorMat);
+    porch.position.set(0, 0.08, 5.2);
     this.group.add(porch);
 
     // Walls
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(9.2, 5.6, 0.25), wallMat);
-    backWall.position.set(0, 2.8, -3.8);
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(11.0, 5.8, 0.25), wallMat);
+    backWall.position.set(0, 2.9, -4.4);
     this.group.add(backWall);
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.6, 7.8), wallMat);
-    leftWall.position.set(-4.5, 2.8, 0);
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.8, 9.0), wallMat);
+    leftWall.position.set(-5.4, 2.9, 0);
     this.group.add(leftWall);
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.6, 7.8), wallMat);
-    rightWall.position.set(4.5, 2.8, 0);
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.25, 5.8, 9.0), wallMat);
+    rightWall.position.set(5.4, 2.9, 0);
     this.group.add(rightWall);
 
-    // Modern Flat Roof
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.4, 8.4), roofMat);
-    roof.position.set(0, 5.8, 0);
-    this.group.add(roof);
+    // Modern Flat Roof (Toggled in Room Mode for 0 camera glitches!)
+    this.roofMesh = new THREE.Mesh(new THREE.BoxGeometry(11.6, 0.35, 9.6), roofMat);
+    this.roofMesh.position.set(0, 6.0, 0);
+    this.group.add(this.roofMesh);
 
-    [-4.3, 4.3].forEach(px => {
-      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5.6, 0.3), whiteMat);
-      pillar.position.set(px, 2.8, 4.0);
+    [-5.2, 5.2].forEach(px => {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.35, 5.8, 0.35), whiteMat);
+      pillar.position.set(px, 2.9, 4.4);
       this.group.add(pillar);
     });
 
     // Second Floor
-    const secondFloor = new THREE.Mesh(new THREE.BoxGeometry(9.2, 0.18, 7.8), floorMat);
+    const secondFloor = new THREE.Mesh(new THREE.BoxGeometry(11.0, 0.18, 9.0), floorMat);
     secondFloor.position.set(0, 2.8, 0);
     this.group.add(secondFloor);
-    const balcony = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.16, 2.2), floorMat);
-    balcony.position.set(0, 2.8, 4.8);
+    const balcony = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.16, 2.6), floorMat);
+    balcony.position.set(0, 2.8, 5.2);
     this.group.add(balcony);
 
-    const glassRailing = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.8, 0.05), glassMat);
-    glassRailing.position.set(0, 3.2, 5.85);
+    const glassRailing = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.8, 0.05), glassMat);
+    glassRailing.position.set(0, 3.2, 6.45);
     this.group.add(glassRailing);
+
+    // === REAL GROUND FLOOR INTERIORS: LUXURY LIVING ROOM & KITCHENETTE ===
+    // 1. Cozy L-Shaped Pastel Sofa
+    const sofaMat = new THREE.MeshLambertMaterial({ color: 0xf472b6 }); // Pastel rose
+    const sofaCushionMat = new THREE.MeshLambertMaterial({ color: 0xfbcfe8 });
+    const sofaBase1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 0.9), sofaMat);
+    sofaBase1.position.set(-3.2, 0.3, 0);
+    this.group.add(sofaBase1);
+    const sofaBase2 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.4, 1.6), sofaMat);
+    sofaBase2.position.set(-2.45, 0.3, -1.0);
+    this.group.add(sofaBase2);
+    // Sofa backrest
+    const sofaBack = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.55, 0.18), sofaMat);
+    sofaBack.position.set(-3.2, 0.65, 0.4);
+    this.group.add(sofaBack);
+
+    // Coffee table & living room pastel rug
+    const livingRug = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.02, 2.4), new THREE.MeshLambertMaterial({ color: 0xfde047 }));
+    livingRug.position.set(-2.8, 0.21, -0.6);
+    this.group.add(livingRug);
+    const coffeeTable = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.35, 12), woodMat);
+    coffeeTable.position.set(-2.8, 0.38, -0.6);
+    this.group.add(coffeeTable);
+
+    // 2. Warm Romantic Hearth / Fireplace with dancing fire glow
+    const fireplaceMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    const fireplace = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 1.6), fireplaceMat);
+    fireplace.position.set(-5.1, 1.0, 1.8);
+    this.group.add(fireplace);
+    const fireGlow = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 0.9), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+    fireGlow.position.set(-4.95, 0.5, 1.8);
+    this.group.add(fireGlow);
+    this.fireLight = new THREE.PointLight(0xf97316, 1.0, 8);
+    this.fireLight.position.set(-4.7, 0.6, 1.8);
+    this.group.add(this.fireLight);
+
+    // 3. Kitchenette Dining Island Bar Counter with 2 Bar Stools
+    const kitchenCounter = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.85, 2.2), whiteMat);
+    kitchenCounter.position.set(2.2, 0.525, 0.4);
+    this.group.add(kitchenCounter);
+    const counterTop = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 2.3), woodMat);
+    counterTop.position.set(2.2, 0.98, 0.4);
+    this.group.add(counterTop);
+
+    // Stools
+    [-0.5, 0.5].forEach(sz => {
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.55, 10), new THREE.MeshLambertMaterial({ color: 0x0ea5e9 }));
+      stool.position.set(1.4, 0.375, 0.4 + sz);
+      this.group.add(stool);
+    });
 
     // THE MODERN ELEVATOR
     const elevatorGroup = new THREE.Group();
@@ -178,15 +228,31 @@ export class CoupleHouseSpot {
 
     if (this.town && this.town.colliders) {
       // Solid Left Wall
-      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.8, maxX: this.position.x - 4.2, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 5.6, maxX: this.position.x - 5.1, minZ: this.position.z - 4.6, maxZ: this.position.z + 4.6 });
       // Solid Right Wall
-      this.town.colliders.push({ type: 'box', minX: this.position.x + 4.2, maxX: this.position.x + 4.8, minZ: this.position.z - 4.0, maxZ: this.position.z + 4.0 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x + 5.1, maxX: this.position.x + 5.6, minZ: this.position.z - 4.6, maxZ: this.position.z + 4.6 });
       // Solid Back Wall
-      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x + 4.6, minZ: this.position.z - 4.1, maxZ: this.position.z - 3.5 });
-      // Front Pillars (Leaves the central 4m grand entrance wide open so players can freely walk inside!)
-      this.town.colliders.push({ type: 'box', minX: this.position.x - 4.6, maxX: this.position.x - 2.2, minZ: this.position.z + 3.7, maxZ: this.position.z + 4.2 });
-      this.town.colliders.push({ type: 'box', minX: this.position.x + 2.2, maxX: this.position.x + 4.6, minZ: this.position.z + 3.7, maxZ: this.position.z + 4.2 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 5.4, maxX: this.position.x + 5.4, minZ: this.position.z - 4.7, maxZ: this.position.z - 4.2 });
+      // Front Pillars (Leaves the central 4.8m grand entrance wide open so players can freely walk inside!)
+      this.town.colliders.push({ type: 'box', minX: this.position.x - 5.4, maxX: this.position.x - 2.4, minZ: this.position.z + 4.1, maxZ: this.position.z + 4.6 });
+      this.town.colliders.push({ type: 'box', minX: this.position.x + 2.4, maxX: this.position.x + 5.4, minZ: this.position.z + 4.1, maxZ: this.position.z + 4.6 });
     }
+  }
+
+  setRoomMode(isInside) {
+    if (this.roofMesh) {
+      this.roofMesh.visible = !isInside;
+    }
+  }
+
+  isInsideHouse(pos) {
+    if (!pos) return false;
+    return (
+      pos.x > this.position.x - 5.2 &&
+      pos.x < this.position.x + 5.2 &&
+      pos.z > this.position.z - 4.4 &&
+      pos.z < this.position.z + 4.2
+    );
   }
 
   setLightState(isOn) {

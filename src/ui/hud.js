@@ -108,6 +108,7 @@ export class GameHUD {
         <div class="hud-inventory" id="hud-inventory-pill">
           <span class="inv-item" title="Wood">🪵 <span id="hud-wood-val">0</span></span>
           <span class="inv-item" title="Harvested Crops">🌾 <span id="hud-crop-val">0</span></span>
+          <span class="inv-item" title="Crisp Apples">🍎 <span id="hud-apple-val">0</span></span>
         </div>
         <div class="hud-top-actions">
           <button class="icon-btn" id="hud-daynight-btn" title="Toggle Day/Night">☀️ Day</button>
@@ -217,6 +218,7 @@ export class GameHUD {
     this.descendBtn = this.hudEl.querySelector('#hud-descend-btn');
     this.woodVal = this.hudEl.querySelector('#hud-wood-val');
     this.cropVal = this.hudEl.querySelector('#hud-crop-val');
+    this.appleVal = this.hudEl.querySelector('#hud-apple-val');
     this.emojiBtn = this.hudEl.querySelector('#hud-emoji-btn');
     this.gamesBtn = this.hudEl.querySelector('#hud-games-btn');
     this.gamesMenu = this.hudEl.querySelector('#hud-games-menu');
@@ -369,6 +371,7 @@ export class GameHUD {
 
   setWoodCount(count) { if (this.woodVal) this.woodVal.textContent = count; }
   setCropCount(count) { if (this.cropVal) this.cropVal.textContent = count; }
+  setAppleCount(count) { if (this.appleVal) this.appleVal.textContent = count; }
 
   setHandsConnected(isConnected) {
     if (!this.holdHandsBtn) return;

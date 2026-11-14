@@ -131,11 +131,48 @@ export class GameEngine {
     this.sunLight.shadow.bias = -0.001;
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
+
+    // Glowing 3D Sun in the sky
+    const sunGroup = new THREE.Group();
+    sunGroup.position.set(32, 48, 22);
+    const sunCore = new THREE.Mesh(
+      new THREE.SphereGeometry(3.6, 24, 24),
+      new THREE.MeshBasicMaterial({ color: 0xfff08a })
+    );
+    sunGroup.add(sunCore);
+    const sunCorona = new THREE.Mesh(
+      new THREE.SphereGeometry(4.8, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.35 })
+    );
+    sunGroup.add(sunCorona);
+    this.sunMesh = sunGroup;
+    this.scene.add(this.sunMesh);
+
+    // Glowing 3D Moon with Soft Celestial Halo in the sky
+    const moonGroup = new THREE.Group();
+    moonGroup.position.set(-30, 46, -26);
+    const moonCore = new THREE.Mesh(
+      new THREE.SphereGeometry(3.2, 24, 24),
+      new THREE.MeshBasicMaterial({ color: 0xe0e7ff })
+    );
+    moonGroup.add(moonCore);
+    const moonHalo = new THREE.Mesh(
+      new THREE.SphereGeometry(4.4, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.3 })
+    );
+    moonGroup.add(moonHalo);
+    this.moonMesh = moonGroup;
+    this.moonMesh.visible = false;
+    this.scene.add(this.moonMesh);
+
+    this.isIndoorMode = false;
   }
 
   // Toggle Day / Night with Romantic Starlit Sky & Moon Light
   setDayNight(isNight) {
     this.isNight = isNight;
+    if (this.sunMesh) this.sunMesh.visible = !isNight;
+    if (this.moonMesh) this.moonMesh.visible = isNight;
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 16;
     skyCanvas.height = 256;
@@ -307,6 +344,18 @@ export class GameEngine {
 
   setCharacterFacing(rotY) { this._characterFacing = rotY; }
 
+  setIndoorMode(isIndoor) {
+    if (this.isIndoorMode === isIndoor) return;
+    this.isIndoorMode = isIndoor;
+    if (isIndoor) {
+      this.targetDistance = 2.6;
+      this.targetPitch = 0.26;
+    } else {
+      this.targetDistance = 5.2;
+      this.targetPitch = 0.32;
+    }
+  }
+
   getCameraVectors() {
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     forward.y = 0; forward.normalize();
@@ -350,6 +399,10 @@ export class GameEngine {
         }
       }
     } catch (_) {}
+
+    if (this.isIndoorMode) {
+      targetDistance = Math.min(targetDistance, 2.7);
+    }
 
     // Smooth lerp to prevent jarring camera cuts
     this.actualCameraDistance = THREE.MathUtils.lerp(this.actualCameraDistance || dist, targetDistance, 0.32);

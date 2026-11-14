@@ -1,325 +1,250 @@
-# 🏡 Our Little Town — Game Architecture
+# 🏡 Our Little Town — Comprehensive Architecture & Technical Blueprint
 
 > [!NOTE]
-> Yeh ek **browser-based 3D couple multiplayer game** hai — Two players ek shared romantic town mein explore karte hain, activities karte hain aur ek doosre ke saath interact karte hain. Built with **Three.js + Firebase Realtime Database + Vite PWA**.
+> **Our Little Town** ek modern, high-performance **2-Player 3D Real-Time Couple Cooperative Simulation Game** hai. Yeh Web browser aur Mobile PWA ke andar bina kisi native store installation ke direct link/room code ke zariye instant chalne ke liye engineer kiya gaya hai.
+> **Tech Stack:** Vanilla JavaScript (ES Modules) + Three.js (WebGL 3D Rendering) + Google Draco WebAssembly Decoder + Firebase Realtime Database & Anonymous Auth + Vite.
 
 ---
 
-## 📁 Project Structure Overview
+## 🏗️ 1. High-Level System Architecture
 
-```
-New folder (2)/
-├── index.html                   # Entry HTML, all screens (landing, waiting, game HUD)
-├── vite.config.js               # Vite build config
-├── package.json                 # Dependencies (three, firebase, playwright)
-├── firebase.json                # Firebase Hosting config
-├── database.rules.json          # Firebase RTDB security rules
-├── vercel.json                  # Vercel deployment config (alternative to Firebase)
-├── sw.js                        # Service Worker (PWA caching)
-├── manifest.json                # PWA manifest
-│
-├── src/
-│   ├── main.js                  # 🧠 App entrypoint & Game Loop Coordinator
-│   ├── audio.js                 # 🎵 Web Audio Synthesizer (no audio files)
-│   │
-│   ├── game/                    # 🎮 Core 3D Game Logic
-│   │   ├── engine.js            # Three.js rendering engine
-│   │   ├── town.js              # Procedural town world builder
-│   │   ├── character.js         # Player character mesh + animations
-│   │   ├── hands.js             # Hand-holding mechanic system
-│   │   └── spots/               # 🗺️ Interactive Locations
-│   │       ├── bike.js          # Retro scooter (2 seats: driver + passenger)
-│   │       ├── chair.js         # Park benches (8 locations, couples sit together)
-│   │       ├── farming.js       # Farm plots (till → plant → water → harvest)
-│   │       ├── helicopter.js    # Flyable helicopter (pilot + passenger)
-│   │       ├── house.js         # 2-story couple villa (elevator + bedroom)
-│   │       ├── playground.js    # Playground (slide + seesaw)
-│   │       ├── swing.js         # Romantic swings (2 seats)
-│   │       ├── teaStall.js      # Tea stall (hold chai cup)
-│   │       └── treeChopping.js  # Choppable trees (wood inventory)
-│   │
-│   ├── firebase/                # ☁️ Backend / Networking
-│   │   ├── config.js            # Firebase app init + DB helper wrappers
-│   │   ├── roomService.js       # Room creation, joining, presence management
-│   │   ├── syncService.js       # Real-time state sync (position, anim, spots, reactions)
-│   │   ├── localRelay.js        # Local multiplayer relay (same-device testing)
-│   │   └── mockFirebase.js      # Mock Firebase for offline/dev mode
-│   │
-│   └── ui/                      # 🖥️ UI Layer
-│       ├── hud.js               # In-game HUD (buttons, room code, inventory, overlays)
-│       ├── joystick.js          # Virtual joystick for mobile
-│       ├── touchLook.js         # Touch drag for 360° camera orbit
-│       ├── emojiTray.js         # Emoji reaction tray + floating emoji spawner
-│       └── miniGames/
-│           ├── ticTacToe.js     # Shared Tic Tac Toe mini-game
-│           └── outfitGame.js    # Couple outfit matching mini-game
-│
-└── tests/
-    └── gameplay.spec.js         # Playwright end-to-end tests
-```
-
----
-
-## 🏛️ Architecture Layers
+Game ka overall data-flow aur runtime lifecycle teen core layers mein divide hai: **Presentation/View (Three.js & Canvas)**, **State & Network Orchestration (Firebase RTDB + SyncService)**, aur **UI / Input HUD (Touch, Joystick & Audio)**.
 
 ```mermaid
 flowchart TD
-    A["index.html\n(Landing / Waiting / Canvas)"] --> B["main.js\nApp Class — Game Loop Coordinator"]
+    subgraph ClientBrowser["📱 Client Browser / Mobile PWA Viewport"]
+        direction TB
+        HTML["index.html\n(Landing, Waiting Room, HUD Overlay, Modals)"]
+        
+        subgraph EngineLayer["🎮 3D Rendering Engine (Three.js)"]
+            Engine["GameEngine (engine.js)\n• WebGLRenderer (PCFSoftShadows, Retina DPR 2.0)\n• 360° Orbit Camera & Smooth Raycast Wall Occlusion\n• SkyDome Gradient Canvas & Drifting Ambient Particles"]
+            Town["Town World (town.js)\n• Procedural Ground & Walls\n• GLB Modular Asphalt Roads & Corners\n• Apartment Complexes & Store Cottages\n• Historic Red Barns & Hide-and-Seek Props"]
+            Chars["Characters (character.js)\n• Player 1 & Player 2 Custom Avatars (Boy/Girl)\n• Real-Time Night Flashlight & Torch Light\n• Dynamic Outfits, Accessories & Animations"]
+            Spots["Interactive Spots (spots/*)\n• Bike & Buggy (Normal/Turbo Fast Speed Modes)\n• Romantic Pergola Canopy Swing & Swings\n• 2-Story Couple Villa (Elevator + Fireplace + Bed)\n• Helicopter, Tea Stall, Farm Plots, Tree Chopping"]
+            Pets["Pet Ecosystem (pets.js)\n• Dogs, Cats, Rabbits (GLB + Procedural fallback)\n• Autonomous Roaming, Taming & Petting Dynamics"]
+            Hands["HandHoldingSystem (hands.js)\n• Mutual Consent Ribbon & Speed Constraint Tether"]
+        end
 
-    B --> C["GameEngine\nengine.js"]
-    B --> D["Town\ntown.js"]
-    B --> E["Character × 2\ncharacter.js"]
-    B --> F["Spots × 9\nbike, swing, heli..."]
-    B --> G["HandHoldingSystem\nhands.js"]
+        subgraph UILayer["🕹️ UI & Audio Input Controllers"]
+            Joy["VirtualJoystick (joystick.js)"]
+            TouchLook["TouchLookController (touchLook.js)"]
+            HUD["GameHUD (hud.js)"]
+            EmojiSys["EmojiSystem & Meme Audio (emojiTray.js)"]
+            MiniGames["MiniGames (TicTacToe & OutfitStyling)"]
+            AudioSynth["SoundEngine (audio.js)\n• Web Audio API Synthesizers & Voice Samples"]
+        end
 
-    B --> H["UI Layer"]
-    H --> H1["VirtualJoystick\njoystick.js"]
-    H --> H2["TouchLookController\ntouchLook.js"]
-    H --> H3["GameHUD\nhud.js"]
-    H --> H4["EmojiSystem\nemojiTray.js"]
-    H --> H5["MiniGames\nticTacToe, outfitGame"]
+        MainApp["🧠 Main Orchestrator (main.js)\nApp Loop, State Transitions, Proximity Interaction Engine"]
+    end
 
-    B --> I["Firebase Layer"]
-    I --> I1["roomService\nRoom + Presence"]
-    I --> I2["syncService\nReal-time Sync"]
-    I --> I3["config.js\nFirebase Init"]
+    subgraph CloudLayer["☁️ Google Firebase Realtime Backend"]
+        RTDB[("Firebase Realtime Database\n(diwali-1920c-default-rtdb)")]
+        Auth["Firebase Anonymous Auth"]
+        Relay["Local WebSocket / SSE Relay\n(localRelay.js - Dev Fallback)"]
+    end
 
-    B --> J["SoundEngine\naudio.js"]
-
-    C --> K["Three.js Scene\nRenderer, Camera, Lights, Particles"]
-    D --> K
-    E --> K
-    F --> K
-    G --> K
+    HTML --> MainApp
+    MainApp --> EngineLayer
+    MainApp --> UILayer
+    MainApp <-->|Presence & Room Lifecycle| Auth
+    MainApp <-->|Throttled 12.5Hz State & Event Sync| RTDB
+    MainApp -.->|Offline / Local Testing| Relay
 ```
 
 ---
 
-## 🔑 Core Modules — Detail
+## 📁 2. File Directory & Codebase Breakdown
 
-### `src/main.js` — App Class (Brain)
-Pura game ka **orchestrator**. Yahan sab kuch connect hota hai.
-
-| Method | Kya karta hai |
-|--------|--------------|
-| `initPWA()` | Service worker register karta hai, PWA install banner handle karta hai, Wake Lock leta hai |
-| `initDOM()` | Landing, waiting screens ke DOM refs leta hai, URL se room code parse karta hai |
-| `init3D()` | Engine, Town, aur sare 9 Spots initialize karta hai |
-| `initUI()` | Joystick, camera controls, HUD, emoji system, mini-games setup karta hai |
-| `initFlow()` | "Create Room" / "Join Room" button handlers — Firebase room banata/join karta hai |
-| `onRoomReady()` | Character spawn karta hai, waiting screen show/hide karta hai, game loop shuru karta hai |
-| `onTick(delta)` | **Main game loop** — movement, animations, spot logic, camera update, Firebase sync |
-| `updateContextInteraction()` | Proximity check karta hai — nearby spots detect karke HUD button update karta hai |
-| `handleInteraction()` | Player ke interact button press par action perform karta hai |
-| `exitSpot()` | Current spot se bahar nikalta hai, Firebase mein seat release karta hai |
-
----
-
-### `src/game/engine.js` — GameEngine
-Three.js ka wrapper. **Renderer + Camera + Lighting + Particles**.
-
-| Feature | Details |
-|---------|---------|
-| Renderer | WebGLRenderer, PCFSoft shadows, SRGB color space |
-| Camera | PerspectiveCamera (56° FOV), Third-person 360° orbit |
-| Sky | Pastel gradient SphereGeometry sky dome (canvas texture) |
-| Lights | Ambient + Hemisphere + Directional sun (with shadow maps) |
-| Particles | 130 floating pastel petals (canvas-based sprite texture) |
-| FPS Tracking | Auto quality switch to `low` if avg FPS < 28 |
-| Quality Modes | `high` (shadows + particles) / `low` (shadows/particles off) |
-
----
-
-### `src/game/town.js` — Town
-**150×150 unit procedural world** — no external textures, sab procedurally banaya gaya.
-
-Kya banata hai:
-- Ground plane + boundary walls (pastel purple)
-- Roads aur paths
-- Central fountain plaza
-- River aur bridge
-- Multiple buildings (pastel colored roofs)
-- Romantic gazebo
-- Expanded park area
-- Trees aur street lamps
-- **Collision system** (`checkCollision(x, z, radius)`) — box-based AABB
-
----
-
-### `src/game/character.js` — Character
-**Low-poly procedural 3D character** — no GLTF files, sab Three.js geometry.
-
-| Feature | Details |
-|---------|---------|
-| Slots | Slot 1 = Pink outfit, Slot 2 = Blue outfit |
-| Body Parts | Head, torso, arms, legs, feet — MeshLambertMaterial |
-| Accessories | Hat (mushroom/flower/crown), cup (when at tea stall) |
-| Animations | `idle`, `walk`, `jump`, `swing`, `ride`, `passenger`, `sit`, `sleep`, `hug`, `chop`, `farm`, `slide`, `cheer` |
-| Nickname Label | Billboard canvas texture above character head |
-| Outfit System | `applyOutfit({hat, topColor, bottomColor, accessory})` |
-
----
-
-### `src/game/hands.js` — HandHoldingSystem
-Couple ka **hand-holding mechanic** — mutual consent required (dono players button hold karein).
-
-- Proximity check (3.0 units range)
-- Visual ribbon (pink glowing `THREE.Line`)
-- Movement blending — hands hold karne par dono players close rehte hain, speed kam hoti hai
-- Firebase sync — `syncService.isBothHolding()` se state check hoti hai
+```
+Our-Little-Town/
+├── index.html                   # Master DOM, Viewport locks, Responsive Mobile Styles, HUD templates
+├── package.json                 # Project scripts (dev, build, preview) & dependencies (three, firebase)
+├── vite.config.js               # Dev server host binding, port 5173, SSE middleware setup
+├── database.rules.json          # Security validation rules for Realtime Database rooms
+├── firebase.json                # Firebase hosting & header cache configuration
+├── .env / .env.example          # Firebase project credentials (API Key, Database URL, Project ID)
+│
+├── public/                      # Static assets served as-is
+│   ├── draco/                   # ⚡ Local WebAssembly Draco Decoders (draco_decoder.wasm, js, wrapper)
+│   ├── GLBs/                    # 3D GLTF/GLB Binary Assets
+│   │   ├── ANIMALS (1..3).glb   # 3D Animated models for Dog, Cat, and Rabbit
+│   │   └── assets/              # Modular 3D environment pieces:
+│   │       ├── road-straight-accessible-01.glb   # Real black asphalt road tile with kerbs & markings
+│   │       ├── road-corner-accessible-01.glb     # 90-degree corner road piece
+│   │       ├── agora-flagstone-tile.glb          # Cobblestone courtyard & pedestrian pathway tiles
+│   │       ├── airfield-grass-tile.glb           # Detailed grass tiles for lawn & park floor
+│   │       ├── apartment-block-01.glb            # Multi-story downtown apartment buildings
+│   │       ├── bld-general-store-01.glb          # Village store & hideout cottages
+│   │       ├── big-red-barn.glb                  # Grand farmstead & meadow barns for hide-and-seek
+│   │       ├── bench-01.glb                      # Park sitting benches
+│   │       └── creek-stepping-stones.glb         # Crossing stepping stones
+│   └── audio/                   # Voice lines & situational meme audio clips
+│
+└── src/                         # Source Code
+    ├── main.js                  # 🧠 Master Game Orchestrator & RequestAnimationFrame Tick Loop
+    ├── audio.js                 # 🎵 Web Audio API Sound Synthesizer Engine
+    │
+    ├── game/                    # 🎮 Three.js 3D Game World & Logic
+    │   ├── engine.js            # Scene, Camera Orbit, PCFSoft Shadows, Renderer, Sky & Day/Night
+    │   ├── loader.js            # DRACOLoader + GLTFLoader singleton with local wasm decoding
+    │   ├── town.js              # Town Builder: Ground, GLB roads, stores, barns, fountain, colliders
+    │   ├── character.js         # Procedural Boy/Girl character model, rigging, torch, animations
+    │   ├── hands.js             # Mutual couple hand-holding tether, ribbon & proximity
+    │   ├── pets.js              # Autonomous AI Pet System (Dogs, Cats, Rabbits, Taming & Petting)
+    │   └── spots/               # 📍 Interactive Locations & Vehicles
+    │       ├── bike.js          # Retro Vespa Scooter (Normal / Turbo Fast mode, physics tilt)
+    │       ├── buggy.js         # Retro Beach Buggy / Offroad Jeep (2-Seater, Fast/Normal toggle)
+    │       ├── helicopter.js    # Flyable Helicopter (Dual seats, pitch/roll, altitude control)
+    │       ├── house.js         # 2-Story Couple Villa (Glass elevator, fireplace, master bed, lights)
+    │       ├── canopySwing.js   # Romantic Garden Pergola Canopy Double Swing
+    │       ├── swing.js         # Classic Playground Double Swings
+    │       ├── chair.js         # Village benches system with dual couple seat allocations
+    │       ├── playground.js    # Slide with physics drop, Seesaw
+    │       ├── farming.js       # 4-stage farming cycle (Till → Seed → Water → Harvest)
+    │       ├── treeChopping.js  # Choppable timber trees with health, regrowth & wood inventory
+    │       └── teaStall.js      # Cozy roadside Tea Stall with tea cup drink animations
+    │
+    ├── firebase/                # ☁️ Realtime Networking & Persistence
+    │   ├── config.js            # Firebase App & Database initializer with mock fallback
+    │   ├── roomService.js       # 4-digit room code creation, strict validation, presence management
+    │   ├── syncService.js       # 12.5Hz throttled lerp sync for coordinates, anims, spots & reactions
+    │   ├── localRelay.js        # Local LAN/multi-tab SSE relay server for dev environment
+    │   └── mockFirebase.js      # In-memory BroadcastChannel mock for zero-internet testing
+    │
+    └── ui/                      # 🖥️ DOM HUD & User Controls
+        ├── hud.js               # In-Game Action HUD, speed toggle button, inventory pills, flight row
+        ├── joystick.js          # Virtual touch joystick with camera-relative vector mapping
+        ├── touchLook.js         # 360° screen drag orbit & pinch-to-zoom camera controller
+        ├── emojiTray.js         # Reactive floating emoji drawer, stickers & meme player
+        └── miniGames/           # 🎲 Synchronized In-Game Mini-Games
+            ├── ticTacToe.js     # Real-time competitive 3x3 Tic-Tac-Toe
+            └── outfitGame.js    # "Style Your Partner" interactive closet dressing game
+```
 
 ---
 
-## 🗺️ Interactive Spots
+## ⚡ 3. Core Modules & Engine Internals
 
-| File | Spot | Seats / Actions | Special Features |
-|------|------|----------------|-----------------|
-| `bike.js` | 🛵 Retro Scooter | Driver + Passenger | Drivable, physics-based turning, Firebase sync |
-| `swing.js` | 🎠 Romantic Swings | Seat 1 + Seat 2 | Animated swinging motion |
-| `helicopter.js` | 🚁 Helicopter | Pilot + Passenger | Flyable (altitude up/down), pitch/roll animation |
-| `house.js` | 🏠 Couple Villa | Bed Left + Bed Right | 2-story, working elevator, light switch toggle, zzz particles |
-| `playground.js` | 🛝 Playground | Slide + Seesaw | Animated slide progress, seesaw animation |
-| `chair.js` | 🪑 Park Benches | Left + Right (couple) | 8 locations across town |
-| `teaStall.js` | 🍵 Tea Stall | 1 player interaction | Character holds chai cup |
-| `farming.js` | 🌾 Farm Plots | Multiple plots | 4-stage cycle: `empty → tilled → seeded → growing → ready` |
-| `treeChopping.js` | 🪓 Trees | Any nearby tree | 3 health per tree, wood inventory, trees regrow |
+### 3.1 3D Engine & Graphics Pipeline (`src/game/engine.js`)
+* **Renderer**: `THREE.WebGLRenderer` configured with `antialias: true`, `precision: 'highp'`, `powerPreference: 'high-performance'`, and `THREE.SRGBColorSpace`.
+* **Retina High-Definition**: Automatically locks to `Math.min(window.devicePixelRatio, 2.0)`, giving high sharpness on iPhone Retina and Android AMOLED displays.
+* **Lighting & Shadows**: 
+  - Dynamic `DirectionalLight` (Sun/Moon) casting high-res (1024×1024) `PCFSoftShadowMap`.
+  - Ambient + Hemisphere dual gradient lighting for soft pastel illumination.
+* **Smart Third-Person Orbit Camera**:
+  - Chase camera with 360° horizontal Yaw and vertical Pitch clamps (preventing ground inversion).
+  - Built-in **Raycast Wall Occlusion**: Camera checks obstacles between target character and camera eye, automatically zooming in smoothly (0.28m clearance) so the camera never clips through villa walls or roofs.
+* **Day/Night Cycle**:
+  - Live procedural gradient transition on a negative-scaled spherical SkyDome.
+  - Switches ambient illumination, activates cool moonlight, and automatically turns on the player's handheld flashlight.
+
+### 3.2 Procedural Town & Modular 3D World (`src/game/town.js`)
+* **World Bounds**: 150×150 meter world enclosed by styled perimeter boundary walls with AABB collision boxes.
+* **Modular GLB Road Infrastructure**:
+  - Real black asphalt roads with yellow tactile pavements and white road line markings assembled seamlessly using `road-straight-accessible-01.glb` and `road-corner-accessible-01.glb`.
+  - Cobblestone agora pedestrian tiles leading from the couple villa to the park and farm.
+* **Hide & Seek Cityscape**:
+  - Multi-story apartment buildings (`apartment-block-01.glb`) with doorways left open.
+  - General stores, bakeries, and cafes (`bld-general-store-01.glb`).
+  - Grand Historic Red Barns (`big-red-barn.glb`) with 3.2m entrance doorways.
+  - Tactical cover props: Central plaza marble fountain, romantic gazebo, hay bale stacks, wooden cargo crates, barrels, and flower hedges.
+* **Collision Detection System**:
+  - Optimized composite collision list (`checkCollision(x, z, radius)`) checking both bounding circles (fountain, trees, tables) and AABB bounding boxes (walls, buildings, hedges).
+
+### 3.3 Dynamic Character System (`src/game/character.js`)
+* **Model Rigging**: Hierarchical Three.js procedural character featuring head, torso, shoulder pivots, arm pivots, and hip leg pivots.
+* **Gender Select**:
+  - **Boy**: Sky-blue palette, short combed hair mesh.
+  - **Girl**: Soft pink palette, side pigtails, and angled eyelashes.
+* **Action Animations**: Hand-crafted rotational keyframes for `idle`, `walk`, `jump`, `ride`, `passenger`, `swing`, `sit`, `sleep`, `hug`, `chop`, `farm`, `slide`, and `cheer`.
+* **Dynamic Torch**: Handheld spotlight that activates during Night mode with a targeted forward cone beam.
 
 ---
 
-## ☁️ Firebase Layer
+## 📡 4. Realtime Multiplayer Networking Architecture
 
 ```mermaid
-flowchart LR
-    A["Player A\nbrowser"] -->|"sendState\n~12.5 Hz"| B[("Firebase\nRealtime DB")]
-    C["Player B\nbrowser"] -->|"sendState\n~12.5 Hz"| B
-    B -->|"onValue listener"| A
-    B -->|"onValue listener"| C
+sequenceDiagram
+    autonumber
+    actor Player1 as Host (Player 1)
+    participant RTDB as Firebase Realtime DB
+    actor Player2 as Joiner (Player 2)
+
+    Note over Player1,RTDB: Room Creation Flow
+    Player1->>RTDB: 1. Generate 4-digit code (e.g., 4821)
+    Player1->>RTDB: 2. Set rooms/4821/players/{uid1} (slot: 1, gender, nick)
+    Player1->>RTDB: 3. Set onDisconnect(online = false)
+    Player1-->>Player1: Display Waiting Room & Share Code
+
+    Note over Player2,RTDB: Room Joining Flow
+    Player2->>RTDB: 4. Check rooms/4821 exists & active players < 2
+    Player2->>RTDB: 5. Set rooms/4821/players/{uid2} (slot: 2, gender, nick)
+    Player2->>RTDB: 6. Update rooms/4821/meta/status = 'active'
+    Player2->>RTDB: 7. Set onDisconnect(online = false)
+
+    Note over Player1,Player2: Realtime Gameplay Loop (~12.5 Hz)
+    loop Every 80ms (Dirty Checked)
+        Player1->>RTDB: sendState(x, z, rotY, y, anim)
+        Player2->>RTDB: sendState(x, z, rotY, y, anim)
+        RTDB-->>Player1: onValue(Partner State) -> Smooth LERP
+        RTDB-->>Player2: onValue(Partner State) -> Smooth LERP
+    end
+
+    Note over Player1,Player2: Mutual Action (e.g., Vehicle / Hand Holding)
+    Player1->>RTDB: claimSeat('bike', 'driver') [Transaction]
+    RTDB-->>Player2: Seat occupied -> Update World Transform
 ```
 
-### `roomService.js` — Room Management
-- **Room code**: 5-char alphanumeric (safe chars, no ambiguous like 0/O/1/I)
-- Anonymous Firebase Auth (`signInAnonymously`)
-- Slots: Player 1 = creator, Player 2 = joiner
-- `onDisconnect` hooks — Firebase automatically marks player offline
-- Reconnect on tab visibility / network restore
-- Default outfits stored per player slot
+### 4.1 Room & Presence Management (`roomService.js`)
+* **4-Digit Code System**: Strict numeric 4-digit codes (`1000` to `9999`) for ease of sharing on mobile screens.
+* **Resilient Join Logic**: Checks whether registered slots are currently active (`online !== false`). Abandoned/disconnected slots are automatically recycled so rooms never get permanently locked.
+* **Automatic Disconnect Handlers**: Firebase `onDisconnect()` hooks instantly flip `online: false`, vacate occupied vehicle seats, and release held hands when a player closes their mobile browser or switches tabs.
 
-### `syncService.js` — Real-time Sync
-Kya sync hota hai:
-
-| Data | Frequency | Path |
-|------|-----------|------|
-| Position (x, z, rotY, y) | ~12.5 Hz (80ms throttle, dirty check) | `rooms/{id}/players/{uid}/state` |
-| Animation name | ~12.5 Hz | same as above |
-| Seat occupancy | On interaction | `rooms/{id}/spots/{spotId}/occupants` |
-| Spot extra (heli pos, elevator Y, light state) | On change | `rooms/{id}/spots/{spotId}/extra` |
-| Emoji reactions | On send | `rooms/{id}/reactions` (push) |
-| Tic-Tac-Toe moves | On move | `rooms/{id}/games/tictactoe` |
-| Outfit picks | On change | `rooms/{id}/games/outfit` |
-| Hand holding state | On toggle | `rooms/{id}/hands` |
-
-**Partner Interpolation**: Jerk-free movement — partner ki position smoothly lerp hoti hai har frame mein.
+### 4.2 Interpolated Movement & Throttled Sync (`syncService.js`)
+* **Throttled Broadcast (12.5 Hz)**: Player positions are transmitted every 80ms, but only if position or rotation has moved past a deadzone threshold (`Δ > 0.01m`).
+* **Hermite / Linear Interpolation (LERP)**: The receiving client buffers the partner's last received target vector and smoothly interpolates the position and rotation every frame, eliminating network jitter.
 
 ---
 
-## 🖥️ UI Layer
+## 🕹️ 5. Vehicles, Activities & Systems Matrix
 
-| File | Component | Kya karta hai |
-|------|-----------|--------------|
-| `hud.js` | GameHUD | Room code, interaction button, flight controls, hold hands, hug, inventory, presence indicator, look invite overlay |
-| `joystick.js` | VirtualJoystick | Mobile virtual thumbstick, camera-relative movement vectors return karta hai |
-| `touchLook.js` | TouchLookController | Touch drag → `engine.rotateCamera()`, double-tap → camera reset |
-| `emojiTray.js` | EmojiSystem | Emoji picker tray + floating emoji spawn (absolute positioned DOM elements) |
-| `miniGames/ticTacToe.js` | TicTacToeGame | Full Tic-Tac-Toe shared between both players via Firebase |
-| `miniGames/outfitGame.js` | OutfitGame | Couple outfit designer — partner ke picks ko accept/decline kar sakte ho |
-
----
-
-## 🎵 Audio (`src/audio.js`)
-**100% self-contained Web Audio API synthesizer** — koi external audio files nahi.
-
-| Method | Sound |
-|--------|-------|
-| `playPop()` | Button press / generic interaction |
-| `playCheer()` | Partner joins / slide complete |
-| `playHugChime()` | Hug animation |
-| `playHelicopter()` | Helicopter engine loop |
-| `playBell()` | Elevator arrival |
-| `playElevator(up)` | Elevator move start |
-| `playSip()` | Chai sip |
-| `playSleep()` | Sleep start |
-| `playAngry()` | Angry emoji reaction |
-| `playPlantSeed()` | Farming — plant |
-| `playWaterCrop()` | Farming — water |
-| `playHarvest()` | Farming — harvest |
+| Spot / Feature | File Location | Seats / Roles | Mechanics & Controls |
+| :--- | :--- | :--- | :--- |
+| **Retro Vespa Scooter** | `src/game/spots/bike.js` | Driver + Passenger | Steering physics, tilt banking, **Speed Mode Toggle** (`Normal`: 9.5 m/s, `Turbo Fast`: 16.5 m/s) via UI Button / `KeyF` / `Shift`. |
+| **Beach Buggy Jeep** | `src/game/spots/buggy.js` | Driver + Passenger | Chunky offroad body, steering wheel, **Fast / Normal** speed modes. |
+| **Aerial Helicopter** | `src/game/spots/helicopter.js` | Pilot + Passenger | Real flight mechanics, Altitude Ascent/Descent (`Space`/`C` or HUD buttons), Pitch & Roll tilt. |
+| **Couple Dream Villa** | `src/game/spots/house.js` | Bed Left + Bed Right | 2-Story modern villa, working glass elevator cabin, toggleable living room lighting, sleeping Zzz particle emitter. |
+| **Pergola Canopy Swing** | `src/game/spots/canopySwing.js` | Dual Seats | Romantic curved timber pergola with synced pendulum swing animation. |
+| **Interactive Pets** | `src/game/pets.js` | Dogs, Cats, Rabbits | Autonomous wandering AI, pathfinding, player taming (`Tame!`), following behavior, and petting hearts. |
+| **Hand Holding** | `src/game/hands.js` | Couple (Mutual) | Requires both players to hold button; pink energy ribbon links hands; speed locks into matched pace. |
+| **Farming System** | `src/game/spots/farming.js` | Community Plots | 4-Stage lifecycle: Till Soil → Plant Seed → Water Crop → Harvest. Inventory syncs to player HUD. |
+| **Timber Harvesting** | `src/game/spots/treeChopping.js` | Forest Trees | Ax chopping animation, tree health bar (3 hits), falling trunk animation, timed regrowth. |
+| **Tic-Tac-Toe** | `src/ui/miniGames/ticTacToe.js` | 2 Players | Turn-based 3×3 board synced over Firebase with win detection & animations. |
+| **Style Your Partner** | `src/ui/miniGames/outfitGame.js` | 2 Players | Select hats, top colors, bottom colors, and accessories for your partner with real-time acceptance prompts. |
 
 ---
 
-## 🔄 Game Loop (`onTick`)
+## 🎨 6. UI, Mobile Optimization & Touch Input
 
-```mermaid
-flowchart TD
-    Start["requestAnimationFrame\ndelta time"] --> A["Joystick input\n+ camera vectors"]
-    A --> B["Partner interpolation\nlerp position + anim"]
-    B --> C["Hand holding\nproximity + visual ribbon"]
-    C --> D{"currentSpot?"}
-    D -->|"None"| E["Free movement\n+ collision check\n+ jump/hug physics"]
-    D -->|"heli_pilot"| F["Helicopter control\naltitude + XZ movement"]
-    D -->|"bike_driver"| G["Bike movement\nphysics"]
-    D -->|"swing_1/2"| H["Swing seat\nposition lock"]
-    D -->|"bench_*"| I["Bench seat\nposition lock"]
-    D -->|"playground_slide"| J["Slide progress\nanimation"]
-    D -->|"bed_left/right"| K["Sleep position\nlock"]
-    E --> L["Spot systems update\nswing, teaStall, heli, house..."]
-    F --> L
-    G --> L
-    H --> L
-    I --> L
-    J --> L
-    K --> L
-    L --> M["Sync partner's\nspot extras\nheli/bike/house"]
-    M --> N["updateContextInteraction\nProximity detect → HUD button"]
-    N --> O["Camera follow\ncharacter position"]
-    O --> P["Firebase sendState\n12.5 Hz throttled"]
-```
+* **Zero-Zoom Mobile Viewport**: Locked with `viewport-fit=cover`, `maximum-scale=1.0`, and CSS `touch-action: none` to eliminate unwanted Safari/Chrome rubber-banding.
+* **Virtual Joystick (`src/ui/joystick.js`)**: Dynamic touch thumbstick that calculates movement relative to current camera facing angle.
+* **Touch Look Controller (`src/ui/touchLook.js`)**: Drag on any empty screen area to orbit camera 360° around your character.
+* **Contextual HUD (`src/ui/hud.js`)**: Single floating action button that dynamically adapts label, icon, and callback based on proximity:
+  - Near Bench ➔ `"Sit on Bench 🪑"`
+  - Near Scooter ➔ `"Drive Scooter 🛵"`
+  - Near Farm Plot ➔ `"Plant Seed 🌾"`
+  - Driving Vehicle ➔ `"Speed: Fast / Normal ⚡"` button appears.
 
 ---
 
-## 🌐 Deployment
+## 🔒 7. Security, Deployment & Production Build
 
-| Platform | Config File | Notes |
-|----------|-------------|-------|
-| Firebase Hosting | `firebase.json` | Primary deploy target |
-| Vercel | `vercel.json` | Alternative deploy |
-| PWA | `sw.js` + `manifest.json` | Offline cache, installable |
-
----
-
-## 🧪 Testing
-
-**Playwright** end-to-end tests (`tests/gameplay.spec.js`):
-- PWA manifest & service worker check
-- Portrait orientation overlay
-- Player A creates room → waiting screen
-- Player B joins → both connected
-- Hand holding mechanic
-- Emoji send/receive
-- Tic-Tac-Toe shared game
-- Outfit reveal flow
-- Partner offline detection
-
----
-
-## ⚡ Key Design Decisions
-
-> [!IMPORTANT]
-> **No 3D model files** — saare characters, buildings, spots sab kuch `THREE.BoxGeometry` / `THREE.CylinderGeometry` etc. se procedurally banaye gaye hain. Load time near-zero.
-
-> [!TIP]
-> **Dirty-check sync** — position sirf tab Firebase ko bheja jata hai jab actually change ho (0.01 unit threshold), bandwidth save hota hai.
-
-> [!NOTE]
-> **Mutual consent** mechanic — hand holding, helicopter/bike seats, bench seating sab Firebase transactions se claim kiye jaate hain taaki dono players conflict na ho.
-
-> [!WARNING]
-> **localRelay.js / mockFirebase.js** — Development/testing ke liye hai. Production mein real Firebase config (`.env`) chahiye.
+* **Production Bundler**: Vite transforms and minifies ES modules into optimal chunks in `dist/`.
+* **Draco Decoding Performance**: WebAssembly (`.wasm`) decoder bundled locally in `public/draco/`, ensuring instant geometry decompression without external CDN latency or mobile firewall blocks.
+* **Firebase Rules (`database.rules.json`)**:
+  - Enforces anonymous authentication for read/write access.
+  - Room validation ensures maximum of 2 player slots per room.
+* **Deployment Targets**:
+  - **Firebase Hosting**: Native target configured via `firebase.json`.
+  - **Vercel**: Pre-configured rewrites via `vercel.json`.
+  - **Progressive Web App (PWA)**: Cache-first Service Worker (`sw.js`) and manifest (`manifest.json`) enabling single-tap "Add to Home Screen" full-screen gameplay.

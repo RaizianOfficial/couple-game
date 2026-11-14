@@ -35,11 +35,11 @@ export class TreeChoppingSystem {
   }
 
   buildChoppableTrees() {
-    // North Forest Zone (Choppable Trees) organized in clean groves matching Town Layout Map
+    // North Forest Grove within compact 110x110 bounds (z = -46 to -36, x = -20 to -6 and 6 to 20)
     const treeCoords = [];
-    const zRows = [-56, -50, -42, -36];
-    const xWest = [-24, -20, -16, -12, -8];
-    const xEast = [8, 12, 16, 20, 24];
+    const zRows = [-46, -40, -36];
+    const xWest = [-18, -14, -10, -6];
+    const xEast = [6, 10, 14, 18];
 
     zRows.forEach(z => {
       xWest.forEach(x => treeCoords.push({ x, z }));

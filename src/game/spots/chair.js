@@ -38,10 +38,10 @@ export class ChairSpotSystem {
   buildInteractiveBenches() {
     // Couple benches positioned strictly matching the Town Layout Map
     const benchLocations = [
-      { id: 'bench_park_1', x: 36.0, z: 16.0, rot: 0 },
-      { id: 'bench_park_2', x: 44.0, z: 16.0, rot: 0 },
-      { id: 'bench_street', x: 18.0, z: 42.0, rot: Math.PI },
-      { id: 'bench_yard', x: 10.5, z: -1.2, rot: -Math.PI / 2 },
+      { id: 'bench_park_1', x: 34.0, z: 12.0, rot: 0 },
+      { id: 'bench_park_2', x: 42.0, z: 12.0, rot: 0 },
+      { id: 'bench_street', x: 12.0, z: 36.0, rot: Math.PI },
+      { id: 'bench_yard', x: 10.2, z: -1.2, rot: -Math.PI / 2 },
       { id: 'bench_forest_view', x: 0.0, z: -28.0, rot: 0 }
     ];
 

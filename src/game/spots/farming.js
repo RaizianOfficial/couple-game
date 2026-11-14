@@ -8,8 +8,8 @@ export class FarmingSpot {
     this.town = town;
     this.id = 'farming';
 
-    // Located in the West Cozy Backyard (strictly matching Town Layout Map)
-    this.position = new THREE.Vector3(-34, 0, 0);
+    // Located in the West Cozy Backyard beyond the river bridge
+    this.position = new THREE.Vector3(-38, 0, 0);
     this.cropInventory = 0;
     this.plots = [];
     this.sparkles = [];

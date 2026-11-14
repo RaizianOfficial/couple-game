@@ -9,8 +9,8 @@ export class BuggySpot {
     this.driverUid = null;
     this.passengerUid = null;
 
-    // Placed at South Main Street Scooter & Buggy Parking
-    this.position = new THREE.Vector3(2, 0, 42);
+    // Placed at South Promenade Vehicle Parking Bay
+    this.position = new THREE.Vector3(2, 0, 38);
     this.rotationY = 0;
     this.speed = 0;
     this.speedMode = 'normal'; // 'normal' (smooth cruising) or 'fast' (turbo)

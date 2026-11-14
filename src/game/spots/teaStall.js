@@ -6,7 +6,7 @@ export class TeaStallSpot {
     this.scene = scene;
     this.town = town;
     this.id = 'teaStall';
-    this.position = new THREE.Vector3(-22, 0, 42); // Located on South Main Street (Chai Stall)
+    this.position = new THREE.Vector3(-14, 0, 36); // Located at South Promenade Promenade
     this.rotationY = Math.PI;
 
     this.cupHolderUid = null;
